@@ -15,6 +15,7 @@ import {
   Save,
   Download,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL } from "@/lib/constants";
@@ -50,6 +51,17 @@ export default function OrderDetailPage() {
 
   const [internalNote, setInternalNote] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
+  /*
+   * The PDF is generated on demand, so there is a real pause between the click
+   * and the browser's download prompt. Tracking it lets the button show a
+   * spinner and disable itself; without that the click looks inert and a
+   * second one generates the invoice twice.
+   *
+   * Declared here with the other hooks: this component returns early while
+   * loading, so a useState below that point would run conditionally and break
+   * the rules of hooks.
+   */
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -144,14 +156,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  /*
-   * The PDF is generated on demand, so there is a real pause between the click
-   * and the browser's download prompt. Tracking that in state lets the button
-   * show a spinner and disable itself — without it the click looks like it did
-   * nothing, and people click again and generate the invoice twice.
-   */
-  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
-
   const handleDownloadInvoice = async () => {
     if (downloadingInvoice) return;
     setDownloadingInvoice(true);
@@ -203,13 +207,45 @@ export default function OrderDetailPage() {
               </Button>
             )}
             {canRefund && (
-              <Button variant="danger" onClick={openRefundModal}>
+              <Button
+                variant="danger"
+                onClick={openRefundModal}
+                title={`Refund up to ₹${maxRefundRupees} to the customer`}
+              >
                 <RotateCcw size={15} /> Refund
               </Button>
             )}
           </>
         }
       />
+
+      {/*
+        Cancelled but still holding the customer's money.
+
+        Cancelling restocks and reverses the coupon, but never moves money —
+        that is a separate, irreversible action. Without this banner the only
+        signal is a PAID pill next to a CANCELLED pill, which is easy to read
+        past, and the customer stays out of pocket for an order that will
+        never ship.
+      */}
+      {order.awaitingRefund && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-[#F5D9D6] bg-red-wash px-4 py-3 text-[12.5px] leading-snug text-red-deep">
+          <AlertTriangle size={16} className="shrink-0" />
+          <div className="flex-1 min-w-[240px]">
+            <strong className="font-semibold">This cancelled order has not been refunded.</strong>{" "}
+            The customer was charged ₹{(order.totalPaise / 100).toLocaleString("en-IN")} and
+            {order.refundedPaise > 0
+              ? ` only ₹${(order.refundedPaise / 100).toLocaleString("en-IN")} has been returned.`
+              : " nothing has been returned."}{" "}
+            Cancelling does not move money — issue the refund here.
+          </div>
+          {canRefund && (
+            <Button variant="danger" size="sm" onClick={openRefundModal}>
+              <RotateCcw size={14} /> Refund ₹{maxRefundRupees}
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* lifecycle tracker */}
       <Card className="mb-4">

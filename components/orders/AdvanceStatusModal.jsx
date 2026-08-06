@@ -153,10 +153,29 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
 
         {isDanger && (
           <div className="mb-4">
-            <WarnBox>
-              Cancelling stops fulfilment for this order. If it was already paid, process the refund
-              separately from the order page.
-            </WarnBox>
+            {/*
+              When the order is actually paid, name the amount.
+
+              The generic "if it was already paid" wording left the operator to
+              work out whether money was involved. Cancelling never refunds, so
+              on a paid order this is the last screen before the customer is
+              left out of pocket — it should say so in rupees.
+            */}
+            {order?.paymentStatus === "PAID" || order?.paymentStatus === "PARTIALLY_REFUNDED" ? (
+              <WarnBox>
+                <strong className="font-semibold">
+                  This order is paid — cancelling will NOT refund it.
+                </strong>{" "}
+                ₹{((order.totalPaise - (order.refundedPaise || 0)) / 100).toLocaleString("en-IN")}{" "}
+                will still be held from the customer. Stock is returned and the coupon reversed,
+                but you must issue the refund yourself from the order page afterwards.
+              </WarnBox>
+            ) : (
+              <WarnBox>
+                Cancelling stops fulfilment for this order. Stock is returned and any coupon
+                redemption is reversed.
+              </WarnBox>
+            )}
           </div>
         )}
 
