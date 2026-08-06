@@ -166,7 +166,10 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
                 <strong className="font-semibold">
                   This order is paid — cancelling will NOT refund it.
                 </strong>{" "}
-                ₹{((order.totalPaise - (order.refundedPaise || 0)) / 100).toLocaleString("en-IN")}{" "}
+                ₹
+                {(
+                  Math.max(0, (order.totalPaise ?? 0) - (order.refundedPaise ?? 0)) / 100
+                ).toLocaleString("en-IN")}{" "}
                 will still be held from the customer. Stock is returned and the coupon reversed,
                 but you must issue the refund yourself from the order page afterwards.
               </WarnBox>

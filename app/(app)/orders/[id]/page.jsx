@@ -233,15 +233,15 @@ export default function OrderDetailPage() {
           <AlertTriangle size={16} className="shrink-0" />
           <div className="flex-1 min-w-[240px]">
             <strong className="font-semibold">This cancelled order has not been refunded.</strong>{" "}
-            The customer was charged ₹{(order.totalPaise / 100).toLocaleString("en-IN")} and
-            {order.refundedPaise > 0
-              ? ` only ₹${(order.refundedPaise / 100).toLocaleString("en-IN")} has been returned.`
+            The customer was charged {formatPaise(order.totalPaise ?? 0)} and
+            {(order.refundedPaise ?? 0) > 0
+              ? ` only ${formatPaise(order.refundedPaise)} has been returned.`
               : " nothing has been returned."}{" "}
             Cancelling does not move money — issue the refund here.
           </div>
           {canRefund && (
             <Button variant="danger" size="sm" onClick={openRefundModal}>
-              <RotateCcw size={14} /> Refund ₹{maxRefundRupees}
+              <RotateCcw size={14} /> Refund {formatPaise((order.refundableePaise ?? 0))}
             </Button>
           )}
         </div>
