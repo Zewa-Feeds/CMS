@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zewa Feeds — CMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   ZEWA FEEDS CMS — design tokens
+   Palette is taken directly from spec §17.2. Sidebar navy from §3.1.
+   Every value below maps 1:1 to a Tailwind theme token when you port this.
+   ========================================================================== */
+:root{
+  /* brand / chrome */
+  --navy:#080C18;        /* sidebar, per spec §3.1 */
+  --navy-2:#131A2B;      /* sidebar hover */
+  --navy-3:#222C41;      /* sidebar hairlines */
+  --navy-text:#96A3B8;   /* sidebar idle label */
+
+  /* semantic — spec §17.2 */
+  --teal:#44E5C2;        /* primary actions: Save, Approve, Publish */
+  --teal-hover:#31D3B0;
+  --teal-ink:#04241E;    /* text on teal */
+  --teal-wash:#E2FBF5;
+  --teal-deep:#0A7A64;
+
+  --green:#34D399;       --green-wash:#E7F8F1;  --green-deep:#0E7A55;
+  --amber:#F59E0B;       --amber-wash:#FEF4E3;  --amber-deep:#9A6209;
+  --red:#F87171;         --red-wash:#FDECEC;    --red-deep:#C0392F;
+  --grey:#7E8EA4;        --grey-wash:#EFF2F6;   --grey-deep:#5A6779;
+  --blue:#60A5FA;        --blue-wash:#E9F1FE;   --blue-deep:#2563C4;
+
+  /* surfaces */
+  --canvas:#F6F7F9;
+  --card:#FFFFFF;
+  --line:#E4E8EE;
+  --line-soft:#EEF1F5;
+  --text:#0F1626;
+  --muted:#64748B;
+  --muted-2:#94A3B8;
+
+  --r-sm:6px; --r:9px; --r-lg:13px;
+  --shadow:0 1px 2px rgba(15,22,38,.04), 0 1px 3px rgba(15,22,38,.05);
+  --shadow-pop:0 16px 40px -12px rgba(15,22,38,.22), 0 4px 12px rgba(15,22,38,.06);
+  --sans:'Instrument Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --nav-w:240px;   /* spec §3.1 */
+  --nav-w-mini:60px;
+  --topbar-h:57px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--canvas);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px;border-radius:5px}
+::selection{background:var(--teal-wash)}
+
+/* mono carries every system-owned value: SKUs, slugs, order numbers, ₹, IPs, timestamps */
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)}
+.req{color:var(--red-deep)}                       /* required asterisk, spec §17.3 */
+.err{color:var(--red-deep);font-size:11.5px;margin-top:5px;display:flex;gap:5px;align-items:center}
+
+/* ==========================================================================
+   SHELL
+   ========================================================================== */
+.app{display:grid;grid-template-columns:var(--nav-w) 1fr;min-height:100vh}
+.app.mini{grid-template-columns:var(--nav-w-mini) 1fr}
+
+/* ---------- sidebar ---------- */
+.nav{background:var(--navy);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;z-index:30}
+.nav-brand{display:flex;align-items:center;gap:10px;height:var(--topbar-h);padding:0 16px;border-bottom:1px solid var(--navy-3);flex:none}
+.logo{width:28px;height:28px;border-radius:8px;flex:none;background:var(--teal);color:var(--teal-ink);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:13px}
+.logo-txt{color:#fff;font-weight:600;font-size:14.5px;letter-spacing:-.01em;white-space:nowrap}
+.app.mini .logo-txt{display:none}
+
+.nav-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px}
+.nav-scroll::-webkit-scrollbar{width:6px}
+.nav-scroll::-webkit-scrollbar-thumb{background:var(--navy-3);border-radius:3px}
+
+.nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:8px 9px;border:0;border-radius:8px;background:none;color:var(--navy-text);cursor:pointer;text-align:left;font-size:13.5px;font-weight:500;position:relative}
+.nav-item:hover{background:var(--navy-2);color:#fff}
+.nav-item.on{background:var(--navy-2);color:#fff}
+/* the teal tick is the only accent in the rail — it marks where you are */
+.nav-item.on::before{content:"";position:absolute;left:-10px;top:50%;transform:translateY(-50%);width:3px;height:17px;border-radius:0 3px 3px 0;background:var(--teal)}
+.nav-item svg{width:17px;height:17px;flex:none;stroke-width:1.7}
+.nav-label{white-space:nowrap;overflow:hidden}
+.app.mini .nav-label,.app.mini .nav-badge,.app.mini .nav-caret{display:none}
+.app.mini .nav-item{justify-content:center;padding:9px}
+.app.mini .nav-sub{display:none}
+
+.nav-badge{margin-left:auto;font-family:var(--mono);font-size:10.5px;font-weight:500;background:var(--amber);color:#3A2703;padding:1px 6px;border-radius:20px;line-height:1.5}
+.nav-caret{margin-left:auto;width:13px;height:13px;transition:transform .16s;opacity:.6}
+.nav-item.open .nav-caret{transform:rotate(90deg)}
+.nav-sub{padding:2px 0 4px 38px;display:flex;flex-direction:column}
+.nav-sub button{border:0;background:none;color:var(--navy-text);text-align:left;padding:5px 9px;border-radius:6px;font-size:12.5px;cursor:pointer}
+.nav-sub button:hover{color:#fff;background:var(--navy-2)}
+.nav-sub button.on{color:var(--teal)}
+
+.nav-foot{border-top:1px solid var(--navy-3);padding:10px;flex:none}
+.collapse-btn{display:flex;align-items:center;gap:11px;width:100%;padding:8px 9px;border:0;border-radius:8px;background:none;color:var(--navy-text);cursor:pointer;font-size:12.5px}
+.collapse-btn:hover{background:var(--navy-2);color:#fff}
+.collapse-btn svg{width:16px;height:16px;flex:none}
+.app.mini .collapse-btn{justify-content:center}
+.app.mini .collapse-btn svg{transform:rotate(180deg)}
+
+/* ---------- topbar ---------- */
+.topbar{position:sticky;top:0;z-index:20;height:var(--topbar-h);background:rgba(246,247,249,.88);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px}
+
+/* role badge doubles as the RBAC switcher — spec §2 */
+.role-badge{display:flex;align-items:center;gap:7px;padding:5px 9px 5px 11px;border:1px solid var(--line);background:var(--card);border-radius:20px;cursor:pointer;font-size:12.5px;font-weight:500;white-space:nowrap}
+.role-badge:hover{border-color:#CFD6E0}
+.role-badge .dot{width:6px;height:6px;border-radius:50%}
+.role-badge svg{width:13px;height:13px;color:var(--muted-2)}
+
+.gsearch{flex:1;max-width:440px;margin:0 auto;position:relative}
+.gsearch input{width:100%;padding:8px 12px 8px 34px;background:var(--card);border:1px solid var(--line);border-radius:9px;font-size:13px}
+.gsearch input::placeholder{color:var(--muted-2)}
+.gsearch>svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted-2)}
+.gs-results{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-pop);overflow:hidden;display:none;max-height:340px;overflow-y:auto}
+.gs-results.show{display:block}
+.gs-group{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);padding:9px 13px 5px;background:var(--canvas)}
+.gs-row{display:flex;align-items:center;gap:9px;padding:8px 13px;cursor:pointer;font-size:13px}
+.gs-row:hover{background:var(--canvas)}
+.gs-row .mono{font-size:11.5px;color:var(--muted-2);margin-left:auto}
+
+.userbtn{display:flex;align-items:center;gap:8px;padding:4px 9px 4px 4px;border:1px solid transparent;border-radius:20px;background:none;cursor:pointer}
+.userbtn:hover{background:var(--card);border-color:var(--line)}
+.avatar{width:28px;height:28px;border-radius:50%;flex:none;background:var(--navy);color:var(--teal);display:grid;place-items:center;font-size:11.5px;font-weight:600}
+.userbtn svg{width:13px;height:13px;color:var(--muted-2)}
+
+.menu{position:absolute;top:calc(100% - 4px);right:20px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-pop);padding:5px;min-width:190px;display:none;z-index:40}
+.menu.show{display:block}
+.menu button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border:0;background:none;border-radius:6px;font-size:13px;cursor:pointer;text-align:left}
+.menu button:hover{background:var(--canvas)}
+.menu button svg{width:15px;height:15px;color:var(--muted)}
+.menu hr{border:0;border-top:1px solid var(--line-soft);margin:5px 0}
+.menu .mhead{padding:8px 9px 6px;font-size:12px;color:var(--muted)}
+
+/* ---------- main ---------- */
+.main{display:flex;flex-direction:column;min-width:0;position:relative}
+.view{width:100%;max-width:1280px;margin:0 auto;padding:20px 20px 96px}  /* spec §3.1: 1280 centred */
+
+.crumbs{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.crumbs button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0}
+.crumbs button:hover{color:var(--text);text-decoration:underline}
+.crumbs .sep{color:var(--muted-2)}
+.crumbs .now{color:var(--text);font-weight:500}
+
+.page-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.page-title{font-size:21px;font-weight:600;letter-spacing:-.025em;line-height:1.2}
+.page-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.page-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ==========================================================================
+   PRIMITIVES
+   ========================================================================== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 13px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s,opacity .12s}
+.btn:hover{background:#FBFCFD;border-color:#CFD6E0}
+.btn svg{width:15px;height:15px;flex:none}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+.btn[disabled]:hover{background:var(--card);border-color:var(--line)}
+.btn-primary{background:var(--teal);border-color:var(--teal);color:var(--teal-ink);font-weight:600}
+.btn-primary:hover{background:var(--teal-hover);border-color:var(--teal-hover)}
+.btn-dark{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn-dark:hover{background:var(--navy-2);border-color:var(--navy-2)}
+.btn-ghost{background:none;border-color:transparent}
+.btn-ghost:hover{background:var(--grey-wash);border-color:transparent}
+.btn-danger{color:var(--red-deep);border-color:#F3D6D4}
+.btn-danger:hover{background:var(--red-wash);border-color:#EBBDB9}
+.btn-sm{padding:5px 10px;font-size:12.5px;border-radius:7px;gap:5px}
+.btn-sm svg{width:14px;height:14px}
+.btn-icon{padding:7px}
+.btn-icon.btn-sm{padding:5px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;gap:11px;padding:14px 16px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.card-title{font-size:14.5px;font-weight:600;letter-spacing:-.01em}
+.card-body{padding:16px}
+.card-foot{padding:12px 16px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2.5px 9px;border-radius:20px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.pill i{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.p-green{background:var(--green-wash);color:var(--green-deep)}
+.p-amber{background:var(--amber-wash);color:var(--amber-deep)}
+.p-red{background:var(--red-wash);color:var(--red-deep)}
+.p-grey{background:var(--grey-wash);color:var(--grey-deep)}
+.p-blue{background:var(--blue-wash);color:var(--blue-deep)}
+.p-teal{background:var(--teal-wash);color:var(--teal-deep)}
+
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;background:var(--grey-wash);border:1px solid var(--line-soft);font-size:11.5px;color:var(--grey-deep);white-space:nowrap}
+
+.thumb{border-radius:8px;flex:none;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:600;border:1px solid rgba(15,22,38,.06);width:36px;height:36px}
+
+/* ---------- tables ---------- */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 16px;font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2);border-bottom:1px solid var(--line-soft);white-space:nowrap;background:var(--card)}
+th.sortable{cursor:pointer;user-select:none}
+th.sortable:hover{color:var(--muted)}
+th .arw{opacity:0;margin-left:4px}
+th.sorted .arw{opacity:1}
+td{padding:11px 16px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:#FBFCFD}
+.t-right{text-align:right}
+.t-actions{display:flex;gap:3px;justify-content:flex-end;align-items:center}
+.cellsub{font-size:11.5px;color:var(--muted-2);margin-top:1px}
+
+.pager{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--line-soft);font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.pager .grow{margin-left:auto;display:flex;gap:4px}
+.pg{min-width:28px;height:28px;padding:0 8px;border:1px solid var(--line);background:var(--card);border-radius:7px;font-size:12.5px;cursor:pointer;font-family:var(--mono)}
+.pg:hover{background:var(--canvas)}
+.pg.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+.filterbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+
+/* ---------- forms (spec §3.1: two-column desktop, one on tablet) ---------- */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.span2{grid-column:1/-1}
+.field{margin-bottom:15px}
+.label{display:block;font-size:12.5px;font-weight:600;margin-bottom:6px}
+.hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+.counter{float:right;font-family:var(--mono);font-size:11px;color:var(--muted-2);font-weight:400}
+.input,.select,.textarea{width:100%;padding:8.5px 11px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);font-size:13.5px}
+.input:hover,.select:hover,.textarea:hover{border-color:#CFD6E0}
+.input[readonly]{background:var(--grey-wash);color:var(--muted);cursor:not-allowed}
+.input.bad{border-color:var(--red);background:#FFFBFB}
+.textarea{min-height:92px;resize:vertical;line-height:1.6}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:15px;padding-right:32px}
+.igroup{display:flex}
+.igroup .addon{display:grid;place-items:center;padding:0 11px;background:var(--grey-wash);border:1px solid var(--line);border-right:0;border-radius:var(--r) 0 0 var(--r);font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.igroup .input{border-radius:0 var(--r) var(--r) 0}
+.igroup .addon-r{border:1px solid var(--line);border-left:0;border-radius:0 var(--r) var(--r) 0}
+.igroup .input.has-r{border-radius:var(--r) 0 0 var(--r)}
+
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.track{width:36px;height:21px;border-radius:20px;background:#CBD3DE;position:relative;transition:background .15s;flex:none}
+.track::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.switch input:checked+.track{background:var(--green)}
+.switch input:checked+.track::after{transform:translateX(15px)}
+.switch input:focus-visible+.track{outline:2px solid var(--teal-deep);outline-offset:2px}
+
+.check{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px}
+.check input{width:16px;height:16px;margin-top:2px;accent-color:var(--teal-deep);flex:none}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tab{padding:9px 13px;border:0;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--navy)}
+.tab .n{font-family:var(--mono);font-size:11px;color:var(--muted-2);margin-left:5px}
+.tab.on .n{color:var(--muted)}
+
+/* ---------- dashboard counters (spec §4 — exactly four things) ---------- */
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.counter-card{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);cursor:pointer;text-align:left;width:100%;font:inherit;transition:border-color .12s,transform .12s}
+.counter-card:hover{border-color:#CFD6E0;transform:translateY(-1px)}
+.counter-icon{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none}
+.counter-icon svg{width:19px;height:19px}
+.counter-n{font-family:var(--mono);font-size:27px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.counter-l{font-size:12.5px;color:var(--muted);margin-top:3px}
+.counter-go{margin-left:auto;color:var(--muted-2);width:16px;height:16px;flex:none}
+
+/* ---------- activity feed ---------- */
+.feed-row{display:flex;gap:11px;padding:11px 16px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
+.feed-row:last-child{border-bottom:0}
+.feed-dot{width:7px;height:7px;border-radius:50%;margin-top:6px;flex:none}
+.feed-body{min-width:0;flex:1}
+.feed-txt{font-size:13px;line-height:1.45}
+.feed-meta{font-size:11.5px;color:var(--muted-2);margin-top:2px;font-family:var(--mono)}
+
+/* ---------- empty state (spec §17.1: an invitation) ---------- */
+.empty{text-align:center;padding:48px 20px}
+.empty-mark{width:44px;height:44px;margin:0 auto 13px;border-radius:12px;background:var(--teal-wash);color:var(--teal-deep);display:grid;place-items:center}
+.empty-mark svg{width:20px;height:20px}
+.empty h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.empty p{font-size:13px;color:var(--muted);max-width:320px;margin:0 auto 16px}
+
+/* ---------- draft → preview → publish action bar (spec §5.2, §8.3) ---------- */
+.publish-bar{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);margin-bottom:16px;flex-wrap:wrap}
+.publish-state{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted)}
+.publish-bar .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- sticky unsaved-changes banner (spec §3.1) ---------- */
+.unsaved{position:fixed;left:50%;bottom:22px;transform:translate(-50%,120px);z-index:60;display:flex;align-items:center;gap:12px;background:var(--navy);color:#fff;padding:10px 12px 10px 16px;border-radius:12px;box-shadow:var(--shadow-pop);transition:transform .26s cubic-bezier(.2,.8,.3,1);max-width:calc(100vw - 32px)}
+.unsaved.show{transform:translate(-50%,0)}
+.unsaved .msg{font-size:13px;display:flex;align-items:center;gap:9px}
+.unsaved .msg svg{width:16px;height:16px;color:var(--amber);flex:none}
+
+/* ---------- modals ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,12,24,.5);opacity:0;pointer-events:none;transition:opacity .18s;z-index:70;display:grid;place-items:center;padding:20px;overflow-y:auto}
+.scrim.show{opacity:1;pointer-events:auto}
+#modalHost{width:100%;max-width:640px;margin:auto;display:flex;justify-content:center}
+.modal{background:var(--card);border-radius:15px;box-shadow:var(--shadow-pop);width:100%;max-width:460px;transform:translateY(10px) scale(.985);transition:transform .18s cubic-bezier(.2,.8,.3,1);margin:auto}
+.modal.wide{max-width:620px}
+.scrim.show .modal{transform:none}
+.modal-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px}
+.modal-title{font-size:15.5px;font-weight:600;letter-spacing:-.01em}
+.modal-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.modal-x{margin-left:auto;border:0;background:none;cursor:pointer;color:var(--muted-2);padding:3px;border-radius:6px;flex:none}
+.modal-x:hover{background:var(--grey-wash);color:var(--text)}
+.modal-body{padding:0 18px 4px;max-height:62vh;overflow-y:auto}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px 16px;flex-wrap:wrap}
+
+.warnbox{display:flex;gap:10px;padding:11px 12px;border-radius:var(--r);background:var(--red-wash);border:1px solid #F5D9D6;font-size:12.5px;color:var(--red-deep);line-height:1.45}
+.warnbox svg{width:16px;height:16px;flex:none;margin-top:1px}
+.infobox{display:flex;gap:10px;padding:11px 12px;border-radius:var(--r);background:var(--blue-wash);border:1px solid #D5E5FC;font-size:12.5px;color:var(--blue-deep);line-height:1.45}
+.infobox svg{width:16px;height:16px;flex:none;margin-top:1px}
+
+/* ---------- toast (spec §17.1: green Saved / red Error) ---------- */
+.toast-wrap{position:fixed;bottom:22px;right:22px;z-index:90;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--green);padding:10px 14px;border-radius:10px;box-shadow:var(--shadow-pop);font-size:13px;opacity:0;transform:translateY(10px);transition:.22s;max-width:340px}
+.toast.show{opacity:1;transform:none}
+.toast.bad{border-left-color:var(--red)}
+.toast svg{width:16px;height:16px;flex:none;color:var(--green-deep)}
+.toast.bad svg{color:var(--red-deep)}
+
+/* ---------- misc layout helpers ---------- */
+.split{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start}
+.split-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+.rowline{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.rowline:last-child{border-bottom:0}
+.rowline .k{color:var(--muted);min-width:132px}
+.rowline .v{font-weight:500}
+.locked{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted-2)}
+.locked svg{width:12px;height:12px}
+
+.stars{color:var(--amber);letter-spacing:1px;font-size:13px}
+.stars .off{color:#D8DEE7}
+
+.dropzone{border:1.5px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;cursor:pointer;background:var(--canvas)}
+.dropzone:hover{border-color:var(--teal);background:var(--teal-wash)}
+.dropzone svg{width:20px;height:20px;color:var(--muted-2);margin-bottom:6px}
+
+.repeat-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.repeat-row .input{flex:1}
+.grab{color:var(--muted-2);cursor:grab;flex:none;display:grid;place-items:center;width:20px}
+.grab svg{width:15px;height:15px}
+
+/* ==========================================================================
+   RESPONSIVE — desktop primary, tablet supported (spec §17.1)
+   ========================================================================== */
+@media (max-width:1100px){
+  .split,.split-3{grid-template-columns:1fr}
+  .counters{grid-template-columns:1fr}
+}
+@media (max-width:900px){
+  .app,.app.mini{grid-template-columns:1fr}
+  .nav{position:fixed;width:var(--nav-w);transform:translateX(-100%);transition:transform .22s cubic-bezier(.2,.8,.3,1)}
+  .nav.open{transform:none}
+  .app.mini .nav{--nav-w:240px;width:240px}
+  .app.mini .logo-txt,.app.mini .nav-label,.app.mini .nav-badge,.app.mini .nav-caret,.app.mini .nav-sub{display:revert}
+  .app.mini .nav-item{justify-content:flex-start;padding:8px 9px}
+  .menu-btn{display:grid !important}
+  .gsearch{max-width:none}
+  .form-grid{grid-template-columns:1fr}
+}
+@media (max-width:620px){
+  .gsearch{display:none}
+  .page-actions{margin-left:0;width:100%}
+  .view{padding:16px 14px 96px}
+  .topbar{padding:0 14px}
+}
+.menu-btn{display:none;place-items:center;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px;cursor:pointer}
+.menu-btn svg{width:16px;height:16px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
+</style>
+
+<!-- ==========================================================================
+     SHELL MARKUP
+     ========================================================================== -->
+<div class="app" id="app">
+
+  <aside class="nav" id="nav">
+    <div class="nav-brand">
+      <div class="logo">Z</div>
+      <div class="logo-txt">Zewa Feeds</div>
+    </div>
+    <nav class="nav-scroll" id="navScroll" aria-label="Main"></nav>
+    <div class="nav-foot">
+      <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span class="nav-label">Collapse</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Open navigation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+
+      <!-- Role badge (spec 3.1). Made interactive so the RBAC matrix in 2.1 can be demoed. -->
+      <button class="role-badge" id="roleBtn" aria-haspopup="true">
+        <span class="dot" id="roleDot"></span>
+        <span id="roleLabel">Admin</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="menu" id="roleMenu" style="left:20px;right:auto"></div>
+
+      <!-- Global search: orders + customers + products at once (spec 3.1) -->
+      <div class="gsearch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="gsInput" placeholder="Search orders, customers, products..." autocomplete="off" aria-label="Global search">
+        <div class="gs-results" id="gsResults"></div>
+      </div>
+
+      <button class="userbtn" id="userBtn" aria-haspopup="true">
+        <span class="avatar" id="userAv">RK</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="menu" id="userMenu"></div>
+    </header>
+
+    <main class="view" id="view" tabindex="-1"></main>
+  </div>
+</div>
+
+<div class="unsaved" id="unsaved">
+  <span class="msg">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+    You have unsaved changes
+  </span>
+  <button class="btn btn-sm btn-ghost" id="discardBtn" style="color:#96A3B8">Discard</button>
+  <button class="btn btn-sm btn-primary" id="saveBtn">Save</button>
+</div>
+
+<div class="scrim" id="scrim"><div id="modalHost"></div></div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/* ==========================================================================
+   0. UTIL
+   ========================================================================== */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const inr = n => '\u20B9' + Number(n).toLocaleString('en-IN');
+const svgi = (d, w) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w||1.8) + '" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+
+const I = {
+  dash:   '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  box:    '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  cart:   '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a2 2 0 002 1.6h8.2a2 2 0 002-1.6L22 7H6"/>',
+  user:   '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  pen:    '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>',
+  ticket: '<path d="M3 9a2 2 0 002-2V6a1 1 0 011-1h12a1 1 0 011 1v1a2 2 0 000 4v1a2 2 0 000 4v1a1 1 0 01-1 1H6a1 1 0 01-1-1v-1a2 2 0 00-2-2z"/><path d="M13 6v12" stroke-dasharray="2 3"/>',
+  star:   '<path d="M12 2l3 6.5 7 .9-5 4.8 1.2 7-6.2-3.4L5.8 21 7 14.2 2 9.4l7-.9z"/>',
+  users:  '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="3.5"/><path d="M22 21v-2a4 4 0 00-3-3.9"/><path d="M16 3.1a4 4 0 010 7.8"/>',
+  log:    '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/>',
+  cog:    '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.14.31.4.55.71.66H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+  chev:   '<path d="M9 18l6-6-6-6"/>',
+  plus:   '<path d="M12 5v14M5 12h14"/>',
+  eye:    '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/>',
+  up:     '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  ext:    '<path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
+  trash:  '<path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>',
+  check:  '<path d="M20 6L9 17l-5-5"/>',
+  x:      '<path d="M18 6L6 18M6 6l12 12"/>',
+  alert:  '<path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  info:   '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+  img:    '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  lock:   '<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>',
+  dl:     '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>',
+  grip:   '<circle cx="9" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
+  out:    '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>',
+  key:    '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L21 2M17 6l3 3M14 9l3 3"/>',
+  filter: '<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>',
+  copy:   '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>'
+};
+
+/* ==========================================================================
+   1. RBAC — spec 2 and 2.1
+   ========================================================================== */
+const ROLES = {
+  editor: {name:'Content Editor', dot:'var(--blue)',  who:'Marketing / Copywriter', av:'PS', person:'Priya Shah'},
+  ops:    {name:'Ops Manager',    dot:'var(--amber)', who:'Operations / Logistics', av:'RK', person:'Rahul Kamat'},
+  admin:  {name:'Admin',          dot:'var(--teal)',  who:'Business Owner / CTO',   av:'AN', person:'Aditi Nair'}
+};
+let ROLE = 'admin';
+
+const CAN = {
+  'articles.publish': ['ops','admin'],
+  'articles.delete':  ['admin'],
+  'products.view':    ['editor','ops','admin'],
+  'products.edit':    ['ops','admin'],
+  'orders.view':      ['ops','admin'],
+  'orders.status':    ['ops','admin'],
+  'orders.refund':    ['admin'],
+  'orders.export':    ['admin'],
+  'customers.view':   ['ops','admin'],
+  'customers.ban':    ['admin'],
+  'reviews.moderate': ['ops','admin'],
+  'coupons.edit':     ['ops','admin'],
+  'coupons.delete':   ['admin'],
+  'users.manage':     ['admin'],
+  'settings.manage':  ['admin'],
+  'audit.all':        ['admin'],
+  'audit.own':        ['ops','admin']
+};
+const can = k => (CAN[k] || []).includes(ROLE);
+
+/* ==========================================================================
+   2. SAMPLE DATA — fish feed catalogue per spec 5
+   ========================================================================== */
+const CATS = ['Betta','Cichlid','Hatchery','Guppy'];
+const catColor = c => ({Betta:'#60A5FA', Cichlid:'#F59E0B', Hatchery:'#34D399', Guppy:'#C084FC'}[c] || '#7E8EA4');
+
+const PRODUCTS = [
+  {id:1, name:'Betta Bites F3',            slug:'betta-bites-f3',            cat:'Betta',    status:'Active',       badge:'BESTSELLER', stock:142, protein:42, upd:'23 Jul 2026', by:'Rahul Kamat', draft:true,
+   variants:[{sku:'F3-45G', pack:'45 g', mrp:299, price:249, stock:96, hsn:'23099090'},{sku:'F3-1KG', pack:'1 kg', mrp:2100, price:1890, stock:46, hsn:'23099090'}]},
+  {id:2, name:'Cichlid Colour Pellets C7', slug:'cichlid-colour-pellets-c7', cat:'Cichlid',  status:'Active',       badge:'NEW',        stock:7,   protein:38, upd:'22 Jul 2026', by:'Rahul Kamat', draft:false,
+   variants:[{sku:'C7-100G', pack:'100 g', mrp:449, price:399, stock:7, hsn:'23099090'}]},
+  {id:3, name:'Hatchery Fry Starter H1',   slug:'hatchery-fry-starter-h1',   cat:'Hatchery', status:'Active',       badge:'PRO',        stock:0,   protein:55, upd:'21 Jul 2026', by:'Aditi Nair',  draft:false,
+   variants:[{sku:'H1-50G', pack:'50 g', mrp:520, price:475, stock:0, hsn:'23099090'},{sku:'H1-250G', pack:'250 g', mrp:1990, price:1790, stock:0, hsn:'23099090'}]},
+  {id:4, name:'Guppy Micro Flakes G2',     slug:'guppy-micro-flakes-g2',     cat:'Guppy',    status:'Active',       badge:'None',       stock:64,  protein:36, upd:'20 Jul 2026', by:'Rahul Kamat', draft:false,
+   variants:[{sku:'G2-30G', pack:'30 g', mrp:199, price:179, stock:64, hsn:'23099090'}]},
+  {id:5, name:'Betta Bloodworm Treat F5',  slug:'betta-bloodworm-treat-f5',  cat:'Betta',    status:'Draft',        badge:'None',       stock:30,  protein:48, upd:'19 Jul 2026', by:'Priya Shah',  draft:true,
+   variants:[{sku:'F5-20G', pack:'20 g', mrp:340, price:310, stock:30, hsn:'23099090'}]},
+  {id:6, name:'Cichlid Growth Sinking C4', slug:'cichlid-growth-sinking-c4', cat:'Cichlid',  status:'Active',       badge:'None',       stock:88,  protein:40, upd:'18 Jul 2026', by:'Rahul Kamat', draft:false,
+   variants:[{sku:'C4-250G', pack:'250 g', mrp:690, price:625, stock:52, hsn:'23099090'},{sku:'C4-1KG', pack:'1 kg', mrp:2290, price:2050, stock:36, hsn:'23099090'}]},
+  {id:7, name:'Hatchery Infusoria Boost H3',slug:'hatchery-infusoria-boost-h3',cat:'Hatchery',status:'Coming Soon', badge:'None',       stock:0,   protein:0,  upd:'16 Jul 2026', by:'Aditi Nair',  draft:true,
+   variants:[{sku:'H3-100ML', pack:'100 ml', mrp:399, price:399, stock:0, hsn:'23099090'}]},
+  {id:8, name:'Guppy Colour Enhancer G6',  slug:'guppy-colour-enhancer-g6',  cat:'Guppy',    status:'Discontinued', badge:'None',       stock:12,  protein:34, upd:'02 Jul 2026', by:'Rahul Kamat', draft:false,
+   variants:[{sku:'G6-45G', pack:'45 g', mrp:289, price:259, stock:12, hsn:'23099090'}]}
+];
+const stockStatus = p => p.stock === 0 ? 'Out of Stock' : p.stock < 10 ? 'Low Stock' : 'In Stock';
+
+const ORDERS = [
+  {no:'ZW-20260724-0041', dt:'24 Jul 2026, 09:14', cust:'Meera Iyer',        email:'meera.iyer@gmail.com',      phone:'+91 98204 11234', items:3, total:1847,  pay:'Paid',     pid:'pay_Qk8fT2mLxA91', status:'Pending',    inv:'', track:'', carrier:'',
+   lines:[['Betta Bites F3','F3-45G',2,249],['Guppy Micro Flakes G2','G2-30G',1,179]], addr:'B-402 Sea Pearl, Carter Road, Bandra West, Mumbai 400050'},
+  {no:'ZW-20260724-0040', dt:'24 Jul 2026, 08:02', cust:'Aqua Trends Store', email:'orders@aquatrends.in',      phone:'+91 99300 55210', items:12,total:18420, pay:'Paid',     pid:'pay_Qk8bR9nWyC42', status:'Pending',    inv:'', track:'', carrier:'',
+   lines:[['Betta Bites F3','F3-1KG',6,1890],['Cichlid Growth Sinking C4','C4-1KG',3,2050]], addr:'Shop 14, Fish Market Complex, Kurla West, Mumbai 400070'},
+  {no:'ZW-20260723-0039', dt:'23 Jul 2026, 17:40', cust:'Sanjay Rane',       email:'sanjay.rane@outlook.com',   phone:'+91 98330 77112', items:2, total:874,   pay:'Paid',     pid:'pay_Qk7xM4pQzD73', status:'Processing', inv:'ZEW/26-27/0318', track:'', carrier:'',
+   lines:[['Guppy Colour Enhancer G6','G6-45G',2,259]], addr:'12 Shivneri CHS, Thane West 400601'},
+  {no:'ZW-20260723-0038', dt:'23 Jul 2026, 14:11', cust:'Blue Reef Aquatics',email:'buy@bluereef.co.in',        phone:'+91 90040 33221', items:8, total:9260,  pay:'Paid',     pid:'pay_Qk7pL1vJhE64', status:'Shipped',    inv:'ZEW/26-27/0317', track:'D77219845611', carrier:'DTDC',
+   lines:[['Cichlid Colour Pellets C7','C7-100G',8,399]], addr:'Plot 9, MIDC Industrial Area, Pune 411019'},
+  {no:'ZW-20260722-0037', dt:'22 Jul 2026, 11:26', cust:'Nikhil Verma',      email:'nikhil.v@yahoo.in',         phone:'+91 97690 88005', items:1, total:475,   pay:'Refunded', pid:'pay_Qk6nK8sRtF55', status:'Cancelled',  inv:'ZEW/26-27/0316', track:'', carrier:'',
+   lines:[['Hatchery Fry Starter H1','H1-50G',1,475]], addr:'44 Green Park, Andheri East, Mumbai 400069'},
+  {no:'ZW-20260722-0036', dt:'22 Jul 2026, 09:03', cust:'Meera Iyer',        email:'meera.iyer@gmail.com',      phone:'+91 98204 11234', items:4, total:3210,  pay:'Paid',     pid:'pay_Qk6gJ3dNuG46', status:'Delivered',  inv:'ZEW/26-27/0315', track:'BD9930112277', carrier:'Blue Dart',
+   lines:[['Betta Bites F3','F3-1KG',1,1890],['Guppy Micro Flakes G2','G2-30G',2,179]], addr:'B-402 Sea Pearl, Carter Road, Bandra West, Mumbai 400050'},
+  {no:'ZW-20260721-0035', dt:'21 Jul 2026, 19:52', cust:'Coral Cove Pets',   email:'hello@coralcove.in',        phone:'+91 88790 44339', items:6, total:7640,  pay:'Unpaid',   pid:'\u2014',            status:'Pending',    inv:'', track:'', carrier:'',
+   lines:[['Cichlid Growth Sinking C4','C4-250G',6,625]], addr:'21 Linking Road, Santacruz West, Mumbai 400054'}
+];
+const ORDER_ST = {Pending:'p-amber', Processing:'p-blue', Shipped:'p-blue', Delivered:'p-green', Cancelled:'p-red'};
+const PAY_ST   = {Paid:'p-green', Unpaid:'p-amber', Refunded:'p-grey'};
+
+const CUSTOMERS = [
+  {name:'Meera Iyer',        email:'meera.iyer@gmail.com',    phone:'+91 98204 11234', reg:'12 Feb 2025', orders:9,  spent:24180, status:'Active'},
+  {name:'Aqua Trends Store', email:'orders@aquatrends.in',    phone:'+91 99300 55210', reg:'03 Nov 2024', orders:31, spent:412600,status:'Active'},
+  {name:'Blue Reef Aquatics',email:'buy@bluereef.co.in',      phone:'+91 90040 33221', reg:'19 Jan 2025', orders:22, spent:186400,status:'Active'},
+  {name:'Sanjay Rane',       email:'sanjay.rane@outlook.com', phone:'+91 98330 77112', reg:'28 Apr 2026', orders:4,  spent:3120,  status:'Active'},
+  {name:'Coral Cove Pets',   email:'hello@coralcove.in',      phone:'+91 88790 44339', reg:'07 Mar 2025', orders:14, spent:96350, status:'Active'},
+  {name:'Nikhil Verma',      email:'nikhil.v@yahoo.in',       phone:'+91 97690 88005', reg:'11 Jun 2026', orders:1,  spent:0,     status:'Banned'}
+];
+
+const REVIEWS = [
+  {id:1, prod:'Betta Bites F3',            cust:'Meera Iyer',    email:'meera.iyer@gmail.com', rating:5, body:'My halfmoon betta went from ignoring pellets to attacking them. Colour deepened noticeably in about three weeks. The 45g tub lasts my two tanks a full month.', vp:true,  at:'24 Jul 2026, 07:12', state:'Pending'},
+  {id:2, prod:'Cichlid Colour Pellets C7', cust:'Guest',         email:'\u2014',               rating:2, body:'Pellets are much bigger than the photo suggests. My juvenile mbuna cannot take them at all, had to crush every feed by hand.',                                 vp:false, at:'23 Jul 2026, 21:40', state:'Pending'},
+  {id:3, prod:'Guppy Micro Flakes G2',     cust:'Sanjay Rane',   email:'sanjay.rane@outlook.com', rating:4, body:'Flakes are fine enough for guppy fry, which was the whole reason I bought them. Water stays clear. Losing a star only for the flimsy packaging.',           vp:true,  at:'23 Jul 2026, 12:05', state:'Pending'},
+  {id:4, prod:'Betta Bites F3',            cust:'Coral Cove Pets',email:'hello@coralcove.in',  rating:5, body:'We stock this across all six of our stores now. Repeat purchase rate speaks for itself.',                                                                       vp:true,  at:'21 Jul 2026, 15:22', state:'Approved'},
+  {id:5, prod:'Hatchery Fry Starter H1',   cust:'Guest',         email:'\u2014',               rating:1, body:'Buy from XYZ Aqua instead, cheaper there, here is my referral link',                                                                                             vp:false, at:'20 Jul 2026, 18:44', state:'Rejected'}
+];
+
+const COUPONS = [
+  {code:'MONSOON10',  type:'Percentage', val:10,  min:999,  from:'01 Jul 2026', to:'31 Jul 2026', used:184, limit:500,  perCust:1, status:'Active'},
+  {code:'FIRSTTANK',  type:'Flat',       val:100, min:499,  from:'01 Apr 2026', to:'31 Mar 2027', used:612, limit:null, perCust:1, status:'Active'},
+  {code:'BULK15',     type:'Percentage', val:15,  min:5000, from:'15 Jul 2026', to:'15 Aug 2026', used:23,  limit:200,  perCust:3, status:'Active'},
+  {code:'HATCHERY50', type:'Flat',       val:50,  min:0,    from:'01 Jun 2026', to:'30 Jun 2026', used:97,  limit:100,  perCust:1, status:'Expired'},
+  {code:'PREVIEW25',  type:'Percentage', val:25,  min:1500, from:'01 Aug 2026', to:'07 Aug 2026', used:0,   limit:50,   perCust:1, status:'Inactive'}
+];
+
+const CMS_USERS = [
+  {name:'Aditi Nair',  email:'aditi@zewafeeds.com',  role:'Admin',          last:'24 Jul 2026, 09:20', status:'Active',      twofa:'TOTP'},
+  {name:'Rahul Kamat', email:'rahul@zewafeeds.com',  role:'Ops Manager',    last:'24 Jul 2026, 08:45', status:'Active',      twofa:'TOTP'},
+  {name:'Priya Shah',  email:'priya@zewafeeds.com',  role:'Content Editor', last:'23 Jul 2026, 16:10', status:'Active',      twofa:'SMS OTP'},
+  {name:'Imran Qadri', email:'imran@zewafeeds.com',  role:'Ops Manager',    last:'11 Jun 2026, 10:02', status:'Deactivated', twofa:'TOTP'},
+  {name:'Devika Rao',  email:'devika@zewafeeds.com', role:'Content Editor', last:'\u2014 never',        status:'Active',      twofa:'Pending setup'}
+];
+
+const AUDIT = [
+  {ts:'24 Jul 2026, 09:22:14', user:'Rahul Kamat', role:'Ops Manager',    act:'Updated stock for F3-45G from 120 to 96',            mod:'Products', rec:'F3-45G',            ip:'103.21.58.14'},
+  {ts:'24 Jul 2026, 09:18:02', user:'Rahul Kamat', role:'Ops Manager',    act:'Changed order status to Processing',                 mod:'Orders',   rec:'ZW-20260723-0039',  ip:'103.21.58.14'},
+  {ts:'24 Jul 2026, 09:17:41', user:'Rahul Kamat', role:'Ops Manager',    act:'Entered invoice number ZEW/26-27/0318',              mod:'Orders',   rec:'ZW-20260723-0039',  ip:'103.21.58.14'},
+  {ts:'24 Jul 2026, 08:31:55', user:'Aditi Nair',  role:'Admin',          act:'Processed refund of \u20B9475 \u2014 reason: damaged in transit', mod:'Orders', rec:'ZW-20260722-0037', ip:'49.36.180.77'},
+  {ts:'23 Jul 2026, 16:44:09', user:'Priya Shah',  role:'Content Editor', act:'Published article "Feeding fry in the first 14 days"',mod:'Content',  rec:'feeding-fry-first-14-days', ip:'106.51.32.9'},
+  {ts:'23 Jul 2026, 15:02:36', user:'Aditi Nair',  role:'Admin',          act:'Created coupon BULK15',                              mod:'Coupons',  rec:'BULK15',            ip:'49.36.180.77'},
+  {ts:'23 Jul 2026, 11:55:20', user:'Rahul Kamat', role:'Ops Manager',    act:'Approved review #4 on Betta Bites F3',               mod:'Reviews',  rec:'REV-0004',          ip:'103.21.58.14'},
+  {ts:'22 Jul 2026, 18:09:47', user:'Aditi Nair',  role:'Admin',          act:'Deactivated CMS user imran@zewafeeds.com',           mod:'Users',    rec:'imran@zewafeeds.com',ip:'49.36.180.77'},
+  {ts:'22 Jul 2026, 10:14:03', user:'Aditi Nair',  role:'Admin',          act:'Failed login attempt (wrong password)',              mod:'Users',    rec:'aditi@zewafeeds.com',ip:'49.36.180.77'}
+];
+
+const ARTICLES = [
+  {title:'Feeding fry in the first 14 days',        slug:'feeding-fry-first-14-days',  tag:'Hatchery', read:6, status:'Published', upd:'23 Jul 2026', by:'Priya Shah'},
+  {title:'Why protein percentage alone is a bad buying signal', slug:'protein-percentage-buying-signal', tag:'Science', read:9, status:'Published', upd:'18 Jul 2026', by:'Priya Shah'},
+  {title:'Betta colour: what actually moves the needle', slug:'betta-colour-what-works', tag:'Betta',   read:7, status:'Draft',     upd:'24 Jul 2026', by:'Priya Shah'},
+  {title:'Setting up a low-tech guppy breeding tank',  slug:'low-tech-guppy-breeding',   tag:'Guppy',    read:11,status:'Draft',     upd:'20 Jul 2026', by:'Devika Rao'}
+];
+
+const BANNERS = [
+  {prod:'Betta Bites F3',            tagline:'Colour you can see in three weeks', sub:'42% protein, floating micro-pellet', badge:'BESTSELLER', active:true},
+  {prod:'Hatchery Fry Starter H1',   tagline:'Built for the first 14 days',        sub:'55% protein, 200-micron grade',     badge:'PRO',        active:true},
+  {prod:'Cichlid Colour Pellets C7', tagline:'New: sinking colour pellet',         sub:'Astaxanthin-rich, 38% protein',     badge:'NEW',        active:false}
+];
+
+const ACTIVITY = [
+  {c:'var(--green)', t:'New order <b>ZW-20260724-0041</b> placed by Meera Iyer',        who:'System',      at:'09:14 \u00b7 12 min ago', go:['order','ZW-20260724-0041']},
+  {c:'var(--red)',   t:'<b>Hatchery Fry Starter H1</b> stock reached zero',             who:'System',      at:'09:02 \u00b7 24 min ago', go:['product',3]},
+  {c:'var(--amber)', t:'Review submitted on <b>Betta Bites F3</b> \u2014 5\u2605',      who:'Meera Iyer',  at:'07:12 \u00b7 2 hr ago',   go:['reviews']},
+  {c:'var(--blue)',  t:'Order <b>ZW-20260723-0039</b> moved to Processing',             who:'Rahul Kamat', at:'Yesterday, 17:40',        go:['order','ZW-20260723-0039']},
+  {c:'var(--grey)',  t:'Stock updated for <b>F3-45G</b>: 120 \u2192 96',                 who:'Rahul Kamat', at:'Yesterday, 16:22',        go:['product',1]},
+  {c:'var(--teal)',  t:'Article <b>Feeding fry in the first 14 days</b> published',     who:'Priya Shah',  at:'Yesterday, 16:44',        go:['articles']},
+  {c:'var(--grey)',  t:'Coupon <b>BULK15</b> created',                                   who:'Aditi Nair',  at:'Yesterday, 15:02',        go:['coupons']},
+  {c:'var(--green)', t:'Order <b>ZW-20260723-0038</b> shipped via DTDC',                who:'Rahul Kamat', at:'Yesterday, 14:55',        go:['order','ZW-20260723-0038']}
+];
+</script>
+
+<script>
+/* ==========================================================================
+   3. SHARED RENDER HELPERS
+   ========================================================================== */
+function crumbs(parts){
+  return '<nav class="crumbs">' + parts.map(function(p,i){
+    var last = i === parts.length - 1;
+    var el = last ? '<span class="now">' + esc(p[0]) + '</span>'
+                  : '<button data-go="' + p[1] + '">' + esc(p[0]) + '</button>';
+    return el + (last ? '' : '<span class="sep">' + svgi(I.chev,2).replace('<svg','<svg style="width:12px;height:12px;vertical-align:-2px"') + '</span>');
+  }).join('') + '</nav>';
+}
+
+function pageHead(title, sub, actions){
+  return '<div class="page-head"><div><h1 class="page-title">' + esc(title) + '</h1>' +
+    (sub ? '<div class="page-sub">' + sub + '</div>' : '') + '</div>' +
+    (actions ? '<div class="page-actions">' + actions + '</div>' : '') + '</div>';
+}
+
+function pill(cls, txt){ return '<span class="pill ' + cls + '"><i></i>' + esc(txt) + '</span>'; }
+
+function stockPill(p){
+  var s = stockStatus(p);
+  var cls = s === 'In Stock' ? 'p-green' : s === 'Low Stock' ? 'p-amber' : 'p-red';
+  var label = s === 'In Stock' ? 'In Stock \u00b7 ' + p.stock : s === 'Low Stock' ? 'Low Stock \u2014 ' + p.stock + ' units' : 'Out of Stock';
+  var attr = can('products.edit') ? ' data-stock="' + p.id + '" style="cursor:pointer" title="Click to update stock"' : '';
+  return '<button class="pill ' + cls + '"' + attr + ' style="border:0;font:inherit;cursor:' + (can('products.edit')?'pointer':'default') + '"><i></i>' + label + '</button>';
+}
+
+function prodStatusPill(s){
+  var m = {Active:'p-green', Draft:'p-grey', 'Coming Soon':'p-blue', Discontinued:'p-red'};
+  return pill(m[s] || 'p-grey', s);
+}
+
+function thumb(name, cat, size){
+  var c = catColor(cat), sz = size || 36;
+  return '<div class="thumb" style="width:' + sz + 'px;height:' + sz + 'px;background:' + c + '1F;color:' + c + '">' +
+    esc(name.replace(/[^A-Z0-9]/g,'').slice(0,2)) + '</div>';
+}
+
+function stars(n){
+  var out = '';
+  for (var i = 1; i <= 5; i++) out += (i <= n ? '<span>\u2605</span>' : '<span class="off">\u2605</span>');
+  return '<span class="stars">' + out + '</span>';
+}
+
+function pager(total, shown){
+  return '<div class="pager"><span>Showing <span class="mono">1\u2013' + shown + '</span> of <span class="mono">' + total + '</span></span>' +
+    '<span class="grow"><button class="pg" disabled style="opacity:.4">\u2039</button>' +
+    '<button class="pg on">1</button><button class="pg">2</button><button class="pg">3</button>' +
+    '<button class="pg">\u203a</button></span></div>';
+}
+
+function th(label, sortable, sorted){
+  return '<th' + (sortable ? ' class="sortable' + (sorted ? ' sorted' : '') + '" data-sort="1"' : '') + '>' + label +
+    (sortable ? '<span class="arw">\u2191</span>' : '') + '</th>';
+}
+
+function noAccess(module){
+  return crumbs([['Dashboard','dashboard'],[module,'']]) +
+   '<div class="card"><div class="empty">' +
+   '<div class="empty-mark" style="background:var(--red-wash);color:var(--red-deep)">' + svgi(I.lock) + '</div>' +
+   '<h3>' + esc(module) + ' is not available to your role</h3>' +
+   '<p>You are signed in as <b>' + ROLES[ROLE].name + '</b>. This module needs a higher role. Ask an Admin if you need access.</p>' +
+   '<button class="btn" data-go="dashboard">Back to dashboard</button></div></div>';
+}
+
+/* ==========================================================================
+   4. VIEWS — DASHBOARD (spec 4: exactly four things, no charts)
+   ========================================================================== */
+const VIEWS = {};
+
+VIEWS.dashboard = function(){
+  var pending = ORDERS.filter(function(o){ return o.status === 'Pending'; }).length;
+  var low     = PRODUCTS.filter(function(p){ return p.stock < 10; }).length;
+  var revs    = REVIEWS.filter(function(r){ return r.state === 'Pending'; }).length;
+
+  var tiles = [
+    {n:pending, l:'Pending orders',  c:'var(--amber)', w:'var(--amber-wash)', i:I.cart, go:'orders',   gate:'orders.view'},
+    {n:low,     l:'Low-stock products', c:'var(--red)', w:'var(--red-wash)',  i:I.alert, go:'products', gate:'products.view'},
+    {n:revs,    l:'Pending reviews', c:'var(--blue)',  w:'var(--blue-wash)',  i:I.star, go:'reviews',   gate:'reviews.moderate'}
+  ].filter(function(t){ return can(t.gate); });
+
+  var html = crumbs([['Dashboard','']]) +
+    pageHead('Dashboard', 'Signed in as <b>' + ROLES[ROLE].name + '</b> \u00b7 ' + ROLES[ROLE].person, '');
+
+  html += '<div class="counters">' + tiles.map(function(t){
+    return '<button class="counter-card" data-go="' + t.go + '">' +
+      '<span class="counter-icon" style="background:' + t.w + ';color:' + t.c + '">' + svgi(t.i) + '</span>' +
+      '<span><span class="counter-n">' + t.n + '</span><span class="counter-l">' + t.l + '</span></span>' +
+      '<span class="counter-go">' + svgi(I.chev,2) + '</span></button>';
+  }).join('') + '</div>';
+
+  if (!tiles.length) {
+    html += '<div class="card" style="margin-bottom:18px"><div class="empty">' +
+      '<div class="empty-mark">' + svgi(I.pen) + '</div><h3>Your work lives in Content</h3>' +
+      '<p>As a Content Editor you handle articles, banners and homepage copy. Order and stock counters are hidden from this role.</p>' +
+      '<button class="btn btn-primary" data-go="articles">Go to blog articles</button></div></div>';
+  }
+
+  html += '<section class="card"><div class="card-head"><div class="card-title">Recent activity</div>' +
+    '<span class="chip">Last 20 events</span></div><div>' +
+    ACTIVITY.map(function(a){
+      return '<div class="feed-row"><span class="feed-dot" style="background:' + a.c + '"></span>' +
+        '<span class="feed-body"><span class="feed-txt">' + a.t + '</span>' +
+        '<span class="feed-meta">' + esc(a.who) + ' \u00b7 ' + a.at + '</span></span>' +
+        '<button class="btn btn-sm btn-ghost" data-act="' + a.go.join(':') + '">View</button></div>';
+    }).join('') + '</div></section>';
+
+  return html;
+};
+
+/* ==========================================================================
+   5. VIEWS — PRODUCTS (spec 5.1)
+   ========================================================================== */
+VIEWS.products = function(){
+  if (!can('products.view')) return noAccess('Products');
+  var readOnly = !can('products.edit');
+
+  var actions = can('products.edit')
+    ? '<button class="btn btn-primary" data-go="product-new">' + svgi(I.plus,2) + 'Add Product</button>' : '';
+
+  var rows = PRODUCTS.map(function(p){
+    return '<tr class="clickable" data-act="product:' + p.id + '">' +
+      '<td>' + thumb(p.name, p.cat) + '</td>' +
+      '<td><div style="font-weight:500">' + esc(p.name) + '</div>' +
+        '<div class="cellsub mono">' + p.variants.length + ' SKU' + (p.variants.length>1?'s':'') + ' \u00b7 ' + esc(p.variants[0].sku) + '</div></td>' +
+      '<td class="mono" style="font-size:12px;color:var(--muted)">/' + esc(p.slug) + '</td>' +
+      '<td><span class="chip" style="background:' + catColor(p.cat) + '14;border-color:' + catColor(p.cat) + '33;color:' + catColor(p.cat) + '">' + esc(p.cat) + '</span></td>' +
+      '<td>' + stockPill(p) + '</td>' +
+      '<td>' + prodStatusPill(p.status) + (p.draft && p.status !== 'Draft' ? ' <span class="chip" style="background:var(--amber-wash);color:var(--amber-deep);border-color:#F6E2BE">draft edits</span>' : '') + '</td>' +
+      '<td><div style="font-size:12.5px">' + esc(p.upd) + '</div><div class="cellsub">' + esc(p.by) + '</div></td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        (readOnly ? '' : '<button class="btn btn-sm btn-ghost" data-act="product:' + p.id + '">Edit</button>') +
+        '<button class="btn btn-sm btn-ghost" data-act="preview:' + p.id + '" title="Preview">' + svgi(I.eye) + '</button>' +
+        (readOnly ? '' : '<button class="btn btn-sm btn-ghost" data-act="publish:' + p.id + '" title="Publish">' + svgi(I.up) + '</button>') +
+        '<button class="btn btn-sm btn-ghost" data-act="viewsite:' + p.id + '" title="View on site">' + svgi(I.ext) + '</button>' +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Products','']]) +
+    pageHead('Products', PRODUCTS.length + ' product families \u00b7 ' + PRODUCTS.reduce(function(a,p){return a+p.variants.length;},0) + ' SKUs' +
+      (readOnly ? ' <span class="chip" style="margin-left:6px">view only for your role</span>' : ''), actions) +
+    '<div class="card">' +
+      '<div class="filterbar">' +
+        '<input class="input" style="width:230px" placeholder="Search by name or SKU">' +
+        '<select class="select" style="width:auto"><option>All categories</option>' + CATS.map(function(c){return '<option>'+c+'</option>';}).join('') + '</select>' +
+        '<select class="select" style="width:auto"><option>All statuses</option><option>Draft</option><option>Active</option><option>Coming Soon</option><option>Discontinued</option></select>' +
+        '<select class="select" style="width:auto"><option>All stock</option><option>Low Stock</option><option>Out of Stock</option></select>' +
+        '<span style="margin-left:auto" class="hint">Click a stock badge to update it without opening the product</span>' +
+      '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr>' +
+        '<th style="width:56px"></th>' + th('Name',1,1) + th('Family Slug') + th('Category',1) + th('Stock Status',1) + th('Status',1) + th('Last Updated',1) + '<th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      pager(PRODUCTS.length, PRODUCTS.length) +
+    '</div>';
+};
+
+/* -------- product editor: Draft -> Preview -> Publish (spec 5.2) -------- */
+var EDIT_TAB = 0;
+VIEWS.product = function(id){
+  if (!can('products.view')) return noAccess('Products');
+  var isNew = id === 'new';
+  var p = isNew ? {id:0,name:'',slug:'',cat:'Betta',status:'Draft',badge:'None',stock:0,protein:'',upd:'\u2014',by:'\u2014',draft:true,variants:[]}
+                : PRODUCTS.filter(function(x){ return x.id === id; })[0];
+  if (!p) return noAccess('Products');
+  var ro = !can('products.edit');
+
+  var tabs = ['Basic Info','Variants / SKUs','Images','Nutritional Analysis','Feeding Guide'];
+  var head = crumbs([['Dashboard','dashboard'],['Products','products'],[isNew ? 'Add Product' : 'Edit Product','']]) +
+    pageHead(isNew ? 'Add Product' : p.name, isNew ? 'New products start as Draft and stay off the site until published'
+      : '<span class="mono">/' + esc(p.slug) + '</span> \u00b7 last updated ' + esc(p.upd) + ' by ' + esc(p.by), '');
+
+  /* action bar */
+  var state = isNew ? pill('p-grey','Draft \u2014 never published')
+            : p.status === 'Draft' ? pill('p-grey','Draft \u2014 not on site')
+            : p.draft ? pill('p-amber','Live, with unpublished draft edits')
+            : pill('p-green','Live \u2014 no pending changes');
+
+  var bar = '<div class="publish-bar"><div class="publish-state">' + state + '</div><div class="acts">' +
+    (ro ? '<span class="locked">' + svgi(I.lock) + 'Editing needs Ops Manager or Admin</span>'
+        : '<button class="btn" data-act="savedraft">Save Draft</button>' +
+          '<button class="btn" data-act="preview:' + p.id + '">' + svgi(I.eye) + 'Preview</button>' +
+          '<button class="btn btn-primary" data-act="publish:' + p.id + '">' + svgi(I.up,2) + (p.status === 'Active' ? 'Publish Changes' : 'Publish') + '</button>') +
+    '</div></div>';
+
+  var tabbar = '<div class="tabs">' + tabs.map(function(t,i){
+    return '<button class="tab' + (i === EDIT_TAB ? ' on' : '') + '" data-etab="' + i + '">' + t + '</button>';
+  }).join('') + '</div>';
+
+  var body = '';
+  if (EDIT_TAB === 0) {
+    body = '<div class="card"><div class="card-body"><div class="form-grid">' +
+      '<div class="field"><label class="label" for="f-name">Product Name <span class="req">*</span></label>' +
+        '<input class="input" id="f-name" value="' + esc(p.name) + '" placeholder="e.g. Betta Bites F3"' + (ro?' readonly':'') + '></div>' +
+      '<div class="field"><label class="label" for="f-slug">Family Slug ' +
+        (isNew ? '' : '<span class="locked" style="float:right;font-weight:400">' + svgi(I.lock) + 'locked after first publish</span>') + '</label>' +
+        '<input class="input mono" id="f-slug" value="' + esc(p.slug) + '" placeholder="auto-generated from name"' + (isNew && !ro ? '' : ' readonly') + '></div>' +
+      '<div class="field"><label class="label" for="f-cat">Category <span class="req">*</span></label><select class="select" id="f-cat"' + (ro?' disabled':'') + '>' +
+        CATS.map(function(c){ return '<option' + (c === p.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label class="label" for="f-status">Status</label><select class="select" id="f-status"' + (ro?' disabled':'') + '>' +
+        ['Draft','Active','Coming Soon','Discontinued'].map(function(s){ return '<option' + (s === p.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label class="label" for="f-badge">Badge</label><select class="select" id="f-badge"' + (ro?' disabled':'') + '>' +
+        ['None','BESTSELLER','NEW','PRO'].map(function(s){ return '<option' + (s === p.badge ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
+        '<p class="hint">Shown as a corner flag on the product card.</p></div>' +
+      '<div class="field"><label class="label" for="f-prot">Protein Percentage</label>' +
+        '<div class="igroup"><input class="input has-r mono" id="f-prot" value="' + esc(p.protein) + '"' + (ro?' readonly':'') + '><span class="addon addon-r">%</span></div>' +
+        '<p class="hint">Appears in the Nutrition section of the PDP.</p></div>' +
+      '<div class="field span2"><label class="label" for="f-short">Short Description <span class="req">*</span>' +
+        '<span class="counter"><span id="shortCount">0</span>/200</span></label>' +
+        '<textarea class="textarea" id="f-short" maxlength="200" style="min-height:64px" placeholder="One line under the product name on the PDP"' + (ro?' readonly':'') + '>' +
+        (p.id === 1 ? 'Floating micro-pellet built for bettas that ignore everything else.' : '') + '</textarea></div>' +
+      '<div class="field span2"><label class="label">Full Description</label>' +
+        '<div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">' +
+        '<div style="display:flex;gap:2px;padding:6px;border-bottom:1px solid var(--line-soft);background:var(--canvas)">' +
+          ['B','I','H2','H3','\u2022','1.','\ud83d\udd17'].map(function(b){ return '<button class="btn btn-sm btn-ghost" style="min-width:30px">' + b + '</button>'; }).join('') +
+        '</div><textarea class="textarea" style="border:0;border-radius:0;min-height:130px"' + (ro?' readonly':'') + '>' +
+        (p.id === 1 ? 'Betta Bites F3 is a slow-sinking micro-pellet formulated around what bettas actually eat in the wild \u2014 insect protein, not grain filler.\n\nMilled in small batches at our Bhiwandi facility and packed within 48 hours of milling.' : '') +
+        '</textarea></div><p class="hint">Rich text only \u2014 raw HTML is not accepted.</p></div>' +
+      '<div class="field span2"><label class="label">Key Benefits <span class="hint" style="font-weight:400;margin:0">up to 8 \u2014 shown as trust badges on the PDP</span></label>' +
+        ['42% insect-based protein','No grain filler','Floats for 90 seconds','Small-batch milled'].map(function(v){
+          return '<div class="repeat-row"><span class="grab">' + svgi(I.grip) + '</span><input class="input" value="' + esc(v) + '"' + (ro?' readonly':'') + '>' +
+            (ro?'':'<button class="btn btn-icon btn-sm btn-ghost" aria-label="Remove">' + svgi(I.trash) + '</button>') + '</div>';
+        }).join('') +
+        (ro?'':'<button class="btn btn-sm">' + svgi(I.plus,2) + 'Add benefit</button>') + '</div>' +
+      '<div class="field"><label class="label" for="f-seot">SEO Title<span class="counter"><span>0</span>/60</span></label>' +
+        '<input class="input" id="f-seot" placeholder="Defaults to the product name"' + (ro?' readonly':'') + '></div>' +
+      '<div class="field"><label class="label" for="f-seod">SEO Description<span class="counter"><span>0</span>/160</span></label>' +
+        '<textarea class="textarea" id="f-seod" style="min-height:42px" placeholder="Defaults to the short description"' + (ro?' readonly':'') + '></textarea></div>' +
+      '</div></div></div>';
+  }
+  else if (EDIT_TAB === 1) {
+    body = '<div class="card"><div class="card-head"><div class="card-title">Variants / SKUs</div>' +
+      '<span class="hint" style="margin:0">Each variant becomes a pack option on the product page</span>' +
+      (ro?'':'<button class="btn btn-sm btn-primary" style="margin-left:auto">' + svgi(I.plus,2) + 'Add SKU</button>') + '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr>' + th('SKU') + th('Pack Size') + th('MRP') + th('Selling Price') + th('Stock') + th('HSN') + '<th></th></tr></thead><tbody>' +
+      (p.variants.length ? p.variants.map(function(v){
+        return '<tr><td class="mono" style="font-weight:500">' + esc(v.sku) + '</td><td>' + esc(v.pack) + '</td>' +
+          '<td class="mono" style="color:var(--muted-2);text-decoration:line-through">' + inr(v.mrp) + '</td>' +
+          '<td class="mono" style="font-weight:500">' + inr(v.price) + '</td>' +
+          '<td class="mono">' + v.stock + (v.stock === 0 ? ' <span class="pill p-red" style="margin-left:4px"><i></i>0</span>' : v.stock < 10 ? ' <span class="pill p-amber" style="margin-left:4px"><i></i>low</span>' : '') + '</td>' +
+          '<td class="mono" style="color:var(--muted)">' + esc(v.hsn) + '</td>' +
+          '<td class="t-right"><div class="t-actions">' + (ro?'':'<button class="btn btn-sm btn-ghost">Edit</button><button class="btn btn-sm btn-ghost btn-danger" data-act="delsku:' + esc(v.sku) + '">' + svgi(I.trash) + '</button>') + '</div></td></tr>';
+      }).join('') : '<tr><td colspan="7"><div class="empty"><div class="empty-mark">' + svgi(I.box) + '</div><h3>No SKUs yet</h3><p>A product needs at least one SKU before it can be published. Add the smallest pack first.</p><button class="btn btn-primary">' + svgi(I.plus,2) + 'Add first SKU</button></div></td></tr>') +
+      '</tbody></table></div></div>';
+  }
+  else if (EDIT_TAB === 2) {
+    body = '<div class="card"><div class="card-head"><div class="card-title">Images</div>' +
+      '<span class="hint" style="margin:0">First image is the thumbnail. Drag to reorder.</span></div>' +
+      '<div class="card-body"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">' +
+      [1,2,3].map(function(n){
+        return '<div style="position:relative">' + thumb(p.name || 'ZW', p.cat, 104) +
+          '<span class="chip" style="position:absolute;bottom:6px;left:6px;background:#fff">' + (n === 1 ? 'Cover' : n) + '</span></div>';
+      }).join('') + '</div>' +
+      (ro ? '' : '<div class="dropzone">' + svgi(I.img) + '<div style="font-size:13px;font-weight:500">Drop images here or click to upload</div>' +
+        '<div class="hint">JPG or PNG, at least 1200\u00d71200. Uploaded through Cloudinary and optimised automatically.</div></div>') +
+      '</div></div>';
+  }
+  else if (EDIT_TAB === 3) {
+    var rows = [['Crude Protein (min)', p.protein || 42, '%'],['Crude Fat (min)', 8, '%'],['Crude Fibre (max)', 3, '%'],['Moisture (max)', 10, '%'],['Ash (max)', 12, '%']];
+    body = '<div class="card"><div class="card-head"><div class="card-title">Nutritional Analysis</div>' +
+      '<span class="hint" style="margin:0">Rendered as the guaranteed-analysis table on the PDP</span></div>' +
+      '<div class="card-body">' + rows.map(function(r){
+        return '<div class="repeat-row"><input class="input" value="' + esc(r[0]) + '" style="flex:2"' + (ro?' readonly':'') + '>' +
+          '<div class="igroup" style="flex:1"><input class="input has-r mono" value="' + r[1] + '"' + (ro?' readonly':'') + '><span class="addon addon-r">' + r[2] + '</span></div>' +
+          (ro?'':'<button class="btn btn-icon btn-sm btn-ghost">' + svgi(I.trash) + '</button>') + '</div>';
+      }).join('') + (ro?'':'<button class="btn btn-sm">' + svgi(I.plus,2) + 'Add row</button>') + '</div></div>';
+  }
+  else {
+    body = '<div class="card"><div class="card-head"><div class="card-title">Feeding Guide</div>' +
+      '<span class="hint" style="margin:0">Shown in the Feeding tab of the PDP</span></div><div class="card-body">' +
+      '<div class="form-grid">' +
+      [['Fry (0\u20132 weeks)','3\u20134 times daily, what they clear in 2 minutes'],
+       ['Juvenile (2\u20138 weeks)','2\u20133 times daily'],
+       ['Adult','1\u20132 times daily, fast one day a week']].map(function(r){
+        return '<div class="field"><label class="label">' + r[0] + '</label><input class="input" value="' + esc(r[1]) + '"' + (ro?' readonly':'') + '></div>';
+      }).join('') +
+      '<div class="field span2"><label class="label">Storage note</label><textarea class="textarea" style="min-height:60px"' + (ro?' readonly':'') + '>Reseal after every feed. Store below 25\u00b0C, away from direct sunlight. Use within 90 days of opening.</textarea></div>' +
+      '</div></div></div>';
+  }
+
+  return head + bar + tabbar + body;
+};
+</script>
+
+<script>
+/* ==========================================================================
+   6. VIEWS — ORDERS (spec 6)
+   ========================================================================== */
+VIEWS.orders = function(){
+  if (!can('orders.view')) return noAccess('Orders');
+
+  var rows = ORDERS.map(function(o){
+    return '<tr class="clickable" data-act="order:' + o.no + '">' +
+      '<td class="mono" style="font-weight:500">' + esc(o.no) + '</td>' +
+      '<td style="font-size:12.5px;color:var(--muted)">' + esc(o.dt) + '</td>' +
+      '<td><div style="font-weight:500">' + esc(o.cust) + '</div><div class="cellsub">' + esc(o.email) + '</div></td>' +
+      '<td><span title="' + esc(o.lines.map(function(l){ return l[2] + '\u00d7 ' + l[0] + ' (' + l[1] + ')'; }).join('\n')) + '" style="border-bottom:1px dotted var(--muted-2);cursor:help">' + o.items + ' items</span></td>' +
+      '<td class="mono t-right" style="font-weight:500">' + inr(o.total) + '</td>' +
+      '<td>' + pill(PAY_ST[o.pay], o.pay) + '<div class="cellsub mono">' + esc(o.pid) + '</div></td>' +
+      '<td>' + pill(ORDER_ST[o.status], o.status) + '</td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost" data-act="order:' + o.no + '">View</button>' +
+        (can('orders.status') ? '<button class="btn btn-sm" data-act="status:' + o.no + '">Update Status</button>' : '') +
+      '</div></td></tr>';
+  }).join('');
+
+  var exportBtn = can('orders.export')
+    ? '<button class="btn" data-act="toast:Export queued \u2014 CSV will download shortly">' + svgi(I.dl) + 'Export CSV</button>'
+    : '<button class="btn" disabled title="Admin only">' + svgi(I.lock) + 'Export CSV</button>';
+
+  return crumbs([['Dashboard','dashboard'],['Orders','']]) +
+    pageHead('Orders', ORDERS.filter(function(o){return o.status==='Pending';}).length + ' pending \u00b7 ' + ORDERS.length + ' in the selected range', exportBtn) +
+    '<div class="tabs">' + [['All',ORDERS.length],['Pending',ORDERS.filter(function(o){return o.status==='Pending';}).length],['Processing',1],['Shipped',1],['Delivered',1],['Cancelled',1]]
+      .map(function(t,i){ return '<button class="tab' + (i===0?' on':'') + '" data-tab>' + t[0] + '<span class="n">' + t[1] + '</span></button>'; }).join('') + '</div>' +
+    '<div class="card">' +
+      '<div class="filterbar">' +
+        '<input class="input" style="width:260px" placeholder="Order number, customer name or email">' +
+        '<input class="input" type="date" style="width:auto" value="2026-07-01"><span class="hint" style="margin:0">to</span>' +
+        '<input class="input" type="date" style="width:auto" value="2026-07-24">' +
+        '<select class="select" style="width:auto"><option>All payments</option><option>Paid</option><option>Unpaid</option><option>Refunded</option></select>' +
+      '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr>' +
+        th('Order Number',1,1) + th('Date &amp; Time',1) + th('Customer',1) + th('Items') + '<th class="t-right">Total</th>' + th('Payment',1) + th('Status',1) + '<th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>' + pager(128, ORDERS.length) +
+    '</div>';
+};
+
+/* -------- order detail (spec 6.2, 6.4, 6.5) -------- */
+VIEWS.order = function(no){
+  if (!can('orders.view')) return noAccess('Orders');
+  var o = ORDERS.filter(function(x){ return x.no === no; })[0];
+  if (!o) return noAccess('Orders');
+
+  var sub = o.lines.reduce(function(a,l){ return a + l[2] * l[3]; }, 0);
+  var ship = sub > 999 ? 0 : 79;
+  var gst = Math.round(sub * 0.18);
+
+  var needsInvoice = o.status === 'Processing' && !o.inv;
+  var canInvoice = ['Processing','Shipped','Delivered','Cancelled'].indexOf(o.status) > -1;
+
+  var actions = (can('orders.status') ? '<button class="btn btn-primary" data-act="status:' + o.no + '">Update Status</button>' : '') +
+    (can('orders.refund') && o.pay === 'Paid' ? '<button class="btn btn-danger" data-act="refund:' + o.no + '">Process Refund</button>' : '');
+
+  var html = crumbs([['Dashboard','dashboard'],['Orders','orders'],[o.no,'']]) +
+    pageHead(o.no, esc(o.dt) + ' \u00b7 ' + pill(ORDER_ST[o.status], o.status) + ' ' + pill(PAY_ST[o.pay], o.pay), actions);
+
+  if (needsInvoice) {
+    html += '<div class="infobox" style="margin-bottom:16px">' + svgi(I.info) +
+      '<div><b>Invoice number required.</b> This order cannot move past Processing until you enter the invoice number from your Tally billing sequence.</div></div>';
+  }
+
+  html += '<div class="split-3"><div class="stack">' +
+    /* items */
+    '<section class="card"><div class="card-head"><div class="card-title">Items ordered</div></div>' +
+    '<div class="tbl-wrap"><table><thead><tr>' + th('Product') + th('SKU') + '<th class="t-right">Qty</th><th class="t-right">Unit Price</th><th class="t-right">Line Total</th></tr></thead><tbody>' +
+    o.lines.map(function(l){
+      return '<tr><td style="font-weight:500">' + esc(l[0]) + '</td><td class="mono" style="color:var(--muted)">' + esc(l[1]) + '</td>' +
+        '<td class="mono t-right">' + l[2] + '</td><td class="mono t-right">' + inr(l[3]) + '</td>' +
+        '<td class="mono t-right" style="font-weight:500">' + inr(l[2] * l[3]) + '</td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    '<div class="card-body" style="border-top:1px solid var(--line-soft)">' +
+      '<div style="max-width:290px;margin-left:auto">' +
+      [['Subtotal', inr(sub)], ['Shipping', ship ? inr(ship) : 'Free'], ['GST (CGST 9% + SGST 9%)', inr(gst)]].map(function(r){
+        return '<div class="rowline"><span class="k" style="min-width:0;flex:1">' + r[0] + '</span><span class="v mono">' + r[1] + '</span></div>';
+      }).join('') +
+      '<div class="rowline" style="border:0;padding-top:12px"><span class="k" style="min-width:0;flex:1;color:var(--text);font-weight:600">Grand total</span>' +
+      '<span class="v mono" style="font-size:16px">' + inr(o.total) + '</span></div></div></div></section>' +
+
+    /* invoice */
+    '<section class="card"><div class="card-head"><div class="card-title">Invoice</div>' +
+      (o.inv ? pill('p-green','Issued') : canInvoice ? pill('p-amber','Not issued') : pill('p-grey','Available from Processing')) + '</div>' +
+    '<div class="card-body">' +
+      (canInvoice
+        ? '<div class="form-grid"><div class="field" style="margin:0"><label class="label" for="f-inv">Invoice Number <span class="req">*</span></label>' +
+          '<input class="input mono" id="f-inv" value="' + esc(o.inv) + '" placeholder="ZEW/26-27/0000"' + (can('orders.status') ? '' : ' readonly') + '>' +
+          '<p class="hint">Entered manually to match the Tally sequence. There is no auto-generation.</p></div>' +
+          '<div class="field" style="margin:0;align-self:end">' +
+          (o.inv ? '<button class="btn btn-primary" style="width:100%" data-act="toast:Invoice PDF downloaded">' + svgi(I.dl) + 'Download Invoice</button>'
+                 : '<button class="btn" style="width:100%" disabled>' + svgi(I.dl) + 'Download Invoice</button>' +
+                   '<p class="hint">Available once the invoice number is saved.</p>') +
+          '</div></div>'
+        : '<p style="font-size:13px;color:var(--muted)">The invoice field appears once this order is accepted and moved to <b>Processing</b>.</p>') +
+    '</div></section>' +
+
+    /* notes */
+    '<section class="card"><div class="card-head"><div class="card-title">Internal notes</div>' +
+      '<span class="hint" style="margin:0">Never shown to the customer</span></div>' +
+      '<div class="card-body"><textarea class="textarea" placeholder="Add a note for the team...">' +
+      (o.status === 'Cancelled' ? 'Customer reported the pouch arrived split. Refunded in full, no return required.' : '') + '</textarea>' +
+      '<button class="btn btn-sm" style="margin-top:9px" data-act="toast:Note added">Add note</button></div></section>' +
+    '</div>' +
+
+    /* right column */
+    '<div class="stack">' +
+    '<section class="card"><div class="card-head"><div class="card-title">Customer</div></div><div class="card-body">' +
+      '<div style="display:flex;gap:11px;align-items:center;margin-bottom:12px">' +
+      '<span class="avatar" style="width:36px;height:36px;background:var(--grey-wash);color:var(--grey-deep);font-size:12px">' +
+      esc(o.cust.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('')) + '</span>' +
+      '<div><div style="font-weight:600">' + esc(o.cust) + '</div>' +
+      '<button class="btn btn-sm btn-ghost" style="padding:0;color:var(--teal-deep)" data-act="customer:' + esc(o.cust) + '">View profile</button></div></div>' +
+      '<div class="rowline"><span class="k">Email</span><span class="v" style="font-size:12.5px">' + esc(o.email) + '</span></div>' +
+      '<div class="rowline"><span class="k">Phone</span><span class="v mono" style="font-size:12.5px">' + esc(o.phone) + '</span></div>' +
+      '<div class="rowline"><span class="k">Payment ID</span><span class="v mono" style="font-size:12px">' + esc(o.pid) + '</span></div>' +
+    '</div></section>' +
+
+    '<section class="card"><div class="card-head"><div class="card-title">Delivery address</div></div>' +
+      '<div class="card-body"><p style="font-size:13px;line-height:1.6">' + esc(o.addr) + '</p>' +
+      (o.track ? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)">' +
+        '<div class="rowline"><span class="k">Carrier</span><span class="v">' + esc(o.carrier) + '</span></div>' +
+        '<div class="rowline"><span class="k">Tracking</span><span class="v mono" style="font-size:12.5px">' + esc(o.track) + '</span></div></div>' : '') +
+    '</div></section>' +
+
+    '<section class="card"><div class="card-head"><div class="card-title">Timeline</div></div><div>' +
+      [['Order placed', o.dt, 'var(--green)'],
+       ['Payment ' + o.pay.toLowerCase(), o.dt, o.pay === 'Paid' ? 'var(--green)' : 'var(--grey)'],
+       [o.status, o.status === 'Pending' ? 'Awaiting action' : o.dt, o.status === 'Pending' ? 'var(--amber)' : 'var(--blue)']]
+      .map(function(t){
+        return '<div class="feed-row"><span class="feed-dot" style="background:' + t[2] + '"></span>' +
+          '<span class="feed-body"><span class="feed-txt">' + esc(t[0]) + '</span><span class="feed-meta">' + esc(t[1]) + '</span></span></div>';
+      }).join('') + '</div></section>' +
+    '</div></div>';
+
+  return html;
+};
+
+/* ==========================================================================
+   7. VIEWS — CUSTOMERS (spec 7)
+   ========================================================================== */
+VIEWS.customers = function(){
+  if (!can('customers.view')) return noAccess('Customers');
+
+  var rows = CUSTOMERS.map(function(c){
+    return '<tr class="clickable" data-act="customer:' + esc(c.name) + '">' +
+      '<td><div style="display:flex;align-items:center;gap:11px">' +
+      '<span class="avatar" style="background:var(--grey-wash);color:var(--grey-deep);font-size:11px">' +
+      esc(c.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('')) + '</span>' +
+      '<span style="font-weight:500">' + esc(c.name) + '</span></div></td>' +
+      '<td><div style="font-size:12.5px">' + esc(c.email) + '</div><div class="cellsub mono">' + esc(c.phone) + '</div></td>' +
+      '<td style="font-size:12.5px;color:var(--muted)">' + esc(c.reg) + '</td>' +
+      '<td class="mono">' + c.orders + '</td>' +
+      '<td class="mono t-right" style="font-weight:500">' + inr(c.spent) + '</td>' +
+      '<td>' + pill(c.status === 'Active' ? 'p-green' : 'p-red', c.status) + '</td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost" data-act="customer:' + esc(c.name) + '">View Profile</button>' +
+        (can('customers.ban')
+          ? '<button class="btn btn-sm ' + (c.status === 'Active' ? 'btn-danger' : '') + '" data-act="ban:' + esc(c.name) + '">' + (c.status === 'Active' ? 'Ban' : 'Unban') + '</button>'
+          : '') +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Customers','']]) +
+    pageHead('Customers', CUSTOMERS.length + ' accounts \u00b7 ' + CUSTOMERS.filter(function(c){return c.status==='Banned';}).length + ' banned', '') +
+    '<div class="card"><div class="filterbar">' +
+      '<input class="input" style="width:260px" placeholder="Search by name, email or phone">' +
+      '<select class="select" style="width:auto"><option>All statuses</option><option>Active</option><option>Banned</option></select>' +
+    '</div><div class="tbl-wrap"><table><thead><tr>' +
+      th('Name',1,1) + th('Email / Phone') + th('Registered',1) + th('Total Orders',1) + '<th class="t-right">Total Spent</th>' + th('Status',1) + '<th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' + pager(CUSTOMERS.length, CUSTOMERS.length) + '</div>';
+};
+
+VIEWS.customer = function(name){
+  if (!can('customers.view')) return noAccess('Customers');
+  var c = CUSTOMERS.filter(function(x){ return x.name === name; })[0];
+  if (!c) return noAccess('Customers');
+  var mine = ORDERS.filter(function(o){ return o.cust === name; });
+  var myRevs = REVIEWS.filter(function(r){ return r.cust === name; });
+
+  var banBtn = can('customers.ban')
+    ? '<button class="btn ' + (c.status === 'Active' ? 'btn-danger' : 'btn-primary') + '" data-act="ban:' + esc(c.name) + '">' + (c.status === 'Active' ? 'Ban customer' : 'Unban customer') + '</button>'
+    : '';
+
+  return crumbs([['Dashboard','dashboard'],['Customers','customers'],[c.name,'']]) +
+    pageHead(c.name, esc(c.email) + ' \u00b7 registered ' + esc(c.reg) + ' \u00b7 ' + pill(c.status === 'Active' ? 'p-green' : 'p-red', c.status), banBtn) +
+    (c.status === 'Banned' ? '<div class="warnbox" style="margin-bottom:16px">' + svgi(I.alert) +
+      '<div>This account is banned. The customer cannot sign in and sees <i>"Your account has been suspended"</i> on the storefront.</div></div>' : '') +
+    '<div class="split-3"><div class="stack">' +
+      '<section class="card"><div class="card-head"><div class="card-title">Orders</div><span class="chip">' + mine.length + '</span></div>' +
+      (mine.length ? '<div class="tbl-wrap"><table><thead><tr>' + th('Order Number') + th('Date') + '<th class="t-right">Total</th>' + th('Status') + '</tr></thead><tbody>' +
+        mine.map(function(o){
+          return '<tr class="clickable" data-act="order:' + o.no + '"><td class="mono" style="font-weight:500">' + esc(o.no) + '</td>' +
+            '<td style="font-size:12.5px;color:var(--muted)">' + esc(o.dt) + '</td>' +
+            '<td class="mono t-right">' + inr(o.total) + '</td><td>' + pill(ORDER_ST[o.status], o.status) + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+        : '<div class="empty"><div class="empty-mark">' + svgi(I.cart) + '</div><h3>No orders yet</h3><p>This account was created but has not checked out.</p></div>') +
+      '</section>' +
+      '<section class="card"><div class="card-head"><div class="card-title">Reviews submitted</div><span class="chip">' + myRevs.length + '</span></div>' +
+      (myRevs.length ? '<div>' + myRevs.map(function(r){
+          return '<div class="feed-row"><span class="feed-body"><span class="feed-txt">' + stars(r.rating) +
+            ' <b>' + esc(r.prod) + '</b><br>' + esc(r.body.slice(0,110)) + '\u2026</span>' +
+            '<span class="feed-meta">' + esc(r.at) + '</span></span>' + pill(r.state === 'Approved' ? 'p-green' : r.state === 'Pending' ? 'p-amber' : 'p-red', r.state) + '</div>';
+        }).join('') + '</div>'
+        : '<div class="empty" style="padding:32px"><p style="margin:0">No reviews from this customer.</p></div>') +
+      '</section>' +
+    '</div><div class="stack">' +
+      '<section class="card"><div class="card-head"><div class="card-title">Contact</div>' +
+        '<span class="locked" style="margin-left:auto">' + svgi(I.lock) + 'read only</span></div><div class="card-body">' +
+        '<div class="rowline"><span class="k">Email</span><span class="v" style="font-size:12.5px">' + esc(c.email) + '</span></div>' +
+        '<div class="rowline"><span class="k">Phone</span><span class="v mono" style="font-size:12.5px">' + esc(c.phone) + '</span></div>' +
+        '<div class="rowline"><span class="k">Lifetime orders</span><span class="v mono">' + c.orders + '</span></div>' +
+        '<div class="rowline"><span class="k">Lifetime value</span><span class="v mono">' + inr(c.spent) + '</span></div>' +
+      '</div></section>' +
+      '<section class="card"><div class="card-head"><div class="card-title">Saved addresses</div></div><div class="card-body">' +
+        (mine.length ? '<p style="font-size:13px;line-height:1.6">' + esc(mine[0].addr) + '</p><span class="chip" style="margin-top:8px">Default</span>'
+                     : '<p style="font-size:13px;color:var(--muted)">No saved addresses.</p>') +
+      '</div></section>' +
+    '</div></div>';
+};
+
+/* ==========================================================================
+   8. VIEWS — REVIEWS (spec 9)
+   ========================================================================== */
+var REV_TAB = 'Pending';
+VIEWS.reviews = function(){
+  if (!can('reviews.moderate')) return noAccess('Reviews');
+  var list = REVIEWS.filter(function(r){ return r.state === REV_TAB; });
+  var counts = {Pending:0, Approved:0, Rejected:0};
+  REVIEWS.forEach(function(r){ counts[r.state]++; });
+
+  var rows = list.map(function(r){
+    return '<tr><td><div style="font-weight:500">' + esc(r.prod) + '</div></td>' +
+      '<td><div style="font-size:12.5px">' + esc(r.cust) + '</div><div class="cellsub">' + esc(r.email) + '</div></td>' +
+      '<td>' + stars(r.rating) + '</td>' +
+      '<td style="max-width:320px"><span style="font-size:12.5px;color:var(--muted)">' + esc(r.body.slice(0,100)) + '\u2026</span></td>' +
+      '<td>' + (r.vp ? pill('p-green','Verified') : pill('p-grey','No')) + '</td>' +
+      '<td style="font-size:12.5px;color:var(--muted)">' + esc(r.at) + '</td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost" data-act="review:' + r.id + '">View</button>' +
+        (r.state !== 'Approved' ? '<button class="btn btn-sm btn-primary" data-act="approve:' + r.id + '">Approve</button>' : '') +
+        (r.state !== 'Rejected' ? '<button class="btn btn-sm btn-danger" data-act="reject:' + r.id + '">Reject</button>' : '') +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Reviews','']]) +
+    pageHead('Reviews', counts.Pending + ' waiting on you \u00b7 nothing appears on the site until approved',
+      REV_TAB === 'Pending' && list.length ? '<button class="btn btn-primary" data-act="approveall">' + svgi(I.check,2) + 'Approve All Visible</button>' : '') +
+    '<div class="tabs">' + ['Pending','Approved','Rejected'].map(function(t){
+      return '<button class="tab' + (t === REV_TAB ? ' on' : '') + '" data-rtab="' + t + '">' + t + '<span class="n">' + counts[t] + '</span></button>';
+    }).join('') + '</div>' +
+    '<div class="card">' + (list.length
+      ? '<div class="tbl-wrap"><table><thead><tr>' + th('Product',1) + th('Customer') + th('Rating',1) + th('Excerpt') + th('Verified Purchase') + th('Submitted',1) + '<th></th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+      : '<div class="empty"><div class="empty-mark">' + svgi(I.check) + '</div><h3>Queue is clear</h3><p>Nothing is waiting in ' + REV_TAB.toLowerCase() + '. New reviews land here as customers submit them.</p></div>') +
+    '</div>';
+};
+</script>
+
+<script>
+/* ==========================================================================
+   9. VIEWS — COUPONS (spec 10)
+   ========================================================================== */
+VIEWS.coupons = function(){
+  if (!can('coupons.edit')) return noAccess('Coupons');
+
+  var rows = COUPONS.map(function(c){
+    var st = c.status === 'Active' ? 'p-green' : c.status === 'Expired' ? 'p-grey' : 'p-amber';
+    return '<tr class="clickable" data-act="coupon:' + esc(c.code) + '">' +
+      '<td class="mono" style="font-weight:600;letter-spacing:.04em">' + esc(c.code) + '</td>' +
+      '<td>' + (c.type === 'Flat' ? inr(c.val) + ' off' : c.val + '% off') + '</td>' +
+      '<td class="mono">' + (c.min ? inr(c.min) : '\u2014') + '</td>' +
+      '<td style="font-size:12.5px;color:var(--muted)">' + esc(c.from) + ' \u2192 ' + esc(c.to) + '</td>' +
+      '<td class="mono">' + c.used + ' / ' + (c.limit === null ? '\u221e' : c.limit) + '</td>' +
+      '<td>' + pill(st, c.status) + '</td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost" data-act="coupon:' + esc(c.code) + '">Edit</button>' +
+        (can('coupons.delete') ? '<button class="btn btn-sm btn-ghost btn-danger" data-act="delcoupon:' + esc(c.code) + '">' + svgi(I.trash) + '</button>' : '') +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Coupons','']]) +
+    pageHead('Coupons', COUPONS.filter(function(c){return c.status==='Active';}).length + ' active codes',
+      '<button class="btn btn-primary" data-go="coupon-new">' + svgi(I.plus,2) + 'Add Coupon</button>') +
+    '<div class="card"><div class="filterbar">' +
+      '<input class="input" style="width:220px" placeholder="Search by code">' +
+      '<select class="select" style="width:auto"><option>All statuses</option><option>Active</option><option>Inactive</option><option>Expired</option></select>' +
+      '<input class="input" type="date" style="width:auto" value="2026-07-01">' +
+    '</div><div class="tbl-wrap"><table><thead><tr>' +
+      th('Code',1,1) + th('Discount') + th('Min. Order Value',1) + th('Valid From / To',1) + th('Usage',1) + th('Status',1) + '<th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' + pager(COUPONS.length, COUPONS.length) + '</div>';
+};
+
+VIEWS.coupon = function(code){
+  if (!can('coupons.edit')) return noAccess('Coupons');
+  var isNew = code === 'new';
+  var c = isNew ? {code:'',type:'Flat',val:'',min:'',from:'',to:'',limit:'',perCust:1,status:'Active'}
+                : COUPONS.filter(function(x){ return x.code === code; })[0];
+  if (!c) return noAccess('Coupons');
+  var expired = c.status === 'Expired';
+
+  return crumbs([['Dashboard','dashboard'],['Coupons','coupons'],[isNew ? 'Add Coupon' : c.code,'']]) +
+    pageHead(isNew ? 'Add Coupon' : c.code, isNew ? 'Codes go live the moment they are active and inside their date window'
+      : 'Used ' + c.used + ' times \u00b7 ' + pill(expired ? 'p-grey' : 'p-green', c.status), '') +
+    (expired ? '<div class="warnbox" style="margin-bottom:16px">' + svgi(I.alert) +
+      '<div><b>This coupon has expired.</b> Expired coupons cannot be reactivated \u2014 create a new code instead.</div></div>' : '') +
+    '<div class="split-3"><section class="card"><div class="card-head"><div class="card-title">Coupon details</div></div>' +
+    '<div class="card-body"><div class="form-grid">' +
+      '<div class="field"><label class="label" for="c-code">Coupon Code <span class="req">*</span></label>' +
+        '<input class="input mono" id="c-code" value="' + esc(c.code) + '" placeholder="MONSOON10" style="text-transform:uppercase"' + (expired?' readonly':'') + '>' +
+        '<p class="hint">Uppercase letters, numbers and hyphens only.</p></div>' +
+      '<div class="field"><label class="label" for="c-type">Discount Type <span class="req">*</span></label><select class="select" id="c-type"' + (expired?' disabled':'') + '>' +
+        '<option' + (c.type === 'Flat' ? ' selected' : '') + '>Flat \u20b9 off</option><option' + (c.type === 'Percentage' ? ' selected' : '') + '>Percentage % off</option></select></div>' +
+      '<div class="field"><label class="label" for="c-val">Discount Value <span class="req">*</span></label>' +
+        '<div class="igroup"><span class="addon">' + (c.type === 'Flat' ? '\u20b9' : '%') + '</span><input class="input mono" id="c-val" value="' + esc(c.val) + '"' + (expired?' readonly':'') + '></div></div>' +
+      '<div class="field"><label class="label" for="c-min">Minimum Order Value</label>' +
+        '<div class="igroup"><span class="addon">\u20b9</span><input class="input mono" id="c-min" value="' + esc(c.min || '') + '" placeholder="Optional"' + (expired?' readonly':'') + '></div></div>' +
+      '<div class="field"><label class="label" for="c-from">Start Date <span class="req">*</span></label><input class="input" type="date" id="c-from" value="2026-07-01"' + (expired?' readonly':'') + '></div>' +
+      '<div class="field"><label class="label" for="c-to">End Date <span class="req">*</span></label><input class="input" type="date" id="c-to" value="2026-07-31"' + (expired?' readonly':'') + '></div>' +
+      '<div class="field"><label class="label" for="c-lim">Total Usage Limit</label><input class="input mono" id="c-lim" value="' + (c.limit === null ? '' : esc(c.limit)) + '" placeholder="Blank = unlimited"' + (expired?' readonly':'') + '></div>' +
+      '<div class="field"><label class="label" for="c-per">Per-Customer Limit</label><input class="input mono" id="c-per" value="' + esc(c.perCust) + '"' + (expired?' readonly':'') + '></div>' +
+      '<div class="field span2" style="margin:0;padding-top:6px;border-top:1px solid var(--line-soft)">' +
+        '<label class="switch" style="margin-top:12px"><input type="checkbox"' + (c.status === 'Active' ? ' checked' : '') + (expired?' disabled':'') + '><span class="track"></span>' +
+        '<span><b style="font-size:13px">Active</b><span class="hint" style="margin:0;display:block">Inactive codes are rejected at checkout but keep their usage history.</span></span></label></div>' +
+    '</div></div>' +
+    '<div class="card-foot"><button class="btn btn-primary" data-act="savecoupon"' + (expired?' disabled':'') + '>Save coupon</button>' +
+      '<button class="btn" data-go="coupons">Cancel</button>' +
+      (can('coupons.delete') && !isNew ? '<button class="btn btn-danger" style="margin-left:auto" data-act="delcoupon:' + esc(c.code) + '">Delete</button>' : '') +
+    '</div></section>' +
+    '<div class="stack"><section class="card"><div class="card-head"><div class="card-title">Preview</div></div><div class="card-body">' +
+      '<div style="border:1.5px dashed var(--line);border-radius:var(--r);padding:14px;text-align:center;background:var(--canvas)">' +
+      '<div class="mono" style="font-size:17px;font-weight:600;letter-spacing:.08em">' + esc(c.code || 'YOURCODE') + '</div>' +
+      '<div style="font-size:12.5px;color:var(--muted);margin-top:5px">' +
+      (c.type === 'Flat' ? inr(c.val || 0) + ' off' : (c.val || 0) + '% off') + (c.min ? ' on orders above ' + inr(c.min) : '') + '</div></div>' +
+      '<p class="hint" style="margin-top:12px">This is how the code reads on the checkout summary once applied.</p>' +
+    '</div></section>' +
+    '<div class="infobox">' + svgi(I.info) + '<div><b>Frontend dependency.</b> Checkout needs a "Have a coupon?" field that validates the code against the API. That work sits outside the CMS.</div></div>' +
+    '</div></div>';
+};
+
+/* ==========================================================================
+   10. VIEWS — CONTENT (spec 8)
+   ========================================================================== */
+VIEWS.articles = function(){
+  var rows = ARTICLES.map(function(a){
+    return '<tr class="clickable" data-act="toast:Article editor opens here">' +
+      '<td><div style="font-weight:500">' + esc(a.title) + '</div><div class="cellsub mono">/' + esc(a.slug) + '</div></td>' +
+      '<td><span class="chip">' + esc(a.tag) + '</span></td>' +
+      '<td class="mono">' + a.read + ' min</td>' +
+      '<td>' + pill(a.status === 'Published' ? 'p-green' : 'p-grey', a.status) + '</td>' +
+      '<td><div style="font-size:12.5px">' + esc(a.upd) + '</div><div class="cellsub">' + esc(a.by) + '</div></td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost">Edit</button>' +
+        '<button class="btn btn-sm btn-ghost" title="Preview">' + svgi(I.eye) + '</button>' +
+        (can('articles.publish') ? '<button class="btn btn-sm btn-ghost" title="Publish">' + svgi(I.up) + '</button>' : '') +
+        (can('articles.delete') ? '<button class="btn btn-sm btn-ghost btn-danger" data-act="delarticle:' + esc(a.title) + '">' + svgi(I.trash) + '</button>' : '') +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Content','articles'],['Blog Articles','']]) +
+    pageHead('Blog Articles', ARTICLES.filter(function(a){return a.status==='Draft';}).length + ' drafts \u00b7 ' +
+      (can('articles.publish') ? 'you can publish' : 'an Ops Manager or Admin publishes'),
+      '<button class="btn btn-primary" data-act="toast:New article editor opens here">' + svgi(I.plus,2) + 'New Article</button>') +
+    '<div class="card"><div class="filterbar">' +
+      '<input class="input" style="width:240px" placeholder="Search by title">' +
+      '<select class="select" style="width:auto"><option>All tags</option><option>Betta</option><option>Guppy</option><option>Hatchery</option><option>Science</option></select>' +
+      '<select class="select" style="width:auto"><option>All statuses</option><option>Draft</option><option>Published</option></select>' +
+    '</div><div class="tbl-wrap"><table><thead><tr>' +
+      th('Title',1,1) + th('Tag',1) + th('Read Time') + th('Status',1) + th('Last Updated',1) + '<th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+};
+
+VIEWS.banners = function(){
+  return crumbs([['Dashboard','dashboard'],['Content','articles'],['Banners','']]) +
+    pageHead('Spotlight Banners', 'Up to 3 products rotate on the shop listing page \u00b7 drag to reorder',
+      '<button class="btn btn-primary" data-act="toast:Banner editor opens here">' + svgi(I.plus,2) + 'Add Spotlight</button>') +
+    '<div class="card"><div class="card-body stack" style="gap:10px">' +
+    BANNERS.map(function(b,i){
+      return '<div style="display:flex;align-items:center;gap:13px;padding:12px;border:1px solid var(--line-soft);border-radius:var(--r);background:' + (b.active ? '#fff' : 'var(--canvas)') + '">' +
+        '<span class="grab">' + svgi(I.grip) + '</span>' +
+        thumb(b.prod, PRODUCTS.filter(function(p){return p.name===b.prod;})[0] ? PRODUCTS.filter(function(p){return p.name===b.prod;})[0].cat : 'Betta', 52) +
+        '<div style="min-width:0;flex:1">' +
+        '<div style="font-weight:600;font-size:13.5px">' + esc(b.tagline) + '</div>' +
+        '<div style="font-size:12.5px;color:var(--muted)">' + esc(b.sub) + '</div>' +
+        '<div class="cellsub mono">Position ' + (i+1) + ' \u00b7 ' + esc(b.prod) + '</div></div>' +
+        (b.badge !== 'None' ? '<span class="chip" style="background:var(--teal-wash);color:var(--teal-deep);border-color:#BCF0E3">' + esc(b.badge) + '</span>' : '') +
+        '<label class="switch"><input type="checkbox"' + (b.active ? ' checked' : '') + '><span class="track"></span></label>' +
+        '<button class="btn btn-icon btn-sm btn-ghost">' + svgi(I.pen) + '</button></div>';
+    }).join('') +
+    '</div><div class="card-foot"><span class="hint" style="margin:0">Toggling a spotlight off hides it without deleting it.</span>' +
+    '<button class="btn btn-primary" style="margin-left:auto" data-act="toast:Spotlight order saved">Save order</button></div></div>';
+};
+
+VIEWS.homepage = function(){
+  var sections = [
+    ['Hero', 'Headline, sub-headline, CTA label and background image'],
+    ['Science Section', 'Three claim cards with icon, title and body'],
+    ['Why Choose Zewa', 'Four reason blocks'],
+    ['Knowledge Hub', 'Which three articles to feature'],
+    ['Announcement Bar', 'Bar text, link and colours \u2014 also editable in Settings']
+  ];
+  return crumbs([['Dashboard','dashboard'],['Content','articles'],['Homepage','']]) +
+    pageHead('Homepage Sections', 'Edits save as a draft. Nothing goes live until you publish.', '') +
+    '<div class="publish-bar"><div class="publish-state">' + pill('p-amber','2 sections have unpublished edits') + '</div>' +
+    '<div class="acts"><button class="btn" data-act="toast:Draft saved">Save Draft</button>' +
+    '<button class="btn" data-act="toast:Preview opened in a new tab">' + svgi(I.eye) + 'Preview</button>' +
+    '<button class="btn btn-primary" data-act="toast:Homepage published">' + svgi(I.up,2) + 'Publish all changes</button></div></div>' +
+    '<div class="card"><div>' +
+    sections.map(function(s,i){
+      var dirty = i === 0 || i === 3;
+      return '<div class="feed-row" style="align-items:center;cursor:pointer" data-act="toast:' + s[0] + ' editor opens here">' +
+        '<span class="feed-body"><span class="feed-txt" style="font-weight:500">' + esc(s[0]) + '</span>' +
+        '<span class="feed-meta" style="font-family:var(--sans);color:var(--muted)">' + esc(s[1]) + '</span></span>' +
+        (dirty ? pill('p-amber','draft edits') : pill('p-grey','no changes')) +
+        '<span style="color:var(--muted-2);width:15px;height:15px;margin-left:6px">' + svgi(I.chev,2) + '</span></div>';
+    }).join('') + '</div></div>';
+};
+
+/* ==========================================================================
+   11. VIEWS — CMS USERS (spec 11)
+   ========================================================================== */
+VIEWS.users = function(){
+  if (!can('users.manage')) return noAccess('CMS Users');
+
+  var rows = CMS_USERS.map(function(u){
+    return '<tr><td><div style="display:flex;align-items:center;gap:11px">' +
+      '<span class="avatar" style="background:var(--navy);color:var(--teal);font-size:11px">' +
+      esc(u.name.split(' ').map(function(w){ return w[0]; }).join('')) + '</span>' +
+      '<span style="font-weight:500">' + esc(u.name) + '</span></div></td>' +
+      '<td class="mono" style="font-size:12.5px">' + esc(u.email) + '</td>' +
+      '<td>' + pill(u.role === 'Admin' ? 'p-teal' : u.role === 'Ops Manager' ? 'p-amber' : 'p-blue', u.role) + '</td>' +
+      '<td style="font-size:12.5px;color:var(--muted)">' + esc(u.last) + '</td>' +
+      '<td>' + (u.twofa === 'Pending setup' ? pill('p-amber','2FA pending') : '<span class="chip">' + esc(u.twofa) + '</span>') + '</td>' +
+      '<td>' + pill(u.status === 'Active' ? 'p-green' : 'p-grey', u.status) + '</td>' +
+      '<td class="t-right"><div class="t-actions">' +
+        '<button class="btn btn-sm btn-ghost">Edit</button>' +
+        '<button class="btn btn-sm btn-ghost" data-act="toast:Password reset link sent to ' + esc(u.email) + '" title="Reset password">' + svgi(I.key) + '</button>' +
+        '<button class="btn btn-sm btn-ghost" data-act="deact:' + esc(u.name) + '">' + (u.status === 'Active' ? 'Deactivate' : 'Reactivate') + '</button>' +
+        '<button class="btn btn-sm btn-ghost btn-danger" data-act="deluser:' + esc(u.name) + '">' + svgi(I.trash) + '</button>' +
+      '</div></td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['CMS Users','']]) +
+    pageHead('CMS Users', CMS_USERS.filter(function(u){return u.status==='Active';}).length + ' active \u00b7 2FA is mandatory for every role',
+      '<button class="btn btn-primary" data-act="adduser">' + svgi(I.plus,2) + 'Add User</button>') +
+    '<div class="card"><div class="tbl-wrap"><table><thead><tr>' +
+      th('Name',1,1) + th('Email') + th('Role',1) + th('Last Login',1) + th('2FA') + th('Status',1) + '<th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="card-foot"><span class="hint" style="margin:0">Deactivating a user ends their sessions immediately. Their name stays on past audit entries.</span></div></div>';
+};
+
+/* ==========================================================================
+   12. VIEWS — AUDIT LOG (spec 12)
+   ========================================================================== */
+VIEWS.audit = function(){
+  if (!can('audit.own')) return noAccess('Audit Log');
+  var all = can('audit.all');
+  var list = all ? AUDIT : AUDIT.filter(function(a){ return a.user === ROLES[ROLE].person; });
+
+  var rows = list.map(function(a){
+    return '<tr><td class="mono" style="font-size:12px;white-space:nowrap">' + esc(a.ts) + '</td>' +
+      '<td><div style="font-size:12.5px;font-weight:500">' + esc(a.user) + '</div><div class="cellsub">' + esc(a.role) + '</div></td>' +
+      '<td style="font-size:12.5px">' + esc(a.act) + '</td>' +
+      '<td><span class="chip">' + esc(a.mod) + '</span></td>' +
+      '<td><button class="btn btn-sm btn-ghost mono" style="font-size:11.5px;color:var(--teal-deep)">' + esc(a.rec) + '</button></td>' +
+      '<td class="mono" style="font-size:11.5px;color:var(--muted)">' + esc(a.ip) + '</td></tr>';
+  }).join('');
+
+  return crumbs([['Dashboard','dashboard'],['Audit Log','']]) +
+    pageHead('Audit Log', all ? 'Every change made through the CMS \u00b7 append-only, nobody can edit or delete entries'
+      : 'Your own actions only \u00b7 Admins see the full log', '') +
+    '<div class="card"><div class="filterbar">' +
+      '<input class="input" style="width:220px" placeholder="Search action text">' +
+      '<input class="input" type="date" style="width:auto" value="2026-07-01"><span class="hint" style="margin:0">to</span>' +
+      '<input class="input" type="date" style="width:auto" value="2026-07-24">' +
+      (all ? '<select class="select" style="width:auto"><option>All users</option>' + CMS_USERS.map(function(u){ return '<option>' + esc(u.name) + '</option>'; }).join('') + '</select>' : '') +
+      '<select class="select" style="width:auto"><option>All modules</option><option>Products</option><option>Orders</option><option>Content</option><option>Reviews</option><option>Coupons</option><option>Users</option><option>Settings</option></select>' +
+    '</div><div class="tbl-wrap"><table><thead><tr>' +
+      th('Timestamp',1,1) + th('User') + th('Action') + th('Module',1) + th('Record ID') + th('IP Address') +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' + pager(1420, list.length) + '</div>';
+};
+
+/* ==========================================================================
+   13. VIEWS — SETTINGS (spec 13)
+   ========================================================================== */
+var SET_TAB = 0;
+VIEWS.settings = function(){
+  if (!can('settings.manage')) return noAccess('Settings');
+  var tabs = ['Shipping','Tax','Announcement Bar','Maintenance Mode'];
+  var body = '';
+
+  if (SET_TAB === 0) {
+    body = '<div class="form-grid">' +
+      '<div class="field"><label class="label" for="s-free">Free shipping above</label>' +
+        '<div class="igroup"><span class="addon">\u20b9</span><input class="input mono" id="s-free" value="999"></div>' +
+        '<p class="hint">Orders at or above this value ship free.</p></div>' +
+      '<div class="field"><label class="label" for="s-rate">Standard shipping rate</label>' +
+        '<div class="igroup"><span class="addon">\u20b9</span><input class="input mono" id="s-rate" value="79"></div></div>' +
+      '<div class="field span2"><label class="label" for="s-eta">Estimated delivery text</label>' +
+        '<input class="input" id="s-eta" value="Delivered in 3\u20135 working days across India">' +
+        '<p class="hint">Shown on the product page and at checkout.</p></div>' +
+      '<div class="field span2"><label class="label" for="s-pin">PIN code blacklist</label>' +
+        '<textarea class="textarea mono" id="s-pin" style="min-height:70px">744101, 796001, 799001</textarea>' +
+        '<p class="hint">Comma-separated. Checkout blocks these PIN codes with a "we do not deliver here yet" message.</p></div>' +
+    '</div>';
+  } else if (SET_TAB === 1) {
+    body = '<div class="form-grid">' +
+      '<div class="field"><label class="label" for="s-gst">GST rate</label>' +
+        '<div class="igroup"><input class="input has-r mono" id="s-gst" value="18"><span class="addon addon-r">%</span></div></div>' +
+      '<div class="field"><label class="label" for="s-gstin">GSTIN</label><input class="input mono" id="s-gstin" value="27AAGCZ1234M1Z5">' +
+        '<p class="hint">Printed on every invoice PDF.</p></div>' +
+      '<div class="field span2"><label class="switch"><input type="checkbox" checked><span class="track"></span>' +
+        '<span><b style="font-size:13px">Prices include GST</b><span class="hint" style="margin:0;display:block">When on, listed prices are tax-inclusive and the invoice shows the tax component broken out.</span></span></label></div>' +
+    '</div>';
+  } else if (SET_TAB === 2) {
+    body = '<div class="form-grid">' +
+      '<div class="field span2"><label class="label" for="s-bar">Bar text</label>' +
+        '<input class="input" id="s-bar" value="Free shipping on orders above \u20b9999 \u00b7 dispatched same day before 2pm"></div>' +
+      '<div class="field"><label class="label" for="s-lbl">Link label</label><input class="input" id="s-lbl" value="Shop now"></div>' +
+      '<div class="field"><label class="label" for="s-url">Link URL</label><input class="input mono" id="s-url" value="/shop"></div>' +
+      '<div class="field"><label class="label" for="s-bg">Background colour</label>' +
+        '<div style="display:flex;gap:8px"><input type="color" value="#080C18" style="width:42px;height:38px;border:1px solid var(--line);border-radius:var(--r);background:none;cursor:pointer">' +
+        '<input class="input mono" id="s-bg" value="#080C18"></div></div>' +
+      '<div class="field"><label class="label" for="s-fg">Text colour</label>' +
+        '<div style="display:flex;gap:8px"><input type="color" value="#44E5C2" style="width:42px;height:38px;border:1px solid var(--line);border-radius:var(--r);background:none;cursor:pointer">' +
+        '<input class="input mono" id="s-fg" value="#44E5C2"></div></div>' +
+      '<div class="field span2"><label class="label">Preview</label>' +
+        '<div style="background:#080C18;color:#44E5C2;padding:9px 14px;border-radius:var(--r);font-size:12.5px;text-align:center">' +
+        'Free shipping on orders above \u20b9999 \u00b7 dispatched same day before 2pm &nbsp;<u>Shop now</u></div></div>' +
+      '<div class="field span2"><label class="switch"><input type="checkbox" checked><span class="track"></span>' +
+        '<span style="font-size:13px"><b>Show the announcement bar</b></span></label></div>' +
+    '</div>';
+  } else {
+    body = '<div class="warnbox" style="margin-bottom:16px">' + svgi(I.alert) +
+      '<div><b>Maintenance mode takes the storefront offline for every customer.</b> The CMS stays reachable so you can keep working.</div></div>' +
+      '<div class="form-grid">' +
+      '<div class="field span2"><label class="switch"><input type="checkbox"><span class="track"></span>' +
+        '<span style="font-size:13px"><b>Maintenance mode is off</b></span></label></div>' +
+      '<div class="field span2"><label class="label" for="s-msg">Message shown to visitors</label>' +
+        '<textarea class="textarea" id="s-msg" style="min-height:70px">We are restocking. The shop reopens shortly \u2014 thank you for your patience.</textarea></div>' +
+      '<div class="field"><label class="label" for="s-end">Scheduled end time</label><input class="input" type="datetime-local" id="s-end">' +
+        '<p class="hint">Optional. Maintenance mode lifts automatically at this time.</p></div>' +
+    '</div>';
+  }
+
+  return crumbs([['Dashboard','dashboard'],['Settings','']]) +
+    pageHead('Settings', 'Admin only \u00b7 changes are written to the audit log', '') +
+    '<div class="tabs">' + tabs.map(function(t,i){
+      return '<button class="tab' + (i === SET_TAB ? ' on' : '') + '" data-stab="' + i + '">' + t + '</button>';
+    }).join('') + '</div>' +
+    '<div class="card"><div class="card-body">' + body + '</div>' +
+    '<div class="card-foot"><button class="btn btn-primary" data-act="savesettings">Save changes</button>' +
+    '<button class="btn">Discard</button></div></div>';
+};
+</script>
+
+<script>
+/* ==========================================================================
+   14. NAVIGATION — order and visibility per spec 3.1
+   ========================================================================== */
+const NAV = [
+  {id:'dashboard', label:'Dashboard', icon:I.dash,   gate:null},
+  {id:'products',  label:'Products',  icon:I.box,    gate:'products.view',    subs:[['All Products','products'],['Add Product','product-new']]},
+  {id:'orders',    label:'Orders',    icon:I.cart,   gate:'orders.view',      badge:function(){ return ORDERS.filter(function(o){return o.status==='Pending';}).length; },
+                                                     subs:[['All Orders','orders'],['Pending','orders'],['Shipped','orders']]},
+  {id:'customers', label:'Customers', icon:I.user,   gate:'customers.view',   subs:[['All Customers','customers']]},
+  {id:'articles',  label:'Content',   icon:I.pen,    gate:null,               subs:[['Blog Articles','articles'],['Banners','banners'],['Homepage','homepage']]},
+  {id:'coupons',   label:'Coupons',   icon:I.ticket, gate:'coupons.edit',     subs:[['All Coupons','coupons'],['Add Coupon','coupon-new']]},
+  {id:'reviews',   label:'Reviews',   icon:I.star,   gate:'reviews.moderate', badge:function(){ return REVIEWS.filter(function(r){return r.state==='Pending';}).length; },
+                                                     subs:[['Pending','reviews'],['Approved','reviews'],['Rejected','reviews']]},
+  {id:'users',     label:'CMS Users', icon:I.users,  gate:'users.manage',     subs:[['All Users','users'],['Add User','users']]},
+  {id:'audit',     label:'Audit Log', icon:I.log,    gate:'audit.own'},
+  {id:'settings',  label:'Settings',  icon:I.cog,    gate:'settings.manage',  subs:[['Shipping','settings'],['Tax','settings'],['Announcement','settings'],['Maintenance','settings']]}
+];
+
+/* which nav item lights up for a given route */
+const NAV_OF = {dashboard:'dashboard', products:'products', product:'products', 'product-new':'products',
+  orders:'orders', order:'orders', customers:'customers', customer:'customers',
+  articles:'articles', banners:'articles', homepage:'articles',
+  coupons:'coupons', coupon:'coupons', 'coupon-new':'coupons',
+  reviews:'reviews', users:'users', audit:'audit', settings:'settings'};
+
+let ROUTE = {name:'dashboard', arg:null};
+
+function renderNav(){
+  $('#navScroll').innerHTML = NAV.filter(function(n){ return !n.gate || can(n.gate); }).map(function(n){
+    var active = NAV_OF[ROUTE.name] === n.id;
+    var b = n.badge ? n.badge() : 0;
+    return '<button class="nav-item' + (active ? ' on open' : '') + '" data-go="' + n.id + '" title="' + n.label + '">' +
+      svgi(n.icon) + '<span class="nav-label">' + n.label + '</span>' +
+      (b ? '<span class="nav-badge">' + b + '</span>' : (n.subs ? '<span class="nav-caret">' + svgi(I.chev,2.2) + '</span>' : '')) +
+      '</button>' +
+      (active && n.subs ? '<div class="nav-sub">' + n.subs.map(function(s){
+        return '<button data-go="' + s[1] + '" class="' + (s[1] === ROUTE.name ? 'on' : '') + '">' + s[0] + '</button>';
+      }).join('') + '</div>' : '');
+  }).join('');
+}
+
+/* ==========================================================================
+   15. ROUTER
+   ========================================================================== */
+function go(name, arg){
+  if (name === 'product-new') { name = 'product'; arg = 'new'; EDIT_TAB = 0; }
+  if (name === 'coupon-new')  { name = 'coupon';  arg = 'new'; }
+  if (!VIEWS[name]) return;
+  ROUTE = {name:name, arg:arg === undefined ? null : arg};
+  render();
+  $('#nav').classList.remove('open');
+  window.scrollTo({top:0});
+  $('#view').focus({preventScroll:true});
+}
+
+function render(){
+  setDirty(false);
+  $('#view').innerHTML = VIEWS[ROUTE.name](ROUTE.arg);
+  renderNav();
+  wireForm();
+}
+
+/* ==========================================================================
+   16. UNSAVED CHANGES BANNER (spec 3.1)
+   ========================================================================== */
+let DIRTY = false;
+function setDirty(v){
+  DIRTY = v;
+  $('#unsaved').classList.toggle('show', v);
+}
+function wireForm(){
+  $$('#view input, #view textarea, #view select').forEach(function(el){
+    if (el.type === 'date' || el.type === 'datetime-local') return;
+    el.addEventListener('input', function(){ if (!el.readOnly) setDirty(true); });
+    el.addEventListener('change', function(){ if (!el.readOnly) setDirty(true); });
+  });
+  /* live character counter, spec 17.3 */
+  var short = $('#f-short'), sc = $('#shortCount');
+  if (short && sc) {
+    var upd = function(){
+      sc.textContent = short.value.length;
+      sc.style.color = short.value.length > 180 ? 'var(--amber-deep)' : '';
+    };
+    short.addEventListener('input', upd); upd();
+  }
+}
+
+/* ==========================================================================
+   17. TOASTS (spec 17.1)
+   ========================================================================== */
+function toast(msg, bad){
+  var el = document.createElement('div');
+  el.className = 'toast' + (bad ? ' bad' : '');
+  el.innerHTML = svgi(bad ? I.alert : I.check, 2.2) + '<span>' + esc(msg) + '</span>';
+  $('#toasts').appendChild(el);
+  requestAnimationFrame(function(){ el.classList.add('show'); });
+  setTimeout(function(){
+    el.classList.remove('show');
+    setTimeout(function(){ el.remove(); }, 260);
+  }, 2600);
+}
+
+/* ==========================================================================
+   18. MODALS
+   ========================================================================== */
+function modal(opts){
+  $('#modalHost').innerHTML =
+    '<div class="modal' + (opts.wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' +
+      '<div class="modal-head"><div><div class="modal-title">' + opts.title + '</div>' +
+        (opts.sub ? '<div class="modal-sub">' + opts.sub + '</div>' : '') + '</div>' +
+        '<button class="modal-x" data-close>' + svgi(I.x,2) + '</button></div>' +
+      '<div class="modal-body">' + opts.body + '</div>' +
+      '<div class="modal-foot">' + opts.foot + '</div>' +
+    '</div>';
+  $('#scrim').classList.add('show');
+  var f = $('#modalHost input:not([type=checkbox]), #modalHost select, #modalHost textarea');
+  if (f) setTimeout(function(){ f.focus(); }, 60);
+}
+function closeModal(){
+  $('#scrim').classList.remove('show');
+  setTimeout(function(){ $('#modalHost').innerHTML = ''; }, 200);
+}
+
+/* stock quick-update — spec 5.3, the most common daily action */
+function stockModal(id){
+  var p = PRODUCTS.filter(function(x){ return x.id === id; })[0];
+  modal({
+    title:'Update stock',
+    sub:p.name,
+    body:'<div style="padding-bottom:6px">' +
+      (p.variants.length > 1
+        ? '<div class="field"><label class="label" for="m-sku">SKU</label><select class="select" id="m-sku">' +
+          p.variants.map(function(v){ return '<option>' + esc(v.sku) + ' \u2014 ' + esc(v.pack) + ' (' + v.stock + ' in stock)</option>'; }).join('') + '</select></div>'
+        : '<div class="rowline" style="margin-bottom:12px"><span class="k">SKU</span><span class="v mono">' + esc(p.variants[0].sku) + '</span></div>') +
+      '<div class="field"><label class="label" for="m-stock">New stock count <span class="req">*</span></label>' +
+      '<input class="input mono" id="m-stock" value="' + p.stock + '" inputmode="numeric" style="font-size:17px">' +
+      '<p class="hint">Current: <span class="mono">' + p.stock + '</span>. Below 10 flags the product as Low Stock; zero emails every Ops Manager and Admin.</p></div>' +
+      '</div>',
+    foot:'<button class="btn" data-close>Cancel</button>' +
+         '<button class="btn btn-primary" data-act="dostock:' + id + '">Update Stock</button>'
+  });
+}
+
+/* order status — spec 6.3 */
+function statusModal(no){
+  var o = ORDERS.filter(function(x){ return x.no === no; })[0];
+  modal({
+    wide:true,
+    title:'Update order status',
+    sub:o.no + ' \u00b7 ' + o.cust,
+    body:'<div class="form-grid" style="padding-bottom:6px">' +
+      '<div class="field"><label class="label" for="m-status">New Status <span class="req">*</span></label>' +
+        '<select class="select" id="m-status">' + ['Processing','Shipped','Delivered','Cancelled'].map(function(s){
+          return '<option' + (s === o.status ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label class="label" for="m-carrier">Shipping Carrier</label>' +
+        '<input class="input" id="m-carrier" value="' + esc(o.carrier) + '" placeholder="DTDC, Blue Dart, India Post"></div>' +
+      '<div class="field"><label class="label" for="m-track">Tracking Number <span class="req" id="m-req">*</span></label>' +
+        '<input class="input mono" id="m-track" value="' + esc(o.track) + '" placeholder="Required when status is Shipped"></div>' +
+      '<div class="field"><label class="label" for="m-url">Tracking URL</label>' +
+        '<input class="input" id="m-url" placeholder="Optional \u2014 included in the email"></div>' +
+      '<div class="field span2"><label class="label" for="m-note">Internal Note</label>' +
+        '<textarea class="textarea" id="m-note" style="min-height:60px" placeholder="Saved to the order. Never sent to the customer."></textarea></div>' +
+      '<div class="field span2" style="margin-bottom:8px"><label class="check"><input type="checkbox" checked id="m-notify">' +
+        '<span><b>Notify the customer</b><span class="hint" style="margin:0;display:block">Sends a shipping email with the tracking details via ZeptoMail.</span></span></label></div>' +
+      (!o.inv ? '<div class="span2 infobox">' + svgi(I.info) + '<div>Moving to <b>Processing</b> reveals the Invoice Number field on the order. The order cannot progress further until that number is entered.</div></div>' : '') +
+    '</div>',
+    foot:'<button class="btn" data-close>Cancel</button>' +
+         '<button class="btn btn-primary" data-act="dostatus:' + no + '">Update Status</button>'
+  });
+}
+
+/* refund — spec 6.4, Admin only */
+function refundModal(no){
+  var o = ORDERS.filter(function(x){ return x.no === no; })[0];
+  modal({
+    title:'Process refund',
+    sub:o.no + ' \u00b7 ' + o.cust,
+    body:'<div class="warnbox" style="margin-bottom:14px">' + svgi(I.alert) +
+      '<div>This sends a real refund through Razorpay against payment <span class="mono">' + esc(o.pid) + '</span>. It cannot be undone from the CMS.</div></div>' +
+      '<div class="field"><label class="label" for="m-amt">Refund amount <span class="req">*</span></label>' +
+      '<div class="igroup"><span class="addon">\u20b9</span><input class="input mono" id="m-amt" value="' + o.total + '"></div>' +
+      '<p class="hint">Pre-filled with the order total. Lower it for a partial refund.</p></div>' +
+      '<div class="field"><label class="label" for="m-reason">Reason <span class="req">*</span></label>' +
+      '<textarea class="textarea" id="m-reason" style="min-height:64px" placeholder="Recorded in the audit log against your name"></textarea></div>',
+    foot:'<button class="btn" data-close>Cancel</button>' +
+         '<button class="btn btn-danger" data-act="dorefund:' + no + '">Confirm Refund</button>'
+  });
+}
+
+/* destructive confirm — spec 17.1: type the name to confirm */
+function confirmDelete(kind, name, onOk){
+  modal({
+    title:'Delete ' + kind,
+    sub:'This cannot be undone',
+    body:'<div class="warnbox" style="margin-bottom:14px">' + svgi(I.alert) +
+      '<div>Deleting <b>' + esc(name) + '</b> removes it permanently. Consider setting it to Inactive instead \u2014 that is reversible.</div></div>' +
+      '<div class="field"><label class="label" for="m-confirm">Type <span class="mono">' + esc(name) + '</span> to confirm</label>' +
+      '<input class="input mono" id="m-confirm" autocomplete="off"></div>',
+    foot:'<button class="btn" data-close>Cancel</button>' +
+         '<button class="btn btn-danger" id="m-del" disabled>Delete ' + kind + '</button>'
+  });
+  var inp = $('#m-confirm'), btn = $('#m-del');
+  inp.addEventListener('input', function(){ btn.disabled = inp.value !== name; });
+  btn.addEventListener('click', function(){ if (inp.value === name) { closeModal(); onOk(); } });
+}
+
+/* add CMS user — spec 11.2 */
+function addUserModal(){
+  modal({
+    title:'Add CMS user',
+    sub:'They set their own password and complete 2FA on first login',
+    body:'<div class="field"><label class="label" for="m-un">Full Name <span class="req">*</span></label><input class="input" id="m-un"></div>' +
+      '<div class="field"><label class="label" for="m-ue">Email Address <span class="req">*</span></label><input class="input" id="m-ue" type="email" placeholder="name@zewafeeds.com">' +
+      '<p class="hint">This becomes their login. Must be unique.</p></div>' +
+      '<div class="field"><label class="label" for="m-ur">Role <span class="req">*</span></label><select class="select" id="m-ur">' +
+      '<option>Content Editor</option><option>Ops Manager</option><option>Admin</option></select></div>' +
+      '<div class="field"><label class="check"><input type="checkbox" checked>' +
+      '<span><b>Send invite email</b><span class="hint" style="margin:0;display:block">Sends a "Set your password" link. 2FA setup is forced before they reach any module.</span></span></label></div>',
+    foot:'<button class="btn" data-close>Cancel</button><button class="btn btn-primary" data-act="douser">Send invite</button>'
+  });
+}
+
+/* full review — spec 9 */
+function reviewModal(id){
+  var r = REVIEWS.filter(function(x){ return x.id === id; })[0];
+  modal({
+    wide:true,
+    title:r.prod,
+    sub:r.cust + ' \u00b7 ' + r.at,
+    body:'<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">' + stars(r.rating) +
+      (r.vp ? pill('p-green','Verified purchase') : pill('p-grey','Not a verified purchase')) +
+      pill(r.state === 'Approved' ? 'p-green' : r.state === 'Pending' ? 'p-amber' : 'p-red', r.state) + '</div>' +
+      '<p style="font-size:13.5px;line-height:1.65;padding:12px;background:var(--canvas);border-radius:var(--r)">' + esc(r.body) + '</p>',
+    foot:'<button class="btn" data-close>Close</button>' +
+      (r.state !== 'Rejected' ? '<button class="btn btn-danger" data-act="reject:' + r.id + '">Reject</button>' : '') +
+      (r.state !== 'Approved' ? '<button class="btn btn-primary" data-act="approve:' + r.id + '">Approve</button>' : '')
+  });
+}
+
+/* ==========================================================================
+   19. ACTION DISPATCH
+   ========================================================================== */
+function act(key){
+  var bits = key.split(':');
+  var cmd = bits[0], arg = bits.slice(1).join(':');
+
+  switch (cmd) {
+    case 'toast':    toast(arg); break;
+    case 'product':  EDIT_TAB = 0; go('product', Number(arg)); break;
+    case 'order':    go('order', arg); break;
+    case 'customer': go('customer', arg); break;
+    case 'coupon':   go('coupon', arg); break;
+    case 'reviews':  go('reviews'); break;
+    case 'coupons':  go('coupons'); break;
+    case 'articles': go('articles'); break;
+
+    case 'stock':    stockModal(Number(arg)); break;
+    case 'dostock': {
+      var p = PRODUCTS.filter(function(x){ return x.id === Number(arg); })[0];
+      var v = parseInt($('#m-stock').value, 10);
+      if (isNaN(v) || v < 0) { toast('Enter a whole number of units', true); return; }
+      var was = p.stock;
+      p.stock = v;
+      p.variants[0].stock = v;
+      p.upd = '24 Jul 2026'; p.by = ROLES[ROLE].person;
+      closeModal(); render();
+      toast('Stock updated: ' + was + ' \u2192 ' + v);
+      break;
+    }
+
+    case 'status':   statusModal(arg); break;
+    case 'dostatus': {
+      var o = ORDERS.filter(function(x){ return x.no === arg; })[0];
+      var ns = $('#m-status').value, tn = $('#m-track').value.trim();
+      if (ns === 'Shipped' && !tn) {
+        $('#m-track').classList.add('bad');
+        if (!$('#m-track').nextElementSibling || !$('#m-track').nextElementSibling.classList.contains('err'))
+          $('#m-track').insertAdjacentHTML('afterend', '<div class="err">' + svgi(I.alert,2) + 'Tracking number is required when the status is Shipped</div>');
+        toast('Tracking number is required for Shipped', true);
+        return;
+      }
+      if (ns !== 'Pending' && ns !== 'Processing' && !o.inv) {
+        toast('Enter the invoice number before moving past Processing', true);
+        return;
+      }
+      o.status = ns; o.track = tn; o.carrier = $('#m-carrier').value.trim();
+      closeModal(); render();
+      toast('Order ' + o.no + ' is now ' + ns + ($('#m-notify') && $('#m-notify').checked ? ' \u00b7 customer emailed' : ''));
+      break;
+    }
+
+    case 'refund':   refundModal(arg); break;
+    case 'dorefund': {
+      var ro = ORDERS.filter(function(x){ return x.no === arg; })[0];
+      if (!$('#m-reason').value.trim()) { toast('A reason is required for every refund', true); return; }
+      ro.pay = 'Refunded'; ro.status = 'Cancelled';
+      closeModal(); render();
+      toast('Refund sent to Razorpay \u00b7 logged against ' + ROLES[ROLE].person);
+      break;
+    }
+
+    case 'review':   reviewModal(Number(arg)); break;
+    case 'approve': {
+      REVIEWS.filter(function(x){ return x.id === Number(arg); })[0].state = 'Approved';
+      closeModal(); render(); toast('Review approved and live on the product page');
+      break;
+    }
+    case 'reject': {
+      REVIEWS.filter(function(x){ return x.id === Number(arg); })[0].state = 'Rejected';
+      closeModal(); render(); toast('Review rejected and archived');
+      break;
+    }
+    case 'approveall': {
+      var n = 0;
+      REVIEWS.forEach(function(r){ if (r.state === 'Pending') { r.state = 'Approved'; n++; } });
+      render(); toast(n + ' reviews approved');
+      break;
+    }
+
+    case 'ban': {
+      var c = CUSTOMERS.filter(function(x){ return x.name === arg; })[0];
+      if (c.status === 'Active') {
+        modal({
+          title:'Ban ' + c.name + '?',
+          sub:'Reversible at any time',
+          body:'<div class="warnbox">' + svgi(I.alert) + '<div>They will be signed out immediately and see <i>"Your account has been suspended"</i> when they try to log in. Their order history stays intact.</div></div>',
+          foot:'<button class="btn" data-close>Cancel</button><button class="btn btn-danger" data-act="doban:' + arg + '">Ban customer</button>'
+        });
+      } else { c.status = 'Active'; render(); toast(c.name + ' can sign in again'); }
+      break;
+    }
+    case 'doban': {
+      CUSTOMERS.filter(function(x){ return x.name === arg; })[0].status = 'Banned';
+      closeModal(); render(); toast(arg + ' has been banned');
+      break;
+    }
+
+    case 'savedraft':  setDirty(false); toast('Draft saved \u00b7 the live site is unchanged'); break;
+    case 'preview':    toast('Preview opened in a new tab with the draft data'); break;
+    case 'publish': {
+      var pp = PRODUCTS.filter(function(x){ return x.id === Number(arg); })[0];
+      if (pp && !pp.variants.length) { toast('Add at least one SKU before publishing', true); return; }
+      if (pp) { pp.draft = false; if (pp.status === 'Draft') pp.status = 'Active'; }
+      setDirty(false); render(); toast('Published \u00b7 live on the storefront now');
+      break;
+    }
+    case 'viewsite':   toast('Opening the product page on zewafeeds.com'); break;
+    case 'savecoupon': setDirty(false); toast('Coupon saved'); break;
+    case 'savesettings': setDirty(false); toast('Settings saved'); break;
+
+    case 'adduser':    addUserModal(); break;
+    case 'douser': {
+      var nm = $('#m-un').value.trim(), em = $('#m-ue').value.trim();
+      if (!nm || !em) { toast('Name and email are both required', true); return; }
+      CMS_USERS.push({name:nm, email:em, role:$('#m-ur').value, last:'\u2014 never', status:'Active', twofa:'Pending setup'});
+      closeModal(); render(); toast('Invite sent to ' + em);
+      break;
+    }
+    case 'deact': {
+      var u = CMS_USERS.filter(function(x){ return x.name === arg; })[0];
+      u.status = u.status === 'Active' ? 'Deactivated' : 'Active';
+      render();
+      toast(u.status === 'Active' ? arg + ' reactivated' : arg + ' deactivated \u00b7 all sessions ended');
+      break;
+    }
+
+    case 'deluser':   confirmDelete('user', arg, function(){
+      CMS_USERS.splice(CMS_USERS.findIndex(function(x){ return x.name === arg; }), 1);
+      render(); toast(arg + ' deleted \u00b7 their audit entries remain');
+    }); break;
+    case 'delcoupon': confirmDelete('coupon', arg, function(){
+      COUPONS.splice(COUPONS.findIndex(function(x){ return x.code === arg; }), 1);
+      go('coupons'); toast('Coupon ' + arg + ' deleted');
+    }); break;
+    case 'delarticle': confirmDelete('article', arg, function(){ toast('Article deleted'); }); break;
+    case 'delsku':     confirmDelete('SKU', arg, function(){ toast('SKU ' + arg + ' deleted'); }); break;
+  }
+}
+
+/* ==========================================================================
+   20. EVENTS
+   ========================================================================== */
+document.addEventListener('click', function(e){
+  var t = e.target;
+
+  if (t.closest('[data-close]')) { closeModal(); return; }
+  var s = t.closest('[data-stock]');if (s) { e.preventDefault(); e.stopPropagation(); stockModal(Number(s.dataset.stock)); return; }
+  var a = t.closest('[data-act]');  if (a) { e.preventDefault(); act(a.dataset.act); return; }
+  var g = t.closest('[data-go]');   if (g) { e.preventDefault(); go(g.dataset.go); return; }
+
+  var et = t.closest('[data-etab]'); if (et) { EDIT_TAB = Number(et.dataset.etab); render(); return; }
+  var st = t.closest('[data-stab]'); if (st) { SET_TAB  = Number(st.dataset.stab); render(); return; }
+  var rt = t.closest('[data-rtab]'); if (rt) { REV_TAB  = rt.dataset.rtab;         render(); return; }
+
+  var tab = t.closest('[data-tab]');
+  if (tab) { tab.parentElement.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('on'); }); tab.classList.add('on'); return; }
+
+  var sortTh = t.closest('th.sortable');
+  if (sortTh) {
+    sortTh.parentElement.querySelectorAll('th').forEach(function(x){ x.classList.remove('sorted'); });
+    sortTh.classList.add('sorted');
+    return;
+  }
+
+  /* menus */
+  if (t.closest('#roleBtn')) { $('#roleMenu').classList.toggle('show'); $('#userMenu').classList.remove('show'); return; }
+  if (t.closest('#userBtn')) { $('#userMenu').classList.toggle('show'); $('#roleMenu').classList.remove('show'); return; }
+  if (!t.closest('.menu')) { $('#roleMenu').classList.remove('show'); $('#userMenu').classList.remove('show'); }
+  if (!t.closest('.gsearch')) $('#gsResults').classList.remove('show');
+  if (t.closest('#scrim') && !t.closest('.modal')) closeModal();
+});
+
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') {
+    closeModal();
+    $('#roleMenu').classList.remove('show');
+    $('#userMenu').classList.remove('show');
+    $('#gsResults').classList.remove('show');
+    $('#nav').classList.remove('open');
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('#gsInput').focus(); }
+});
+
+/* sidebar collapse + mobile */
+$('#collapseBtn').addEventListener('click', function(){ $('#app').classList.toggle('mini'); });
+$('#menuBtn').addEventListener('click', function(){ $('#nav').classList.toggle('open'); });
+
+/* unsaved banner */
+$('#saveBtn').addEventListener('click', function(){ setDirty(false); toast('Changes saved'); });
+$('#discardBtn').addEventListener('click', function(){ render(); toast('Changes discarded'); });
+
+/* ==========================================================================
+   21. ROLE SWITCHING (demos the RBAC matrix, spec 2.1)
+   ========================================================================== */
+function paintRole(){
+  var r = ROLES[ROLE];
+  $('#roleDot').style.background = r.dot;
+  $('#roleLabel').textContent = r.name;
+  $('#userAv').textContent = r.av;
+  $('#roleMenu').innerHTML = '<div class="mhead">Preview the CMS as</div>' +
+    Object.keys(ROLES).map(function(k){
+      return '<button data-role="' + k + '">' +
+        '<span style="width:8px;height:8px;border-radius:50%;background:' + ROLES[k].dot + ';flex:none"></span>' +
+        '<span><b>' + ROLES[k].name + '</b><span style="display:block;font-size:11.5px;color:var(--muted)">' + ROLES[k].who + '</span></span>' +
+        (k === ROLE ? '<span style="margin-left:auto;color:var(--teal-deep)">' + svgi(I.check,2.4) + '</span>' : '') +
+        '</button>';
+    }).join('');
+  $('#userMenu').innerHTML =
+    '<div class="mhead"><b style="color:var(--text)">' + r.person + '</b><br>' + r.name + '</div><hr>' +
+    '<button data-act="toast:Profile page opens here">' + svgi(I.user) + 'My Profile</button>' +
+    '<button data-act="toast:Change password flow opens here">' + svgi(I.key) + 'Change Password</button><hr>' +
+    '<button data-act="toast:Signed out" style="color:var(--red-deep)">' + svgi(I.out) + 'Sign Out</button>';
+}
+
+$('#roleMenu').addEventListener('click', function(e){
+  var b = e.target.closest('[data-role]');
+  if (!b) return;
+  ROLE = b.dataset.role;
+  paintRole();
+  $('#roleMenu').classList.remove('show');
+  var allowed = NAV.filter(function(n){ return !n.gate || can(n.gate); }).map(function(n){ return n.id; });
+  var home = NAV_OF[ROUTE.name];
+  if (allowed.indexOf(home) === -1) go('dashboard'); else render();
+  toast('Now previewing as ' + ROLES[ROLE].name);
+});
+
+/* ==========================================================================
+   22. GLOBAL SEARCH — orders + customers + products at once (spec 3.1)
+   ========================================================================== */
+$('#gsInput').addEventListener('input', function(){
+  var q = this.value.trim().toLowerCase();
+  var box = $('#gsResults');
+  if (q.length < 2) { box.classList.remove('show'); return; }
+
+  var out = '';
+  if (can('orders.view')) {
+    var os = ORDERS.filter(function(o){
+      return (o.no + ' ' + o.cust + ' ' + o.email).toLowerCase().indexOf(q) > -1; }).slice(0,3);
+    if (os.length) out += '<div class="gs-group">Orders</div>' + os.map(function(o){
+      return '<div class="gs-row" data-act="order:' + o.no + '">' + svgi(I.cart).replace('<svg','<svg style="width:15px;height:15px;color:var(--muted-2);flex:none"') +
+        '<span>' + esc(o.cust) + '</span><span class="mono">' + esc(o.no) + '</span></div>'; }).join('');
+  }
+  if (can('customers.view')) {
+    var cs = CUSTOMERS.filter(function(c){
+      return (c.name + ' ' + c.email).toLowerCase().indexOf(q) > -1; }).slice(0,3);
+    if (cs.length) out += '<div class="gs-group">Customers</div>' + cs.map(function(c){
+      return '<div class="gs-row" data-act="customer:' + esc(c.name) + '">' + svgi(I.user).replace('<svg','<svg style="width:15px;height:15px;color:var(--muted-2);flex:none"') +
+        '<span>' + esc(c.name) + '</span><span class="mono">' + esc(c.email) + '</span></div>'; }).join('');
+  }
+  if (can('products.view')) {
+    var ps = PRODUCTS.filter(function(p){
+      return (p.name + ' ' + p.variants.map(function(v){ return v.sku; }).join(' ')).toLowerCase().indexOf(q) > -1; }).slice(0,4);
+    if (ps.length) out += '<div class="gs-group">Products</div>' + ps.map(function(p){
+      return '<div class="gs-row" data-act="product:' + p.id + '">' + svgi(I.box).replace('<svg','<svg style="width:15px;height:15px;color:var(--muted-2);flex:none"') +
+        '<span>' + esc(p.name) + '</span><span class="mono">' + esc(p.variants[0].sku) + '</span></div>'; }).join('');
+  }
+
+  box.innerHTML = out || '<div class="gs-row" style="color:var(--muted);cursor:default">No matches for "' + esc(q) + '"</div>';
+  box.classList.add('show');
+});
+
+/* ==========================================================================
+   23. BOOT
+   ========================================================================== */
+paintRole();
+go('dashboard');
+</script>

@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   ZEWA FEEDS CMS — base layer
+   Design tokens live in tailwind.config.js (ported from spec §17.2 / §3.1).
+   ========================================================================== */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    background: theme("colors.canvas");
+    color: theme("colors.ink");
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid theme("colors.teal.deep");
+    outline-offset: 2px;
+    border-radius: 5px;
+  }
+  ::selection {
+    background: theme("colors.teal.wash");
+  }
+  /* mono carries every system-owned value: SKUs, slugs, order numbers, ₹, IPs, timestamps */
+  .mono {
+    font-family: theme("fontFamily.mono");
+    font-variant-numeric: tabular-nums;
+  }
+  .eyebrow {
+    font-family: theme("fontFamily.mono");
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: theme("colors.muted.2");
+  }
+}
+
+@layer components {
+  .nav-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .nav-scroll::-webkit-scrollbar-thumb {
+    background: theme("colors.navy.3");
+    border-radius: 3px;
+  }
+  .cms-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+    padding-right: 32px !important;
+  }
+  /* rich-text (Tiptap) content styling for article editor */
+  .tiptap:focus {
+    outline: none;
+  }
+  .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: theme("colors.muted.2");
+    pointer-events: none;
+    height: 0;
+  }
+  .prose-cms h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+  }
+  .prose-cms h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 14px 0 6px;
+  }
+  .prose-cms p {
+    margin: 8px 0;
+    line-height: 1.65;
+  }
+  .prose-cms ul,
+  .prose-cms ol {
+    margin: 8px 0 8px 20px;
+    list-style: revert;
+  }
+  .prose-cms li {
+    margin: 3px 0;
+  }
+  .prose-cms a {
+    color: theme("colors.teal.deep");
+    text-decoration: underline;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
