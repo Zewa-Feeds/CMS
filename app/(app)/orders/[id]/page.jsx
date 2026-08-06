@@ -13,6 +13,8 @@ import {
   Ban,
   Tag,
   Save,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL } from "@/lib/constants";
@@ -142,12 +144,24 @@ export default function OrderDetailPage() {
     }
   };
 
+  /*
+   * The PDF is generated on demand, so there is a real pause between the click
+   * and the browser's download prompt. Tracking that in state lets the button
+   * show a spinner and disable itself — without it the click looks like it did
+   * nothing, and people click again and generate the invoice twice.
+   */
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+
   const handleDownloadInvoice = async () => {
+    if (downloadingInvoice) return;
+    setDownloadingInvoice(true);
     try {
       toast.push("Downloading invoice PDF…");
       await downloadInvoice(orderNo);
     } catch (err) {
       toast.push(err.message || "Failed to download invoice.", { bad: true });
+    } finally {
+      setDownloadingInvoice(false);
     }
   };
 
@@ -411,8 +425,16 @@ export default function OrderDetailPage() {
                       size="sm"
                       className="ml-auto"
                       onClick={handleDownloadInvoice}
+                      disabled={downloadingInvoice}
+                      aria-busy={downloadingInvoice}
+                      title={`Download invoice ${fulfilment.invoiceNumber || order.invoiceNumber} as PDF`}
                     >
-                      PDF
+                      {downloadingInvoice ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <Download size={15} />
+                      )}
+                      {downloadingInvoice ? "Preparing…" : "Download PDF"}
                     </Button>
                   )}
                 </div>
