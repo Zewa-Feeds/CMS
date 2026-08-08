@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Suspense } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck, ArrowRight, Lock, KeyRound, Download } from "lucide-react";
 import { useAuth } from "@/lib/store";
@@ -396,11 +397,23 @@ function LoginForm() {
 
 function Brand() {
   return (
-    <div className="mb-6 flex items-center gap-2.5">
-      <div className="grid h-9 w-9 place-items-center rounded-lg bg-teal font-mono text-[15px] font-semibold text-teal-ink">
-        Z
-      </div>
-      <div>
+    <div className="mb-6 flex items-center gap-3">
+      {/*
+        The real mark, replacing a placeholder "Z" tile.
+
+        `brightness-0 invert` renders the dark-ink logo white, matching how the
+        storefront header uses the same asset on a dark background — the source
+        PNG is not a white variant.
+      */}
+      <Image
+        src="/logo.png"
+        alt="Zewa Feeds"
+        width={120}
+        height={120}
+        priority
+        className="h-10 w-auto object-contain brightness-0 invert"
+      />
+      <div className="border-l border-white/15 pl-3">
         <div className="text-[16px] font-semibold text-white">Zewa Feeds</div>
         <div className="font-mono text-[11px] uppercase tracking-[.14em] text-navy-text">
           Content Management

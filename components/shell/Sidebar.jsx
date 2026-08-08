@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import * as Icons from "lucide-react";
 import { NAV } from "@/lib/nav";
@@ -52,9 +53,14 @@ export function Sidebar({ open, onClose, counts }) {
         )}
       >
         <div className="flex h-[57px] shrink-0 items-center gap-2.5 border-b border-navy-3 px-4">
-          <div className="grid h-7 w-7 place-items-center rounded-lg bg-teal font-mono text-[13px] font-semibold text-teal-ink">
-            Z
-          </div>
+          {/* brightness-0 invert renders the dark-ink source PNG white for this dark rail. */}
+          <Image
+            src="/logo.png"
+            alt=""
+            width={96}
+            height={96}
+            className="h-7 w-auto shrink-0 object-contain brightness-0 invert"
+          />
           <div className="whitespace-nowrap text-[14.5px] font-semibold tracking-[-.01em] text-white">
             Zewa Feeds
           </div>
