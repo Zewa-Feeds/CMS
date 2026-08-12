@@ -16,7 +16,7 @@ import { RoleGate } from "@/components/shell/RoleGate";
 /** Editor defaults, so a missing settings row still renders every field. */
 const EMPTY = {
   shipping: { freeThreshold: 0, standardRate: 0, deliveryText: "", pinBlacklist: "" },
-  tax: { gstRate: 18, gstInclusive: true, gstin: "" },
+  tax: { gstRate: 0, gstInclusive: true, gstin: "" },
   announcement: { text: "", linkLabel: "", linkUrl: "/", bg: "#080C18", fg: "#44E5C2", active: false },
   maintenance: { on: false, message: "", endAt: "" },
 };
@@ -37,7 +37,7 @@ function toForm(api) {
       pinBlacklist: (api.shipping?.pinBlacklist ?? []).join(", "),
     },
     tax: {
-      gstRate: api.tax?.gstRatePct ?? 18,
+      gstRate: api.tax?.gstRatePct ?? 0,
       gstInclusive: api.tax?.gstInclusive ?? true,
       gstin: api.tax?.gstin ?? "",
     },
