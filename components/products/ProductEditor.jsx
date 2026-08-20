@@ -982,7 +982,10 @@ export function ProductEditor({ initial }) {
         <MediaManager
           media={form.media}
           variants={form.variants}
-          slug={slug}
+          /* The SAVED slug, not form.slug: the preview endpoint looks the product
+             up by slug, so an edited-but-unsaved slug would 404. A brand-new
+             product has none yet, and the manager skips previewing until it does. */
+          slug={initial?.slug ?? null}
           onChange={(media) => set({ media })}
           onVariantsChange={(variants) => set({ variants })}
           onUpload={(files, resourceType, sku) => void handleFiles(files, resourceType, sku)}
