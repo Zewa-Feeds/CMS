@@ -61,6 +61,9 @@ const EMPTY = {
   feedPortion: "",
   feedNotes: "",
   media: [],
+  /* Null is "use the default": the first active pack by position. A new product
+     has no packs to choose from yet anyway. */
+  representativeSku: null,
   variants: [{ sku: "", pack: "", mrp: "", price: "", stock: 0, hsn: "23099090" }],
 };
 
@@ -176,6 +179,10 @@ function toForm(api) {
      * {src} objects and api.images held bare URLs or {url} objects.
      */
     media: normaliseMedia(api),
+    /* Which pack's photography represents the product on listing surfaces.
+       Null means the default (first active pack), which is a real choice and
+       round-trips as null rather than being dropped. */
+    representativeSku: api.representativeSku ?? null,
     variants: (api.variants || []).map((v) => ({
       id: v.id,
       sku: v.sku || "",
@@ -339,6 +346,9 @@ export function ProductEditor({ initial }) {
       // Every pack this asset is shown for. Empty means shared with all.
       skus: m.skus ?? (m.sku ? [m.sku] : []),
     })),
+    // Imagery only — price, stock and Add-to-Cart still follow the first
+    // purchasable pack. Validated server-side against this family's own packs.
+    representativeSku: form.representativeSku ?? null,
     variants: form.variants.map((v) => ({
       sku: v.sku.trim().toUpperCase(),
       pack: v.pack.trim(),
@@ -986,8 +996,10 @@ export function ProductEditor({ initial }) {
              up by slug, so an edited-but-unsaved slug would 404. A brand-new
              product has none yet, and the manager skips previewing until it does. */
           slug={initial?.slug ?? null}
+          representativeSku={form.representativeSku}
           onChange={(media) => set({ media })}
           onVariantsChange={(variants) => set({ variants })}
+          onRepresentativeChange={(representativeSku) => set({ representativeSku })}
           onUpload={(files, resourceType, sku) => void handleFiles(files, resourceType, sku)}
           uploading={uploading}
           uploadError={uploadError}

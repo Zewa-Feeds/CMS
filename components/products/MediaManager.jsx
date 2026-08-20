@@ -51,6 +51,13 @@ const COVERAGE = {
 
 const coverageOf = (state) => COVERAGE[state] ?? COVERAGE.EMPTY;
 
+/** Where a card's hover film comes from. Plain words, not resolver enum names. */
+const VIDEO_SOURCE = {
+  VARIANT: "this pack\u2019s own film",
+  INHERITED: "borrowed from the pack it inherits from",
+  SHARED: "the shared product film",
+};
+
 /** Matches the Button "default" variant, since a label cannot be a <Button>. */
 const UPLOAD_BTN =
   "inline-flex cursor-pointer items-center rounded-[7px] border border-line bg-card px-[13px] py-2 text-[13px] hover:border-[#CFD6E0] hover:bg-[#FBFCFD] aria-disabled:cursor-not-allowed aria-disabled:opacity-50";
@@ -59,8 +66,10 @@ export default function MediaManager({
   media,
   variants,
   slug,
+  representativeSku,
   onChange,
   onVariantsChange,
+  onRepresentativeChange,
   onUpload,
   uploading,
   uploadError,
@@ -86,6 +95,9 @@ export default function MediaManager({
         sku: v.sku,
         heroMediaId: v.heroMediaId ?? null,
       })),
+      /* Null means "use the default", which is a real choice and must reach the
+         server as null rather than being dropped as undefined. */
+      representativeSku: representativeSku ?? null,
       media: (media ?? []).map((m) => ({
         ...(m.id ? { id: m.id } : {}),
         type: m.type,
@@ -99,7 +111,7 @@ export default function MediaManager({
         skus: m.skus ?? (m.sku ? [m.sku] : []),
       })),
     }),
-    [media, activeVariants],
+    [media, activeVariants, representativeSku],
   );
 
   /*
@@ -138,6 +150,26 @@ export default function MediaManager({
     [packs],
   );
   const selected = packs.find((p) => p.sku === previewSku) ?? packs[0] ?? null;
+
+  /**
+   * The selected pack's gallery in the order a customer sees it.
+   *
+   * `items` arrives in CMS order — the operator's arrangement, which the rest of
+   * this editor reads. The product page leads with the main image and then the
+   * film, so previewing `items` directly would show an order no customer gets.
+   * `presentation.orderedIds` is the server's answer to that, from the same
+   * function the storefront calls.
+   */
+  const previewItems = useMemo(() => {
+    if (!selected) return [];
+    const byId = new Map(selected.items.map((m) => [m.id, m]));
+    const ordered = (selected.presentation?.orderedIds ?? []).map((id) => byId.get(id)).filter(Boolean);
+    // Falls back to CMS order if an older server has not sent presentation yet.
+    return ordered.length === selected.items.length ? ordered : selected.items;
+  }, [selected]);
+
+  /** What the shop grid and homepage will show for this product. */
+  const listing = preview?.listing ?? null;
 
   // ---- Mutations -----------------------------------------------------------
 
@@ -244,6 +276,128 @@ export default function MediaManager({
         </CardBody>
       </Card>
 
+      {/* ---------- Listing card ---------- */}
+      {packs.length > 0 && (
+        <Card>
+          <CardHead>
+            <CardTitle>Listing card</CardTitle>
+            <div className="w-[220px]">
+              <Select
+                value={representativeSku ?? ""}
+                onChange={(e) => onRepresentativeChange?.(e.target.value || null)}
+                disabled={disabled}
+                aria-label="Listing representative pack"
+              >
+                <option value="">
+                  Default &mdash; {packs[0]?.pack ?? "first pack"}
+                </option>
+                {packs.map((p) => (
+                  <option key={p.sku} value={p.sku}>
+                    {p.pack}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </CardHead>
+          <CardBody>
+            <p className="mb-3.5 text-[12px] text-grey-deep">
+              How this product appears on the shop grid and the homepage. This chooses the{" "}
+              <strong className="font-semibold text-ink">photography only</strong> &mdash; price,
+              stock and the Add-to-Cart button still follow the first pack a customer can actually
+              buy.
+            </p>
+
+            {!listing ? (
+              <p className="text-[13px] text-grey-deep">Working out the card&hellip;</p>
+            ) : (
+              <div className="flex flex-wrap items-start gap-5">
+                {/*
+                  Deliberately square and dark: the storefront card sits on a dark
+                  panel with a square image well, and a light preview would flatter
+                  artwork that disappears against the real thing.
+                */}
+                <div className="relative h-[168px] w-[168px] shrink-0 overflow-hidden rounded-xl border border-black/10 bg-[#0d1726]">
+                  {listing.heroUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={listing.heroUrl}
+                      alt={listing.heroAlt || ""}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : listing.posterUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={listing.posterUrl}
+                        alt=""
+                        className="h-full w-full object-contain opacity-70"
+                      />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/65 px-2 py-1 text-center text-[10.5px] text-white">
+                        Video poster &mdash; no photograph
+                      </span>
+                    </>
+                  ) : (
+                    <span className="flex h-full items-center justify-center px-3 text-center text-[11.5px] text-white/45">
+                      Placeholder
+                      <br />
+                      &ldquo;Image coming soon&rdquo;
+                    </span>
+                  )}
+                  {listing.videoUrl && (
+                    <span className="absolute right-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                      ▶ 2s hover
+                    </span>
+                  )}
+                </div>
+
+                <dl className="grid min-w-[260px] flex-1 grid-cols-[132px_1fr] gap-x-3 gap-y-2 text-[12.5px]">
+                  <dt className="text-grey-deep">Representative</dt>
+                  <dd className="font-medium">
+                    {listing.pack ?? "—"}
+                    <span className="ml-1.5 text-[11px] font-normal text-grey-deep">
+                      {listing.isExplicit ? "(chosen)" : "(default \u2014 first pack)"}
+                    </span>
+                  </dd>
+
+                  <dt className="text-grey-deep">Main image</dt>
+                  <dd>
+                    {listing.heroUrl ? (
+                      "The pack\u2019s main image"
+                    ) : (
+                      <span className="text-amber-deep">
+                        None. Customers see a placeholder &mdash; never another pack&rsquo;s
+                        photograph.
+                      </span>
+                    )}
+                  </dd>
+
+                  <dt className="text-grey-deep">Hover video</dt>
+                  <dd>
+                    {listing.videoUrl
+                      ? `Plays after about 2 seconds \u2014 ${VIDEO_SOURCE[listing.videoSource] ?? "available"}`
+                      : "None. The card keeps the image."}
+                  </dd>
+
+                  <dt className="text-grey-deep">Then</dt>
+                  <dd>
+                    {listing.extraImageCount > 0
+                      ? `${listing.extraImageCount} more ${listing.extraImageCount === 1 ? "image" : "images"} the shopper can step through`
+                      : "Nothing further to step through."}
+                  </dd>
+
+                  <dt className="text-grey-deep">Coverage</dt>
+                  <dd>
+                    <Pill tone={coverageOf(listing.coverage).tone}>
+                      {coverageOf(listing.coverage).label}
+                    </Pill>
+                  </dd>
+                </dl>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
       {/* ---------- Live preview ---------- */}
       {packs.length > 0 && (
         <Card>
@@ -275,7 +429,7 @@ export default function MediaManager({
             ) : (
               <>
                 <div className="flex flex-wrap gap-2.5">
-                  {selected.items.map((m) => (
+                  {previewItems.map((m) => (
                     <figure key={m.id} className="w-[104px]">
                       <div className="relative aspect-square overflow-hidden rounded-lg border border-black/10 bg-grey-wash">
                         {m.type === "VIDEO" ? (
