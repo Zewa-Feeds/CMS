@@ -184,6 +184,10 @@ function toForm(api) {
       price: v.pricePaise ? String(v.pricePaise / 100) : String(v.price ?? ""),
       stock: v.stock ?? 0,
       hsn: v.hsn || "23099090",
+      isActive: v.isActive ?? true,
+      /* The pack's chosen main image, round-tripped so the ★ survives a reload
+         and a save does not quietly clear it. */
+      heroMediaId: v.heroMediaId ?? null,
     })),
   };
 }
@@ -342,6 +346,9 @@ export function ProductEditor({ initial }) {
       price: Number(v.price) || 0,
       stock: Number(v.stock) || 0,
       hsn: v.hsn?.trim() || "23099090",
+      ...(v.isActive === undefined ? {} : { isActive: v.isActive }),
+      // Validated server-side against this pack's resolved gallery.
+      heroMediaId: v.heroMediaId ?? null,
     })),
   });
 
@@ -977,6 +984,7 @@ export function ProductEditor({ initial }) {
           variants={form.variants}
           slug={slug}
           onChange={(media) => set({ media })}
+          onVariantsChange={(variants) => set({ variants })}
           onUpload={(files, resourceType, sku) => void handleFiles(files, resourceType, sku)}
           uploading={uploading}
           uploadError={uploadError}

@@ -6,6 +6,7 @@ import { Field, Input, Select } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { products as productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 /**
  * Product media, organised the way an operator thinks about it.
@@ -59,6 +60,7 @@ export default function MediaManager({
   variants,
   slug,
   onChange,
+  onVariantsChange,
   onUpload,
   uploading,
   uploadError,
@@ -78,6 +80,12 @@ export default function MediaManager({
   /** What the editor currently has, in the shape the preview endpoint wants. */
   const payload = useMemo(
     () => ({
+      /* Hero travels with the preview so the ★ moves the moment it is chosen,
+         rather than after a save. */
+      variants: activeVariants.map((v) => ({
+        sku: v.sku,
+        heroMediaId: v.heroMediaId ?? null,
+      })),
       media: (media ?? []).map((m) => ({
         ...(m.id ? { id: m.id } : {}),
         type: m.type,
@@ -91,7 +99,7 @@ export default function MediaManager({
         skus: m.skus ?? (m.sku ? [m.sku] : []),
       })),
     }),
-    [media],
+    [media, activeVariants],
   );
 
   /*
@@ -124,6 +132,11 @@ export default function MediaManager({
   }, [refresh]);
 
   const packs = preview?.packs ?? [];
+  /** SKU -> id of the asset leading that pack, as the server resolved it. */
+  const heroes = useMemo(
+    () => Object.fromEntries(packs.map((p) => [p.sku, p.heroMediaId])),
+    [packs],
+  );
   const selected = packs.find((p) => p.sku === previewSku) ?? packs[0] ?? null;
 
   // ---- Mutations -----------------------------------------------------------
@@ -152,6 +165,41 @@ export default function MediaManager({
   };
 
   const makeShared = (index) => update(index, { skus: [], sku: null });
+
+  /**
+   * Choose a pack's main image.
+   *
+   * Stored on the VARIANT, exactly as the database does, and saved through the
+   * normal save. Validity is the server's call: `checkHero` re-checks on save
+   * and clears anything the resolver would ignore, so this never has to decide
+   * whether a choice is legal.
+   */
+  const setHero = (sku, mediaId) => {
+    onVariantsChange(
+      (variants ?? []).map((v) => (v.sku === sku ? { ...v, heroMediaId: mediaId } : v)),
+    );
+  };
+
+  /** Asked before anything is removed. Null when no confirmation is pending. */
+  const [pendingRemoval, setPendingRemoval] = useState(null);
+
+  const askToRemove = async (index) => {
+    const item = media[index];
+    const id = item.id ?? `staged-${index}`;
+
+    // A never-saved upload has no relationships to explain — drop it directly.
+    if (!item.id) return remove(index);
+
+    setPendingRemoval({ index, item, loading: true, impact: null, error: null });
+    try {
+      const impact = await productsApi.mediaImpact(slug, { ...payload, mediaId: id });
+      setPendingRemoval((p) => (p ? { ...p, loading: false, impact } : p));
+    } catch (err) {
+      setPendingRemoval((p) =>
+        p ? { ...p, loading: false, error: err?.message || "Couldn't check what this affects." } : p,
+      );
+    }
+  };
 
   // Grouping is presentational only; `position` in the array stays authoritative.
   const indexed = (media ?? []).map((m, i) => ({ ...m, _i: i }));
@@ -277,7 +325,9 @@ export default function MediaManager({
         disabled={disabled}
         update={update}
         move={move}
-        remove={remove}
+        remove={askToRemove}
+        heroes={heroes}
+        onSetHero={setHero}
         toggleAssignment={toggleAssignment}
         makeShared={makeShared}
         total={media.length}
@@ -320,7 +370,10 @@ export default function MediaManager({
             disabled={disabled}
             update={update}
             move={move}
-            remove={remove}
+            remove={askToRemove}
+            heroes={heroes}
+            onSetHero={setHero}
+            packSku={v.sku}
             toggleAssignment={toggleAssignment}
             makeShared={makeShared}
             total={media.length}
@@ -329,6 +382,130 @@ export default function MediaManager({
       })}
 
       {uploadError && <p className="text-[12.5px] text-red-deep">{uploadError}</p>}
+
+      {pendingRemoval && (
+        <RemovalDialog
+          state={pendingRemoval}
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={() => {
+            remove(pendingRemoval.index);
+            setPendingRemoval(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * What removing this image would do, before it happens.
+ *
+ * Every figure comes from the server, resolved against the staged gallery, so
+ * the consequences shown are the consequences a customer would experience. The
+ * old flow removed silently and an operator discovered the gap later — or did
+ * not.
+ */
+function RemovalDialog({ state, onCancel, onConfirm }) {
+  const { item, loading, impact, error } = state;
+  const leavesEmpty = impact?.leavesEmpty ?? [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="removal-title"
+        className="w-full max-w-[440px] rounded-xl bg-card p-5 shadow-xl"
+      >
+        <h3 id="removal-title" className="text-[15px] font-semibold">
+          Remove this image?
+        </h3>
+
+        <div className="mt-3 flex gap-3">
+          <div className="h-[56px] w-[56px] shrink-0 overflow-hidden rounded-md border border-black/10 bg-grey-wash">
+            {item.type === "VIDEO" ? (
+              <span className="flex h-full items-center justify-center text-[10px] text-grey-deep">
+                Video
+              </span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.url} alt="" className="h-full w-full object-cover" />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1 text-[12.5px]">
+            {loading && <p className="text-grey-deep">Checking what this affects…</p>}
+            {error && <p className="text-amber-deep">{error}</p>}
+
+            {impact && (
+              <>
+                <p className="text-grey-deep">
+                  {impact.isShared
+                    ? "Currently shown for every pack."
+                    : impact.usedBy.length === 0
+                      ? "Not currently shown for any pack."
+                      : `Currently shown for ${impact.usedBy.length} ${
+                          impact.usedBy.length === 1 ? "pack" : "packs"
+                        }.`}
+                </p>
+
+                {impact.usedBy.length > 0 && (
+                  <ul className="mt-1.5 flex flex-col gap-0.5">
+                    {impact.usedBy.map((u) => (
+                      <li key={u.sku} className="flex items-center gap-1.5">
+                        <span>{u.pack}</span>
+                        {u.isPrimary && (
+                          <span className="text-[11px] font-semibold">★ main image</span>
+                        )}
+                        {u.source === "INHERITED" && (
+                          <span className="text-[11px] text-grey-deep">(borrowed)</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {impact.coverageChanges.length > 0 && (
+                  <div className="mt-2.5 rounded-md bg-amber-wash p-2">
+                    <p className="font-medium text-amber-deep">This changes what customers see:</p>
+                    <ul className="mt-1 flex flex-col gap-0.5 text-amber-deep">
+                      {impact.coverageChanges.map((c) => (
+                        <li key={c.sku}>
+                          {c.pack} — {coverageOf(c.to).label.toLowerCase()}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {leavesEmpty.length > 0 && (
+                  <div className="mt-2 rounded-md bg-red-wash p-2 text-red-deep">
+                    <p className="font-semibold">
+                      {leavesEmpty.join(", ")} will have no photography at all.
+                    </p>
+                    <p className="mt-0.5">
+                      Customers see a short note instead — never another pack&rsquo;s photographs.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-3 text-[11.5px] text-grey-deep">
+          The image is kept and can be restored; it simply stops being shown.
+        </p>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <Button type="button" variant="default" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="button" variant="danger" onClick={onConfirm} disabled={loading}>
+            Remove image
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -351,7 +528,20 @@ function MediaSection({
   toggleAssignment,
   makeShared,
   total,
+  heroes,
+  onSetHero,
+  packSku,
 }) {
+  /*
+   * Index of the row being dragged, within THIS section.
+   *
+   * Held per section because a section shows a filtered view of one array — a
+   * shared asset appears here and in nothing else, a multi-pack asset appears in
+   * several. Dragging moves the item in the underlying array using its real
+   * index (`_i`), so ordering stays a property of the gallery rather than of
+   * whichever section it was dragged in.
+   */
+  const [dragFrom, setDragFrom] = useState(null);
   return (
     <Card>
       <CardHead>
@@ -414,11 +604,21 @@ function MediaSection({
                 variants={variants}
                 disabled={disabled}
                 total={total}
+                isHero={packSku ? heroes?.[packSku] === m.id : false}
+                canSetHero={Boolean(packSku && m.id)}
+                onSetHero={() => onSetHero(packSku, m.id)}
                 onAlt={(alt) => update(m._i, { alt })}
                 onMove={(dir) => move(m._i, m._i + dir)}
                 onRemove={() => remove(m._i)}
                 onToggle={(sku) => toggleAssignment(m._i, sku)}
                 onShare={() => makeShared(m._i)}
+                dragging={dragFrom === m._i}
+                onDragStart={() => setDragFrom(m._i)}
+                onDragEnd={() => setDragFrom(null)}
+                onDropOn={() => {
+                  if (dragFrom !== null && dragFrom !== m._i) move(dragFrom, m._i);
+                  setDragFrom(null);
+                }}
               />
             ))}
           </ul>
@@ -428,13 +628,43 @@ function MediaSection({
   );
 }
 
-function MediaRow({ item, variants, disabled, total, onAlt, onMove, onRemove, onToggle, onShare }) {
+function MediaRow({
+  item, variants, disabled, total,
+  isHero, canSetHero, onSetHero,
+  onAlt, onMove, onRemove, onToggle, onShare,
+  dragging, onDragStart, onDragEnd, onDropOn,
+}) {
   const [open, setOpen] = useState(false);
   const assigned = item.skus?.length ? item.skus : item.sku ? [item.sku] : [];
   const isShared = assigned.length === 0;
 
   return (
-    <li className="flex gap-3 rounded-lg border border-black/8 p-3">
+    /*
+      Draggable, with the arrow buttons kept as the keyboard path. Drag-and-drop
+      is not reachable by keyboard or screen reader, so it is the convenience and
+      the buttons are the guarantee — removing them would make reordering
+      impossible for some operators.
+    */
+    <li
+      draggable={!disabled}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        // Firefox refuses to start a drag without payload.
+        e.dataTransfer.setData("text/plain", String(item._i));
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropOn();
+      }}
+      className={cn(
+        "flex gap-3 rounded-lg border border-black/8 p-3 transition-colors",
+        !disabled && "cursor-grab active:cursor-grabbing",
+        dragging && "opacity-50 ring-2 ring-teal",
+      )}
+    >
       <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-md border border-black/10 bg-grey-wash">
         {item.type === "VIDEO" ? (
           <span className="flex h-full items-center justify-center text-[10.5px] text-grey-deep">
@@ -473,7 +703,26 @@ function MediaRow({ item, variants, disabled, total, onAlt, onMove, onRemove, on
             Change where this appears
           </button>
 
+          {canSetHero &&
+            (isHero ? (
+              <span className="text-[11.5px] font-semibold" title="Shown first for this pack">
+                ★ Main image
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={onSetHero}
+                disabled={disabled}
+                className="text-[11.5px] font-medium text-blue-deep underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Make main image
+              </button>
+            ))}
+
           <span className="ml-auto flex items-center gap-1">
+            <span aria-hidden="true" className="mr-1 select-none text-[13px] text-grey-deep">
+              ⠿
+            </span>
             <Button type="button" variant="ghost" size="icon-sm" onClick={() => onMove(-1)} disabled={disabled || item._i === 0} aria-label="Move earlier">
               ↑
             </Button>
