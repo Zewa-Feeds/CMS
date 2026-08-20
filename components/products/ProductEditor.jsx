@@ -32,6 +32,7 @@ import { Field, Input, Textarea, Select } from "@/components/ui/Field";
 import { RichText } from "@/components/ui/RichText";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { MediaLightbox } from "@/components/ui/MediaLightbox";
+import MediaManager from "@/components/products/MediaManager";
 import { TableWrap, Table, Th, Td, Tr } from "@/components/ui/Table";
 
 const NUTRITION_FIELDS = [
@@ -84,6 +85,12 @@ const TABS = [
 function normaliseMedia(api) {
   if (Array.isArray(api?.media) && api.media.length > 0) {
     return api.media.map((m) => ({
+      /*
+       * Carried through editing so a save UPDATES this asset rather than
+       * replacing it. Without the id, every save handed the asset a new
+       * identity and any hero pointer or pack assignment aimed at it was lost.
+       */
+      id: m.id ?? null,
       type: m.type === "VIDEO" ? "VIDEO" : "IMAGE",
       url: m.url,
       publicId: m.publicId ?? null,
@@ -92,8 +99,10 @@ function normaliseMedia(api) {
       durationSec: m.durationSec ?? null,
       width: m.width ?? null,
       height: m.height ?? null,
-      /** Which pack this asset shows. null = shared across every pack. */
+      /** Legacy single-pack field. `skus` is the real answer. */
       sku: m.sku ?? null,
+      /** Every pack this asset is shown for. Empty = shared with all of them. */
+      skus: Array.isArray(m.skus) && m.skus.length > 0 ? m.skus : m.sku ? [m.sku] : [],
     }));
   }
 
@@ -310,6 +319,8 @@ export function ProductEditor({ initial }) {
     seoDesc: form.seoDesc?.trim() || null,
     // Array order IS gallery order; the server assigns `position` from the index.
     media: form.media.map((m) => ({
+      // Present for an existing asset, so the server updates rather than replaces.
+      ...(m.id ? { id: m.id } : {}),
       type: m.type,
       url: m.url,
       publicId: m.publicId ?? null,
@@ -319,8 +330,10 @@ export function ProductEditor({ initial }) {
         : {}),
       width: m.width ?? null,
       height: m.height ?? null,
-      // null = shared. The API resolves this SKU to a variant id.
-      sku: m.sku || null,
+      // Legacy single-pack field, still sent so an older API keeps working.
+      sku: (m.skus?.length ? m.skus[0] : m.sku) || null,
+      // Every pack this asset is shown for. Empty means shared with all.
+      skus: m.skus ?? (m.sku ? [m.sku] : []),
     })),
     variants: form.variants.map((v) => ({
       sku: v.sku.trim().toUpperCase(),
@@ -485,7 +498,14 @@ export function ProductEditor({ initial }) {
    * limits. A second video is refused here so the editor explains itself
    * immediately rather than surfacing a 422 after a long upload.
    */
-  const handleFiles = async (fileList, resourceType) => {
+  /*
+   * `targetSku` is a PARAMETER, not read from state.
+   *
+   * The media manager sets the destination and starts the upload in the same
+   * tick, so a state read here would still see the previous value and file the
+   * new photographs against the wrong pack.
+   */
+  const handleFiles = async (fileList, resourceType, targetSku = null) => {
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
 
@@ -526,7 +546,9 @@ export function ProductEditor({ initial }) {
           onProgress: (percent) => setUploading((u) => ({ ...u, percent })),
         });
         // A video covers the product, not one pack, so it is always shared.
-        added.push({ ...media, sku: resourceType === "video" ? null : uploadTargetSku || null });
+        // A video covers the product, not one pack, so it is always shared.
+        const sku = resourceType === "video" ? null : targetSku || uploadTargetSku || null;
+        added.push({ ...media, sku, skus: sku ? [sku] : [] });
       }
       // One state write, so a multi-file upload does not re-render per file.
       set({ media: [...form.media, ...added] });
@@ -944,269 +966,22 @@ export function ProductEditor({ initial }) {
         </Card>
       )}
 
+      {/*
+        Media is its own concern now — grouped by pack, with coverage and a live
+        customer preview — so it lives in its own component rather than adding
+        another few hundred lines to this file.
+      */}
       {tab === "images" && (
-        <Card>
-          <CardBody>
-            {/*
-              Two separate inputs rather than one accept="image/*,video/*":
-              the resource type decides the Cloudinary endpoint, the ingest
-              transformation and the size limit, so it must be known BEFORE the
-              file is chosen — it cannot be inferred afterwards.
-            */}
-            {/*
-              Which pack new photos belong to. A product sells the same feed as a
-              45g bottle, a 200g pouch and a 1kg pouch, each photographed
-              separately — the storefront shows only the selected pack's photos,
-              so every image needs to say which pack it is.
-            */}
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-canvas px-3 py-2.5">
-              <span className="text-[12.5px] font-medium">New photos are for:</span>
-              <Select
-                value={uploadTargetSku}
-                onChange={(e) => setUploadTargetSku(e.target.value)}
-                className="h-8 w-auto min-w-[190px] text-[12.5px]"
-              >
-                <option value="">All packs (shared)</option>
-                {form.variants
-                  .filter((v) => v.sku?.trim())
-                  .map((v) => (
-                    <option key={v.sku} value={v.sku}>
-                      {v.pack || v.sku}
-                    </option>
-                  ))}
-              </Select>
-              <span className="text-[12px] text-muted">
-                Shared = fish photos, nutrition panels, anything not pack-specific.
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label
-                className={`relative flex cursor-pointer flex-col items-center justify-center rounded-md border-[1.5px] border-dashed border-line bg-canvas p-6 text-center transition-colors hover:border-teal hover:bg-teal-wash ${
-                  uploading.active ? "pointer-events-none opacity-60" : ""
-                }`}
-              >
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/avif"
-                  multiple
-                  onChange={(e) => {
-                    handleFiles(e.target.files, "image");
-                    e.target.value = "";
-                  }}
-                  disabled={uploading.active}
-                  className="hidden"
-                />
-                <ImagePlus size={20} className="mb-2 text-muted-2" />
-                <div className="text-[13px] font-medium">Add photos</div>
-                <div className="mt-1 text-[12px] text-muted">JPG, PNG, WebP · up to 10 MB each</div>
-              </label>
-
-              <label
-                className={`relative flex cursor-pointer flex-col items-center justify-center rounded-md border-[1.5px] border-dashed border-line bg-canvas p-6 text-center transition-colors hover:border-teal hover:bg-teal-wash ${
-                  uploading.active || hasVideo ? "pointer-events-none opacity-60" : ""
-                }`}
-              >
-                <input
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
-                  onChange={(e) => {
-                    handleFiles(e.target.files, "video");
-                    e.target.value = "";
-                  }}
-                  disabled={uploading.active || hasVideo}
-                  className="hidden"
-                />
-                <Film size={20} className="mb-2 text-muted-2" />
-                <div className="text-[13px] font-medium">
-                  {hasVideo ? "Video added" : "Add a video"}
-                </div>
-                <div className="mt-1 text-[12px] text-muted">
-                  {hasVideo ? "Remove it below to replace" : "MP4, WebM or MOV · up to 100 MB · optional"}
-                </div>
-              </label>
-            </div>
-
-            {/*
-              A failure must always explain itself. Previously a large video that
-              timed out vanished with no message at all.
-            */}
-            {uploadError && !uploading.active && (
-              <div className="mt-4 flex items-start gap-2 rounded-md border border-red/40 bg-[#FFFBFB] p-3">
-                <AlertCircle size={15} className="mt-[1px] shrink-0 text-red" />
-                <div className="text-[12.5px] leading-relaxed text-red">
-                  <span className="font-medium">Upload failed.</span> {uploadError}
-                </div>
-              </div>
-            )}
-
-            {/* Real progress — a 100 MB video with only a spinner looks frozen. */}
-            {uploading.active && (
-              <div className="mt-4 rounded-md border border-line bg-canvas p-3">
-                <div className="mb-2 flex items-center justify-between text-[12px]">
-                  <span className="truncate font-medium">{uploading.label}</span>
-                  <span className="ml-3 shrink-0 tabular-nums text-muted">
-                    {uploading.total > 1 && `${uploading.done + 1}/${uploading.total} · `}
-                    {uploading.percent}%
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-line">
-                  <div
-                    className="h-full rounded-full bg-teal transition-[width] duration-150"
-                    style={{ width: `${uploading.percent}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {form.media.length === 0 ? (
-              <p className="mt-4 text-[12.5px] text-muted">
-                No media yet. The first item is what the storefront shows as the main
-                image, so add the front-of-pack photo first.
-              </p>
-            ) : (
-              <>
-                <div className="mt-5 flex items-baseline justify-between">
-                  <div className="text-[12.5px] font-medium">
-                    Gallery order{" "}
-                    <span className="font-normal text-muted">
-                      — this is the order shoppers see
-                    </span>
-                  </div>
-                  <div className="text-[12px] text-muted">
-                    {form.media.length} item{form.media.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-
-                <ul className="mt-3 flex flex-col gap-2">
-                  {form.media.map((m, i) => (
-                    <li
-                      key={m.url}
-                      className="flex items-center gap-3 rounded-md border border-line bg-card p-2"
-                    >
-                      {/*
-                        Click to inspect full size. A 56px thumbnail is not enough
-                        to tell whether a photo is the right crop, and a video
-                        cannot be checked at all without playing it.
-                      */}
-                      <button
-                        type="button"
-                        onClick={() => setLightbox(i)}
-                        title={m.type === "VIDEO" ? "Play video" : "View full size"}
-                        aria-label={
-                          m.type === "VIDEO" ? "Play video" : `View image ${i + 1} full size`
-                        }
-                        className="group relative h-14 w-14 shrink-0 overflow-hidden rounded border border-line bg-grey-wash transition-colors hover:border-teal"
-                      >
-                        <img
-                          src={m.type === "VIDEO" ? (m.posterUrl ?? m.url) : m.url}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                        {m.type === "VIDEO" ? (
-                          <span className="absolute inset-0 grid place-items-center bg-navy/45 text-white">
-                            <Film size={16} />
-                          </span>
-                        ) : (
-                          <span className="absolute inset-0 grid place-items-center bg-navy/50 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                            <Maximize2 size={15} />
-                          </span>
-                        )}
-                      </button>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <span className="text-[12px] font-medium tabular-nums text-muted">
-                            {i + 1}
-                          </span>
-                          {i === 0 && <Pill tone="teal">Main</Pill>}
-                          {m.type === "VIDEO" && (
-                            <Pill tone="navy">
-                              Video{m.durationSec ? ` · ${Math.round(m.durationSec)}s` : ""}
-                            </Pill>
-                          )}
-                          {m.type !== "VIDEO" && (
-                            <Pill tone={m.sku ? "blue" : "grey"}>
-                              {m.sku
-                                ? (form.variants.find((v) => v.sku === m.sku)?.pack || m.sku)
-                                : "All packs"}
-                            </Pill>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Input
-                            value={m.alt ?? ""}
-                            onChange={(e) => setMediaAlt(i, e.target.value)}
-                            placeholder={
-                              m.type === "VIDEO"
-                                ? "Video caption (optional)"
-                                : "Alt text — for screen readers and SEO"
-                            }
-                            className="h-8 min-w-[180px] flex-1 text-[12.5px]"
-                          />
-                          {/*
-                            A video is always shared — it shows the product, not
-                            one pack size — so the picker is images only.
-                          */}
-                          {m.type !== "VIDEO" && (
-                            <Select
-                              value={m.sku ?? ""}
-                              onChange={(e) => setMediaSku(i, e.target.value)}
-                              className="h-8 w-auto min-w-[150px] text-[12px]"
-                              title="Which pack this photo shows"
-                            >
-                              <option value="">All packs (shared)</option>
-                              {form.variants
-                                .filter((v) => v.sku?.trim())
-                                .map((v) => (
-                                  <option key={v.sku} value={v.sku}>
-                                    {v.pack || v.sku}
-                                  </option>
-                                ))}
-                            </Select>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          type="button"
-                          disabled={i === 0}
-                          onClick={() => moveMedia(i, i - 1)}
-                          title="Move up"
-                        >
-                          <ChevronUp size={14} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          type="button"
-                          disabled={i === form.media.length - 1}
-                          onClick={() => moveMedia(i, i + 1)}
-                          title="Move down"
-                        >
-                          <ChevronDown size={14} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          type="button"
-                          onClick={() => removeMedia(i)}
-                          title="Remove"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-
-              </>
-            )}
-          </CardBody>
-        </Card>
+        <MediaManager
+          media={form.media}
+          variants={form.variants}
+          slug={slug}
+          onChange={(media) => set({ media })}
+          onUpload={(files, resourceType, sku) => void handleFiles(files, resourceType, sku)}
+          uploading={uploading}
+          uploadError={uploadError}
+          disabled={busy}
+        />
       )}
 
       {tab === "nutrition" && (
