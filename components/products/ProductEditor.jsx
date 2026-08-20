@@ -350,6 +350,10 @@ export function ProductEditor({ initial }) {
     // purchasable pack. Validated server-side against this family's own packs.
     representativeSku: form.representativeSku ?? null,
     variants: form.variants.map((v) => ({
+      /* Stable identity, so renaming a SKU renames the pack instead of
+         replacing it and stranding its photography. Absent for a pack added
+         in this session — the server falls back to matching by SKU. */
+      ...(v.id ? { id: v.id } : {}),
       sku: v.sku.trim().toUpperCase(),
       pack: v.pack.trim(),
       mrp: Number(v.mrp) || 0,
@@ -623,7 +627,35 @@ export function ProductEditor({ initial }) {
   // variants helpers
   const setVariant = (i, patch) => {
     const variants = form.variants.map((v, idx) => (idx === i ? { ...v, ...patch } : v));
-    set({ variants });
+
+    /*
+     * A SKU is a label, but several things reference a pack BY that label:
+     * every media assignment, and the listing representative. Renaming without
+     * moving those references left them pointing at a name that no longer
+     * exists — the server drops unknown names, so a pack's photography would
+     * quietly become shared, or vanish with the pack it was stranded on.
+     *
+     * The server has the same alias as a safety net; doing it here as well
+     * keeps the media manager and the live preview correct BEFORE saving,
+     * which is where an operator would otherwise watch a gallery empty itself.
+     */
+    const from = form.variants[i]?.sku;
+    const to = patch.sku;
+    if (!("sku" in patch) || !from || !to || from === to) {
+      set({ variants });
+      return;
+    }
+
+    set({
+      variants,
+      media: (form.media ?? []).map((m) => {
+        const skus = m.skus?.length ? m.skus : m.sku ? [m.sku] : [];
+        if (!skus.includes(from)) return m;
+        const next = skus.map((s) => (s === from ? to : s));
+        return { ...m, skus: next, sku: next[0] ?? null };
+      }),
+      representativeSku: form.representativeSku === from ? to : form.representativeSku,
+    });
   };
   const addVariant = () =>
     set({
