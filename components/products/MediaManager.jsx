@@ -214,13 +214,52 @@ export default function MediaManager({
   const update = (index, patch) =>
     onChange(media.map((m, i) => (i === index ? { ...m, ...patch } : m)));
 
-  const move = (from, to) => {
-    if (to < 0 || to >= media.length) return;
-    const next = [...media];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange(next);
-  };
+  /**
+   * Move an item within a filtered group, preserving the relative slot positions
+   * of all other media outside this group.
+   */
+  const moveWithinGroup = useCallback(
+    (groupItems, fromGroupIdx, toGroupIdx, insertPosition = "after") => {
+      if (
+        fromGroupIdx === null ||
+        toGroupIdx === null ||
+        fromGroupIdx < 0 ||
+        fromGroupIdx >= groupItems.length ||
+        toGroupIdx < 0 ||
+        toGroupIdx >= groupItems.length
+      ) {
+        return;
+      }
+
+      const reorderedGroup = [...groupItems];
+      const [dragged] = reorderedGroup.splice(fromGroupIdx, 1);
+
+      let destinationIndex = toGroupIdx;
+      if (fromGroupIdx < toGroupIdx) {
+        destinationIndex = insertPosition === "before" ? toGroupIdx - 1 : toGroupIdx;
+      } else {
+        destinationIndex = insertPosition === "before" ? toGroupIdx : toGroupIdx + 1;
+      }
+
+      destinationIndex = Math.max(0, Math.min(destinationIndex, reorderedGroup.length));
+      if (destinationIndex === fromGroupIdx) {
+        return;
+      }
+
+      reorderedGroup.splice(destinationIndex, 0, dragged);
+
+      const slots = groupItems.map((m) => m._i);
+      const next = [...media];
+      slots.forEach((slotIndex, i) => {
+        const item = reorderedGroup[i];
+        const { _i, ...cleanItem } = item;
+        next[slotIndex] = cleanItem;
+      });
+
+      onChange(next);
+    },
+    [media, onChange],
+  );
 
   const remove = (index) => onChange(media.filter((_, i) => i !== index));
 
@@ -394,12 +433,11 @@ export default function MediaManager({
   const gridProps = {
     variants: activeVariants,
     disabled,
-    total: media.length,
     heroes,
     onSetHero: setHero,
     onPreview: setLightboxIndex,
     update,
-    move,
+    moveWithinGroup,
     remove: askToRemove,
     toggleAssignment,
     makeShared,
@@ -1039,12 +1077,11 @@ function MediaGrid({
   heroOnly = false,
   variants,
   disabled,
-  total,
   heroes,
   onSetHero,
   onPreview,
   update,
-  move,
+  moveWithinGroup,
   remove,
   toggleAssignment,
   makeShared,
@@ -1054,13 +1091,106 @@ function MediaGrid({
   markSpecific,
 }) {
   /*
-   * Index of the row being dragged, within THIS group.
+   * Drag state scoped to this group.
    *
-   * Held per group because a group shows a filtered view of one array. Dragging
-   * moves the item using its real index (`_i`), so ordering stays a property of
-   * the gallery rather than of whichever group it was dragged in.
+   * Dragging is strictly intra-group: dropping across groups is prohibited so
+   * shared and variant assets never cross boundaries accidentally.
    */
-  const [dragFrom, setDragFrom] = useState(null);
+  const [dragState, setDragState] = useState({
+    sourceIndex: null,
+    targetIndex: null,
+    insertPosition: null,
+    groupId: null,
+  });
+
+  const dragJustEndedRef = useRef(false);
+
+  const handleDragStart = useCallback(
+    (idx) => {
+      dragJustEndedRef.current = true;
+      setDragState({
+        sourceIndex: idx,
+        targetIndex: null,
+        insertPosition: null,
+        groupId,
+      });
+    },
+    [groupId],
+  );
+
+  const handleDragOver = useCallback(
+    (e, idx) => {
+      if (dragState.groupId !== groupId || dragState.sourceIndex === null) {
+        return;
+      }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      const pos = e.clientX < midX ? "before" : "after";
+
+      setDragState((prev) => {
+        if (prev.targetIndex === idx && prev.insertPosition === pos) return prev;
+        return { ...prev, targetIndex: idx, insertPosition: pos };
+      });
+    },
+    [dragState.groupId, dragState.sourceIndex, groupId],
+  );
+
+  const handleDragLeave = useCallback((e, idx) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setDragState((prev) => {
+      if (prev.targetIndex === idx) {
+        return { ...prev, targetIndex: null, insertPosition: null };
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleDrop = useCallback(
+    (e, idx) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (
+        dragState.groupId === groupId &&
+        dragState.sourceIndex !== null &&
+        moveWithinGroup
+      ) {
+        moveWithinGroup(
+          items,
+          dragState.sourceIndex,
+          idx,
+          dragState.insertPosition || "after",
+        );
+      }
+
+      setDragState({
+        sourceIndex: null,
+        targetIndex: null,
+        insertPosition: null,
+        groupId: null,
+      });
+
+      setTimeout(() => {
+        dragJustEndedRef.current = false;
+      }, 100);
+    },
+    [dragState, groupId, items, moveWithinGroup],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragState({
+      sourceIndex: null,
+      targetIndex: null,
+      insertPosition: null,
+      groupId: null,
+    });
+    setTimeout(() => {
+      dragJustEndedRef.current = false;
+    }, 100);
+  }, []);
 
   return (
     <div>
@@ -1081,33 +1211,31 @@ function MediaGrid({
         ) : null
       ) : (
         <ul className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-          {items.map((m) => (
+          {items.map((m, idx) => (
             <MediaCard
               key={m.id ?? m.url}
               item={m}
+              groupIndex={idx}
+              groupTotal={items.length}
               variants={variants}
               disabled={disabled}
-              total={total}
               groupId={groupId}
               heroOnly={heroOnly}
               isHero={packSku ? heroes?.[packSku] === m.id : false}
-              /*
-                Only a finished IMAGE can lead a gallery. A video renders into an
-                <img> as a card photograph, a product page's opening frame and an
-                Open Graph image; an asset still processing or failed would put a
-                broken frame in all three. The control is withheld rather than
-                offered and then rejected by the server.
-              */
               canSetHero={Boolean(
                 packSku && m.id && m.type !== "VIDEO" && (m.status ?? "READY") === "READY",
               )}
               onSetHero={() => onSetHero(packSku, m.id)}
               onPreview={() => onPreview?.(m._i)}
               onAlt={(alt) => update(m._i, { alt })}
-              onMove={(dir) => move(m._i, m._i + dir)}
+              onMove={(dir) => {
+                const targetIdx = idx + dir;
+                if (targetIdx >= 0 && targetIdx < items.length) {
+                  moveWithinGroup(items, idx, targetIdx, dir < 0 ? "before" : "after");
+                }
+              }}
               onRemove={() => remove(m._i)}
               onToggle={(sku) => {
-                // Ticking a box is itself a commitment to Specific.
                 markSpecific(m.id ?? m.url, true);
                 toggleAssignment(m._i, sku);
               }}
@@ -1120,19 +1248,24 @@ function MediaGrid({
                 markSpecific(m.id ?? m.url, true);
                 assignAll(m._i);
               }}
-              /* Stays in Specific with nothing ticked — see markSpecific. */
               onClearAll={() => {
                 markSpecific(m.id ?? m.url, true);
                 clearAssignments(m._i);
               }}
               forceSpecific={specificMode.has(m.id ?? m.url)}
-              dragging={dragFrom === m._i}
-              onDragStart={() => setDragFrom(m._i)}
-              onDragEnd={() => setDragFrom(null)}
-              onDropOn={() => {
-                if (dragFrom !== null && dragFrom !== m._i) move(dragFrom, m._i);
-                setDragFrom(null);
-              }}
+              isDragging={dragState.sourceIndex === idx && dragState.groupId === groupId}
+              isDropTarget={
+                dragState.targetIndex === idx &&
+                dragState.groupId === groupId &&
+                dragState.sourceIndex !== idx
+              }
+              insertPosition={dragState.targetIndex === idx ? dragState.insertPosition : null}
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragLeave={(e) => handleDragLeave(e, idx)}
+              onDrop={(e) => handleDrop(e, idx)}
+              onDragEnd={handleDragEnd}
+              dragJustEndedRef={dragJustEndedRef}
             />
           ))}
         </ul>
@@ -1144,16 +1277,15 @@ function MediaGrid({
 /**
  * One asset, as a card.
  *
- * The old row was full width and carried every control at full volume — an alt
- * field, a coverage sentence, a radio pair and a checkbox per pack — so ten
- * assets filled several screens. Here the picture leads, the metadata is quiet,
- * and the pack assignment lives behind one summary that opens on demand.
+ * The picture leads, the metadata is quiet, and the pack assignment lives
+ * behind one summary that opens on demand.
  */
 function MediaCard({
   item,
+  groupIndex,
+  groupTotal,
   variants,
   disabled,
-  total,
   groupId,
   heroOnly,
   isHero,
@@ -1169,19 +1301,19 @@ function MediaCard({
   onSelectAll,
   onClearAll,
   forceSpecific,
-  dragging,
+  isDragging,
+  isDropTarget,
+  insertPosition,
   onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
   onDragEnd,
-  onDropOn,
+  dragJustEndedRef,
 }) {
   const [editing, setEditing] = useState(false);
 
   const assigned = item.skus?.length ? item.skus : item.sku ? [item.sku] : [];
-  /*
-   * Any assignment means Specific. Zero means Shared — unless the operator has
-   * just switched to Specific and not ticked anything yet, which the manager
-   * tracks for the length of the edit.
-   */
   const mode = assigned.length > 0 || forceSpecific ? "specific" : "shared";
   const needsPacks = mode === "specific" && assigned.length === 0;
   const state = stateOf(item.status ?? "READY");
@@ -1192,55 +1324,71 @@ function MediaCard({
     fn();
   };
 
+  const handlePreviewClick = () => {
+    if (dragJustEndedRef?.current) return;
+    onPreview?.();
+  };
+
+  const isDraggable = !disabled && !heroOnly && !editing;
+
   return (
-    /*
-      Draggable, with the arrow buttons kept as the keyboard path. Drag-and-drop
-      is not reachable by keyboard or screen reader, so it is the convenience and
-      the buttons are the guarantee — removing them would make reordering
-      impossible for some operators. Dragging is suspended while the assignment
-      popover is open, so ticking a box cannot start a drag.
-    */
     <li
-      draggable={!disabled && !heroOnly && !editing}
+      draggable={isDraggable}
       onDragStart={(e) => {
+        if (!isDraggable) {
+          e.preventDefault();
+          return;
+        }
         e.dataTransfer.effectAllowed = "move";
-        // Firefox refuses to start a drag without payload.
+        e.dataTransfer.setData("application/x-zewa-media", JSON.stringify({ groupId, groupIndex }));
         e.dataTransfer.setData("text/plain", String(item._i));
-        onDragStart();
+        onDragStart(e);
       }}
       onDragEnd={onDragEnd}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDropOn();
-      }}
+      onDragOver={heroOnly ? undefined : onDragOver}
+      onDragLeave={heroOnly ? undefined : onDragLeave}
+      onDrop={heroOnly ? undefined : onDrop}
       className={cn(
-        "group relative flex flex-col rounded-xl border bg-card transition-colors",
+        "group relative flex flex-col rounded-xl border bg-card transition-all duration-150",
         needsPacks ? "border-amber-deep/45" : "border-line-soft hover:border-line",
-        !disabled && !heroOnly && !editing && "cursor-grab active:cursor-grabbing",
-        dragging && "opacity-50 ring-2 ring-teal",
+        isDraggable && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-40 scale-[0.98] border-dashed border-teal/70 ring-2 ring-teal/30 shadow-none",
+        isDropTarget && "ring-2 ring-teal/60 bg-teal/[0.03]",
       )}
     >
+      {/* Drop Insertion Position Line Indicators */}
+      {isDropTarget && insertPosition === "before" && (
+        <div className="pointer-events-none absolute -left-[5px] top-0 bottom-0 z-30 flex flex-col items-center justify-between py-1">
+          <div className="h-2 w-2 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+          <div className="w-[3px] flex-1 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+          <div className="h-2 w-2 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+        </div>
+      )}
+      {isDropTarget && insertPosition === "after" && (
+        <div className="pointer-events-none absolute -right-[5px] top-0 bottom-0 z-30 flex flex-col items-center justify-between py-1">
+          <div className="h-2 w-2 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+          <div className="w-[3px] flex-1 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+          <div className="h-2 w-2 rounded-full bg-teal shadow-[0_0_8px_rgba(68,229,194,0.9)]" />
+        </div>
+      )}
+
       <div
-        onClick={onPreview}
+        onClick={handlePreviewClick}
         title="Click to preview full size"
-        className="relative aspect-square cursor-pointer overflow-hidden rounded-t-xl bg-grey-wash"
+        className="relative aspect-square cursor-pointer overflow-hidden rounded-t-xl bg-grey-wash select-none"
       >
         {item.type === "VIDEO" ? (
-          /* The poster frame is a real picture of the asset and exists as soon
-             as the original lands, so it is available even while the derived
-             version is still transcoding. */
           item.posterUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.posterUrl} alt="" className="h-full w-full object-contain" />
+            <img src={item.posterUrl} alt="" className="h-full w-full object-contain pointer-events-none" />
           ) : (
-            <span className="flex h-full items-center justify-center text-[11px] text-grey-deep">
+            <span className="flex h-full items-center justify-center text-[11px] text-grey-deep pointer-events-none">
               Video
             </span>
           )
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.url} alt="" className="h-full w-full object-cover" />
+          <img src={item.url} alt="" className="h-full w-full object-cover pointer-events-none" />
         )}
 
         {isHero && (
@@ -1255,12 +1403,6 @@ function MediaCard({
           </span>
         )}
 
-        {/*
-          A processing or failed asset is labelled ON the thumbnail. An operator
-          scanning a gallery reads the pictures, not the captions, so a badge
-          somewhere else would be missed — and the whole point of PENDING is that
-          this asset is not yet what customers will see.
-        */}
         {notReady && (
           <span
             className={cn(
@@ -1278,7 +1420,7 @@ function MediaCard({
             <button
               type="button"
               onClick={stop(() => onMove(-1))}
-              disabled={disabled || item._i === 0}
+              disabled={disabled || groupIndex === 0}
               aria-label="Move earlier"
               className="rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white hover:bg-black/80 disabled:opacity-35"
             >
@@ -1287,7 +1429,7 @@ function MediaCard({
             <button
               type="button"
               onClick={stop(() => onMove(1))}
-              disabled={disabled || item._i === total - 1}
+              disabled={disabled || groupIndex === groupTotal - 1}
               aria-label="Move later"
               className="rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white hover:bg-black/80 disabled:opacity-35"
             >
