@@ -220,6 +220,26 @@ export function ProductEditor({ initial }) {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Media switched to "Specific packs" but not yet assigned to anything.
+   *
+   * Lives here rather than in the media manager because it has to block the
+   * save. Zero assignments cannot be persisted as "Specific": no
+   * ProductMediaVariant rows is exactly what Shared looks like, so saving that
+   * state would silently turn it into Shared and the operator would find their
+   * choice reverted after a reload. The data model is deliberate — 0 rows means
+   * shared with every pack, including ones added later — so the fix belongs in
+   * the UI, not in a new column.
+   */
+  const [specificMode, setSpecificMode] = useState(() => new Set());
+  const markSpecific = (key, on) =>
+    setSpecificMode((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
   const [confirmDel, setConfirmDel] = useState(false);
   const [delText, setDelText] = useState("");
   /** Upload progress for the media tab. `total` > 1 during a multi-file upload. */
@@ -264,6 +284,8 @@ export function ProductEditor({ initial }) {
     shortDesc: "basic",
     protein: "basic",
     variants: "variants",
+    // So a blocked save lands the operator on the tab holding the problem.
+    media: "images",
   };
   const tabForField = (key) => (key.startsWith("variant_") ? "variants" : FIELD_TAB[key] ?? "basic");
 
@@ -292,6 +314,25 @@ export function ProductEditor({ initial }) {
             `Price (₹${v.price}) is above MRP (₹${v.mrp}). Lower the price or raise the MRP.`;
         }
       });
+    }
+
+    /*
+     * Media left in "Specific packs" with nothing ticked.
+     *
+     * Refused rather than silently saved: the database cannot hold that state —
+     * zero rows IS shared — so persisting it would contradict what the operator
+     * chose on screen. They pick a pack or they pick Shared.
+     */
+    const unassigned = (form.media ?? []).filter((m) => {
+      const key = m.id ?? m.url;
+      const skus = m.skus?.length ? m.skus : m.sku ? [m.sku] : [];
+      return specificMode.has(key) && skus.length === 0;
+    });
+    if (unassigned.length > 0) {
+      e.media =
+        unassigned.length === 1
+          ? "One image is set to “Specific packs” with no packs selected. Select at least one variant, or switch it to Shared."
+          : `${unassigned.length} images are set to “Specific packs” with no packs selected. Select at least one variant each, or switch them to Shared.`;
     }
 
     setErrors(e);
@@ -1074,6 +1115,8 @@ export function ProductEditor({ initial }) {
           onChange={(media) => set({ media })}
           onVariantsChange={(variants) => set({ variants })}
           onRepresentativeChange={(representativeSku) => set({ representativeSku })}
+          specificMode={specificMode}
+          onSpecificModeChange={markSpecific}
           onUpload={(files, resourceType, sku) => void handleFiles(files, resourceType, sku)}
           uploading={uploading}
           uploadError={uploadError}

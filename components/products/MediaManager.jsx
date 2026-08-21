@@ -94,6 +94,16 @@ export default function MediaManager({
   variants,
   slug,
   representativeSku,
+  /**
+   * Media the operator has switched to "Specific packs" but not yet ticked.
+   *
+   * Owned by ProductEditor rather than here, because zero assignments cannot be
+   * persisted as "Specific": no rows is exactly what Shared looks like in the
+   * database. The editor blocks the save until the operator either picks a pack
+   * or chooses Shared, so this has to be visible to validate().
+   */
+  specificMode,
+  onSpecificModeChange,
   onChange,
   onVariantsChange,
   onRepresentativeChange,
@@ -224,7 +234,32 @@ export default function MediaManager({
     update(index, { skus: next, sku: next[0] ?? null });
   };
 
+  /**
+   * Back to the SHARED state: zero ProductMediaVariant rows.
+   *
+   * Deliberately not the same as ticking every pack. Shared means "available to
+   * every pack, including any added later" and resolves as SHARED_ONLY for a
+   * pack with no photography of its own; ticking all N packs writes N rows and
+   * resolves as EXACT. The resolver has always distinguished them and this UI
+   * must not blur it — 21 of the catalogue's assets are shared today, and they
+   * are the fish photography, the nutrition panels and every product video.
+   */
   const makeShared = (index) => update(index, { skus: [], sku: null });
+
+  /** Explicit rows for every ACTIVE pack. Retired packs are never assigned. */
+  const assignAll = (index) => {
+    const skus = activeVariants.map((v) => v.sku);
+    update(index, { skus, sku: skus[0] ?? null });
+  };
+
+  /**
+   * Drop every assignment while STAYING specific.
+   *
+   * The radio does not spring back to Shared, because "no packs chosen yet" and
+   * "shared with all of them" are different intentions and one must not be
+   * mistaken for the other mid-edit.
+   */
+  const clearAssignments = (index) => update(index, { skus: [], sku: null });
 
   /**
    * Choose a pack's main image.
@@ -239,6 +274,9 @@ export default function MediaManager({
       (variants ?? []).map((v) => (v.sku === sku ? { ...v, heroMediaId: mediaId } : v)),
     );
   };
+
+  /** Records that a row is in "Specific packs" mode; read by the editor's validate(). */
+  const markSpecific = (key, on) => onSpecificModeChange?.(key, on);
 
   /** Asked before anything is removed. Null when no confirmation is pending. */
   const [pendingRemoval, setPendingRemoval] = useState(null);
@@ -532,6 +570,10 @@ export default function MediaManager({
         onPreview={setLightboxIndex}
         toggleAssignment={toggleAssignment}
         makeShared={makeShared}
+        assignAll={assignAll}
+        clearAssignments={clearAssignments}
+        specificMode={specificMode}
+        markSpecific={markSpecific}
         total={media.length}
       />
 
@@ -579,6 +621,10 @@ export default function MediaManager({
             packSku={v.sku}
             toggleAssignment={toggleAssignment}
             makeShared={makeShared}
+            assignAll={assignAll}
+            clearAssignments={clearAssignments}
+            specificMode={specificMode}
+            markSpecific={markSpecific}
             total={media.length}
           />
         );
@@ -739,6 +785,10 @@ function MediaSection({
   remove,
   toggleAssignment,
   makeShared,
+  assignAll,
+  clearAssignments,
+  specificMode,
+  markSpecific,
   total,
   heroes,
   onSetHero,
@@ -833,8 +883,28 @@ function MediaSection({
                 onAlt={(alt) => update(m._i, { alt })}
                 onMove={(dir) => move(m._i, m._i + dir)}
                 onRemove={() => remove(m._i)}
-                onToggle={(sku) => toggleAssignment(m._i, sku)}
-                onShare={() => makeShared(m._i)}
+                onToggle={(sku) => {
+                  // Ticking a box is itself a commitment to Specific.
+                  markSpecific(m.id ?? m.url, true);
+                  toggleAssignment(m._i, sku);
+                }}
+                onShare={() => {
+                  markSpecific(m.id ?? m.url, false);
+                  makeShared(m._i);
+                }}
+                onChooseSpecific={() => markSpecific(m.id ?? m.url, true)}
+                onSelectAll={() => {
+                  markSpecific(m.id ?? m.url, true);
+                  assignAll(m._i);
+                }}
+                /* Stays in Specific with nothing ticked — see markSpecific. */
+                onClearAll={() => {
+                  markSpecific(m.id ?? m.url, true);
+                  clearAssignments(m._i);
+                }}
+                forceSpecific={specificMode.has(m.id ?? m.url)}
+                /* Distinct per section — see the radio `name` below. */
+                groupId={packSku ?? "shared"}
                 dragging={dragFrom === m._i}
                 onDragStart={() => setDragFrom(m._i)}
                 onDragEnd={() => setDragFrom(null)}
@@ -855,11 +925,16 @@ function MediaRow({
   item, variants, disabled, total,
   isHero, canSetHero, onSetHero, onPreview,
   onAlt, onMove, onRemove, onToggle, onShare,
+  onChooseSpecific, onSelectAll, onClearAll, forceSpecific, groupId,
   dragging, onDragStart, onDragEnd, onDropOn,
 }) {
-  const [open, setOpen] = useState(false);
   const assigned = item.skus?.length ? item.skus : item.sku ? [item.sku] : [];
-  const isShared = assigned.length === 0;
+  /*
+   * Any assignment means Specific. Zero means Shared — unless the operator has
+   * just switched to Specific and not ticked anything yet, which the manager
+   * tracks for the length of the edit.
+   */
+  const mode = assigned.length > 0 || forceSpecific ? "specific" : "shared";
 
   return (
     /*
@@ -953,21 +1028,6 @@ function MediaRow({
         )}
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-[11.5px] text-grey-deep">
-            {isShared
-              ? "Shown for every pack"
-              : `Shown for ${assigned.length} ${assigned.length === 1 ? "pack" : "packs"}`}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="text-[11.5px] font-medium text-blue-deep underline-offset-2 hover:underline"
-            aria-expanded={open}
-          >
-            Change where this appears
-          </button>
-
           {canSetHero &&
             (isHero ? (
               <span className="text-[11.5px] font-semibold" title="Shown first for this pack">
@@ -1000,31 +1060,107 @@ function MediaRow({
           </span>
         </div>
 
-        {open && (
-          <div className="mt-2 rounded-md bg-grey-wash p-2.5">
-            <p className="mb-2 text-[11.5px] text-grey-deep">
-              Tick every pack this should appear for. One photograph can serve several packs —
-              it is not copied.
-            </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              <label className="flex items-center gap-1.5 text-[12px]">
-                <input type="checkbox" checked={isShared} onChange={onShare} disabled={disabled} />
-                All packs
-              </label>
-              {variants.map((v) => (
-                <label key={v.sku} className="flex items-center gap-1.5 text-[12px]">
-                  <input
-                    type="checkbox"
-                    checked={assigned.includes(v.sku)}
-                    onChange={() => onToggle(v.sku)}
-                    disabled={disabled}
-                  />
-                  {v.pack || v.sku}
-                </label>
-              ))}
-            </div>
+        {/*
+          APPLIES TO — no longer hidden behind a disclosure.
+          Which packs an asset serves is the most consequential thing about it,
+          and it used to take a click to find out.
+        */}
+        <fieldset className="mt-2.5 rounded-md border border-black/8 bg-grey-wash p-2.5">
+          <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-grey-deep">
+            Applies to
+          </legend>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <label className="flex items-center gap-1.5 text-[12px]">
+              <input
+                type="radio"
+                /*
+                  Scoped to this RENDERED COPY, not to the asset.
+                  An asset assigned to several packs appears once in each of
+                  their sections, and identical radio names would make the
+                  browser treat those copies as a single group — checking one
+                  silently unchecked the others, so a correctly-assigned asset
+                  rendered with neither option selected.
+                */
+                name={`applies-${groupId}-${item._i}`}
+                checked={mode === "shared"}
+                onChange={onShare}
+                disabled={disabled}
+              />
+              <span>
+                Shared <span className="text-grey-deep">— every pack, including new ones</span>
+              </span>
+            </label>
+            <label className="flex items-center gap-1.5 text-[12px]">
+              <input
+                type="radio"
+                name={`applies-${groupId}-${item._i}`}
+                checked={mode === "specific"}
+                onChange={onChooseSpecific}
+                disabled={disabled}
+              />
+              Specific packs
+            </label>
           </div>
-        )}
+
+          {mode === "specific" && (
+            <div className="mt-2 border-t border-black/8 pt-2">
+              <div className="flex flex-col gap-1">
+                {variants.map((v) => (
+                  <label key={v.sku} className="flex items-center gap-2 text-[12px]">
+                    <input
+                      type="checkbox"
+                      checked={assigned.includes(v.sku)}
+                      onChange={() => onToggle(v.sku)}
+                      disabled={disabled}
+                    />
+                    <span className="min-w-[130px]">{v.pack || v.sku}</span>
+                    <span className="font-mono text-[11px] text-grey-deep">{v.sku}</span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  onClick={onSelectAll}
+                  disabled={disabled || assigned.length === variants.length}
+                >
+                  Select all
+                </Button>
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  onClick={onClearAll}
+                  disabled={disabled || assigned.length === 0}
+                >
+                  Clear all
+                </Button>
+                <span className="ml-auto text-[11.5px] font-medium">
+                  {`Applies to ${assigned.length} ${assigned.length === 1 ? "variant" : "variants"}`}
+                </span>
+              </div>
+
+              {/*
+                Zero selected is fine while choosing, but it cannot be SAVED as
+                "Specific": no rows is exactly what Shared looks like in the
+                database, so persisting it would quietly turn into Shared. The
+                editor refuses the save until this is resolved either way.
+              */}
+              {assigned.length === 0 && (
+                <p className="mt-1.5 flex items-start gap-1.5 text-[11.5px] font-medium text-amber-deep">
+                  <span aria-hidden="true">⚠</span>
+                  <span>Select at least one variant, or switch to Shared.</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {mode === "shared" && (
+            <p className="mt-1.5 text-[11.5px] text-grey-deep">
+              Shared — all packs. No per-pack assignments, so a pack added later gets it too.
+            </p>
+          )}
+        </fieldset>
       </div>
     </li>
   );
