@@ -339,6 +339,22 @@ export default function MediaManager({
   const uploadAsset = useData((s) => s.uploadAsset);
   const toast = useToast();
 
+  /*
+   * Which pane the operator is looking at: "shared", or a pack's SKU.
+   *
+   * Presentational only. Every asset still lives in one flat `media` array in
+   * one order — a pane is a filtered view of it, exactly as the stacked
+   * sections were. Switching panes touches no form state, so nothing unsaved is
+   * lost, and `_i` keeps pointing at the real position in the array.
+   */
+  const [view, setView] = useState("shared");
+  /* Declared here, ahead of every callback that closes over it: the file-drop
+     handlers below list `view` in their dependency arrays, and a dependency
+     array is evaluated the moment useCallback runs. Declaring it further down
+     put it in the temporal dead zone at that point, so opening the Media tab
+     threw "Cannot access 'view' before initialization" and the editor's error
+     boundary replaced the page. */
+
   /** Server-resolved galleries, keyed by SKU. Null until the first response. */
   const [preview, setPreview] = useState(null);
   const [previewError, setPreviewError] = useState(null);
@@ -784,16 +800,6 @@ export default function MediaManager({
       (variants ?? []).map((v) => (v.sku === sku ? { ...v, heroMediaId: mediaId } : v)),
     );
   };
-
-  /*
-   * Which pane the operator is looking at: "shared", or a pack's SKU.
-   *
-   * Presentational only. Every asset still lives in one flat `media` array in
-   * one order — a pane is a filtered view of it, exactly as the stacked
-   * sections were. Switching panes touches no form state, so nothing unsaved is
-   * lost, and `_i` keeps pointing at the real position in the array.
-   */
-  const [view, setView] = useState("shared");
 
   /*
    * Where an unfinished "Specific packs" asset is being edited.
