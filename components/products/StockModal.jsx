@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
-import { stockStatus } from "@/lib/utils";
+import { stockStatus, sanitizeStockInput } from "@/lib/utils";
 import { Pill } from "@/components/ui/Pill";
 
 const TONE = { "In Stock": "green", "Low Stock": "amber", "Out of Stock": "red" };
@@ -26,7 +26,7 @@ export function StockModal({ product, onClose, onSaved }) {
 
   useEffect(() => {
     if (variants.length) {
-      setVals(Object.fromEntries(variants.map((v) => [v.sku, String(v.stock)])));
+      setVals(Object.fromEntries(variants.map((v) => [v.sku, String(v.stock ?? 0)])));
     }
   }, [product, variants]);
 
@@ -40,7 +40,9 @@ export function StockModal({ product, onClose, onSaved }) {
    */
   const save = async () => {
     const invalid = variants.some((v) => {
-      const n = parseInt(vals[v.sku], 10);
+      const raw = vals[v.sku];
+      if (raw === "" || raw === null || raw === undefined) return false;
+      const n = parseInt(raw, 10);
       return Number.isNaN(n) || n < 0;
     });
     if (invalid) {
@@ -49,7 +51,12 @@ export function StockModal({ product, onClose, onSaved }) {
     }
 
     const changed = variants
-      .map((v) => ({ sku: v.sku, stock: parseInt(vals[v.sku], 10) }))
+      .map((v) => {
+        const raw = vals[v.sku];
+        const stock =
+          raw === "" || raw === null || raw === undefined ? 0 : parseInt(raw, 10) || 0;
+        return { sku: v.sku, stock };
+      })
       .filter((u, i) => u.stock !== variants[i].stock);
 
     if (changed.length === 0) {
@@ -74,7 +81,11 @@ export function StockModal({ product, onClose, onSaved }) {
     }
   };
 
-  const total = variants.reduce((a, v) => a + (parseInt(vals[v.sku], 10) || 0), 0);
+  const total = variants.reduce((a, v) => {
+    const raw = vals[v.sku];
+    const n = raw === "" || raw === null || raw === undefined ? 0 : parseInt(raw, 10) || 0;
+    return a + n;
+  }, 0);
 
   return (
     <Modal
@@ -108,7 +119,16 @@ export function StockModal({ product, onClose, onSaved }) {
                 min={0}
                 className="w-24 shrink-0 text-right"
                 value={vals[v.sku] ?? ""}
-                onChange={(e) => setVals((s) => ({ ...s, [v.sku]: e.target.value }))}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const sanitized = sanitizeStockInput(e.target.value);
+                  setVals((s) => ({ ...s, [v.sku]: sanitized }));
+                }}
+                onBlur={() => {
+                  if (vals[v.sku] === "" || vals[v.sku] === null || vals[v.sku] === undefined) {
+                    setVals((s) => ({ ...s, [v.sku]: "0" }));
+                  }
+                }}
                 autoFocus={i === 0}
                 onKeyDown={(e) => e.key === "Enter" && save()}
               />

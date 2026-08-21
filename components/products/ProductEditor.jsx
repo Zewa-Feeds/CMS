@@ -22,7 +22,7 @@ import { useData } from "@/lib/store";
 import { checkUploadFile } from "@/lib/api";
 import { useToast } from "@/components/ui/Toast";
 import { CATEGORIES, BADGES, PRODUCT_STATUSES } from "@/lib/constants";
-import { slugify } from "@/lib/utils";
+import { slugify, sanitizeStockInput } from "@/lib/utils";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -1038,8 +1038,18 @@ export function ProductEditor({ initial }) {
                         <Input
                           className="!py-1.5 w-20"
                           type="number"
-                          value={v.stock}
-                          onChange={(e) => setVariant(i, { stock: Number(e.target.value) })}
+                          min={0}
+                          value={v.stock === "" ? "" : v.stock}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const sanitized = sanitizeStockInput(e.target.value);
+                            setVariant(i, { stock: sanitized === "" ? "" : Number(sanitized) });
+                          }}
+                          onBlur={() => {
+                            if (v.stock === "" || v.stock === null || v.stock === undefined) {
+                              setVariant(i, { stock: 0 });
+                            }
+                          }}
                         />
                       </Td>
                       <Td>
