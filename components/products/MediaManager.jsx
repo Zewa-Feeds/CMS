@@ -51,6 +51,32 @@ const COVERAGE = {
 
 const coverageOf = (state) => COVERAGE[state] ?? COVERAGE.EMPTY;
 
+/**
+ * What state an asset is in, in words an operator can act on.
+ *
+ * The distinction that matters: a video is not usable the moment its upload
+ * finishes. Cloudinary returns as soon as the bytes land and transcodes
+ * afterwards, so showing it as ready would be a lie the storefront then has to
+ * cope with — which is why PENDING exists and why it is surfaced here rather
+ * than hidden.
+ */
+const MEDIA_STATE = {
+  READY: { label: "Ready", tone: "green", note: null },
+  PENDING: {
+    label: "Processing",
+    tone: "amber",
+    note: "Still being processed. It will appear on the storefront once it is ready.",
+  },
+  FAILED: {
+    label: "Failed",
+    tone: "red",
+    note: "This upload did not process. Remove it and try again.",
+  },
+  ARCHIVED: { label: "Removed", tone: "grey", note: "Removed from the gallery." },
+};
+const stateOf = (status) => MEDIA_STATE[status] ?? MEDIA_STATE.READY;
+
+
 /** Where a card's hover film comes from. Plain words, not resolver enum names. */
 const VIDEO_SOURCE = {
   VARIANT: "this pack\u2019s own film",
@@ -759,7 +785,16 @@ function MediaSection({
                 disabled={disabled}
                 total={total}
                 isHero={packSku ? heroes?.[packSku] === m.id : false}
-                canSetHero={Boolean(packSku && m.id)}
+                /*
+                  Only a finished IMAGE can lead a gallery. A video renders into
+                  an <img> as a card photograph, a product page's opening frame
+                  and an Open Graph image; an asset still processing or failed
+                  would put a broken frame in all three. The control is withheld
+                  rather than offered and then rejected by the server.
+                */
+                canSetHero={Boolean(
+                  packSku && m.id && m.type !== "VIDEO" && (m.status ?? "READY") === "READY",
+                )}
                 onSetHero={() => onSetHero(packSku, m.id)}
                 onAlt={(alt) => update(m._i, { alt })}
                 onMove={(dir) => move(m._i, m._i + dir)}
@@ -821,12 +856,36 @@ function MediaRow({
     >
       <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-md border border-black/10 bg-grey-wash">
         {item.type === "VIDEO" ? (
-          <span className="flex h-full items-center justify-center text-[10.5px] text-grey-deep">
-            Video
-          </span>
+          /* The poster frame is a real picture of the asset and exists as soon
+             as the original lands, so it is available even while the derived
+             version is still transcoding. */
+          item.posterUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={item.posterUrl} alt="" className="h-full w-full object-contain" />
+          ) : (
+            <span className="flex h-full items-center justify-center text-[10.5px] text-grey-deep">
+              Video
+            </span>
+          )
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.url} alt="" className="h-full w-full object-cover" />
+        )}
+        {/*
+          A processing or failed asset is dimmed and labelled ON the thumbnail.
+          An operator scanning a gallery reads the pictures, not the rows, so a
+          badge somewhere else would be missed — and the whole point of PENDING
+          is that this asset is not yet what customers will see.
+        */}
+        {item.status && item.status !== "READY" && (
+          <span
+            className={cn(
+              "absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9.5px] font-semibold text-white",
+              item.status === "FAILED" ? "bg-red-600/85" : "bg-black/70",
+            )}
+          >
+            {stateOf(item.status).label}
+          </span>
         )}
       </div>
 
@@ -840,6 +899,17 @@ function MediaRow({
             disabled={disabled}
           />
         </Field>
+
+        {item.status && item.status !== "READY" && (
+          <p
+            className={cn(
+              "mt-1 text-[11.5px]",
+              item.status === "FAILED" ? "text-red-600" : "text-amber-deep",
+            )}
+          >
+            {stateOf(item.status).note}
+          </p>
+        )}
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-[11.5px] text-grey-deep">

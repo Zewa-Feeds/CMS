@@ -97,6 +97,9 @@ function normaliseMedia(api) {
       type: m.type === "VIDEO" ? "VIDEO" : "IMAGE",
       url: m.url,
       publicId: m.publicId ?? null,
+      /* PENDING/READY/FAILED/ARCHIVED, so the manager can show what is still
+         processing rather than implying everything is live. */
+      status: m.status ?? "READY",
       alt: m.alt ?? "",
       posterUrl: m.posterUrl ?? null,
       durationSec: m.durationSec ?? null,
@@ -116,6 +119,7 @@ function normaliseMedia(api) {
       type: "IMAGE",
       url: item.url ?? item.src ?? null,
       publicId: item.publicId ?? null,
+      status: item.status ?? "READY",
       alt: item.alt ?? "",
       posterUrl: null,
       durationSec: null,
@@ -564,6 +568,9 @@ export function ProductEditor({ initial }) {
         const media = await uploadAsset(file, {
           folder: "products",
           resourceType,
+          /* Ties the signature to this product so an abandoned upload is
+             traceable and can be swept. */
+          slug: initial?.slug ?? undefined,
           onProgress: (percent) => setUploading((u) => ({ ...u, percent })),
         });
         // A video covers the product, not one pack, so it is always shared.
