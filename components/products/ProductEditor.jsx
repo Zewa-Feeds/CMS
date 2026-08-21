@@ -20,6 +20,12 @@ import {
 } from "lucide-react";
 import { useData } from "@/lib/store";
 import { checkUploadFile } from "@/lib/api";
+import {
+  TAB_LABELS,
+  fieldTabFor,
+  mapServerFieldErrors,
+  summarise,
+} from "@/lib/form-errors";
 import { useToast } from "@/components/ui/Toast";
 import { CATEGORIES, BADGES, PRODUCT_STATUSES } from "@/lib/constants";
 import { slugify, sanitizeStockInput } from "@/lib/utils";
@@ -218,6 +224,9 @@ export function ProductEditor({ initial }) {
   const [form, setForm] = useState(() => toForm(initial));
   const [tab, setTab] = useState("basic");
   const [errors, setErrors] = useState({});
+  /* What the last failed save objected to, kept until the next save attempt so
+     it stays readable while the operator moves between tabs to fix it. */
+  const [serverErrors, setServerErrors] = useState([]);
   const [busy, setBusy] = useState(false);
 
   /**
@@ -278,16 +287,10 @@ export function ProductEditor({ initial }) {
    * Which tab each field lives on, so a validation failure can send the owner to
    * the field instead of leaving them staring at a tab that looks fine.
    */
-  const FIELD_TAB = {
-    name: "basic",
-    slug: "basic",
-    shortDesc: "basic",
-    protein: "basic",
-    variants: "variants",
-    // So a blocked save lands the operator on the tab holding the problem.
-    media: "images",
-  };
-  const tabForField = (key) => (key.startsWith("variant_") ? "variants" : FIELD_TAB[key] ?? "basic");
+  /* One source of truth for "which tab is this field on", shared with the
+     mapper that translates server errors — otherwise a field could be routed
+     one way by local validation and another by the API's answer. */
+  const tabForField = (key) => fieldTabFor(key);
 
   const validate = () => {
     const e = {};
@@ -412,6 +415,7 @@ export function ProductEditor({ initial }) {
   });
 
   const doSave = async (silent = false) => {
+    setServerErrors([]);
     const invalid = validate();
     if (Object.keys(invalid).length > 0) {
       reportInvalid(invalid);
@@ -445,9 +449,19 @@ export function ProductEditor({ initial }) {
       return true;
     } catch (err) {
       if (err.fields) {
-        setErrors(err.fields);
-        toast.push(Object.values(err.fields)[0] || "Fix the highlighted fields.", { bad: true });
+        /*
+         * The API keys these by request path ("variants.0.sku"); the inputs
+         * read editor keys ("variant_0_sku"). Storing the raw paths meant no
+         * field ever went red and the toast showed a bare rule with nothing
+         * naming the field that broke it.
+         */
+        const { errors: mapped, list } = mapServerFieldErrors(err.fields, form.variants);
+        setErrors(mapped);
+        setServerErrors(list);
+        if (list.length) setTab(list[0].tab);
+        toast.push(summarise(list), { bad: true });
       } else {
+        setServerErrors([]);
         toast.push(err.message, { bad: true });
       }
       return false;
@@ -807,6 +821,41 @@ export function ProductEditor({ initial }) {
           </Button>
         </div>
       </div>
+
+      {/*
+        What the server refused, named and placed.
+        A toast alone was not enough: it names one field, then disappears while
+        the operator is still hunting for it across five tabs.
+      */}
+      {serverErrors.length > 0 && (
+        <div
+          role="alert"
+          className="mb-[18px] rounded-lg border border-[#F3D6D4] bg-red-wash px-4 py-3"
+        >
+          <p className="text-[13px] font-semibold text-red-deep">
+            {serverErrors.length === 1
+              ? "This change could not be saved:"
+              : `This change could not be saved — ${serverErrors.length} fields need attention:`}
+          </p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {serverErrors.map((e) => (
+              <li key={e.path} className="text-[12.5px] text-red-deep">
+                <button
+                  type="button"
+                  onClick={() => setTab(e.tab)}
+                  className="font-semibold underline-offset-2 hover:underline"
+                >
+                  {e.label}
+                </button>
+                <span className="text-ink"> — {e.message}</span>
+                {e.tab !== tab && (
+                  <span className="text-grey-deep"> ({TAB_LABELS[e.tab] ?? e.tab} tab)</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <Tabs tabs={TABS} value={tab} onChange={setTab} />
 
