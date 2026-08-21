@@ -21,6 +21,11 @@ import { NextResponse } from "next/server";
  * downloading an admin shell that would immediately bounce them. It is a UX and
  * information-disclosure improvement, not an authentication control.
  *
+ * It is used in ONE direction only: to send someone WITHOUT a marker to /login.
+ * It is never used to send someone AWAY from /login, because the marker can
+ * outlive the session it stands for, and a stale one must not be able to lock a
+ * user out of the page they need in order to sign in again.
+ *
  * ── WHY NOT VERIFY A JWT HERE ───────────────────────────────────────────────
  * The access token lives in memory by design (an XSS must not be able to read a
  * staff token from storage), so middleware has nothing to verify. Validating the
@@ -34,25 +39,6 @@ export const SESSION_MARKER = "zewa_cms_session";
 
 /** Reachable without a session. */
 const PUBLIC_PATHS = ["/login"];
-
-/**
- * Validate a `?next=` value before redirecting to it — an unchecked one is an
- * open redirect, which is a credible phishing vector on a sign-in page.
- *
- * Accepts only a root-relative path. Rejected: absolute URLs
- * ("https://evil.com"), protocol-relative ("//evil.com"), backslash variants
- * that some browsers normalise to "//" ("/\evil.com"), and /login itself, which
- * would bounce forever.
- *
- * @param {string | null} raw
- * @returns {string | null} a safe path, or null to fall back to "/"
- */
-function safeNext(raw) {
-  if (!raw || !raw.startsWith("/")) return null;
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return null;
-  if (raw === "/login" || raw.startsWith("/login?")) return null;
-  return raw;
-}
 
 export function middleware(request) {
   const { pathname, search } = request.nextUrl;
@@ -75,15 +61,27 @@ export function middleware(request) {
     return NextResponse.redirect(url);
   }
 
-  // Already signed in and hitting /login -> honour ?next= if it is a safe
-  // same-origin path, otherwise the dashboard. Dropping `next` here would lose
-  // the destination for anyone who arrives at the sign-in link with a live
-  // session (a second tab, or a refresh after the marker came back).
-  if (isPublic && hasSession) {
-    const target = safeNext(request.nextUrl.searchParams.get("next")) ?? "/";
-    return NextResponse.redirect(new URL(target, request.nextUrl.origin));
-  }
-
+  /*
+   * /login ALWAYS RENDERS. It is never redirected away from.
+   *
+   * This used to bounce anyone holding the marker to `?next=` or the dashboard,
+   * which read well until the marker outlived the session it stood for. Then:
+   * the shell restored, the refresh cookie was rejected, it redirected to
+   * /login, and this rule sent them straight back — a dead end showing
+   * "Redirecting to sign-in…" that survived every reload, because nothing on
+   * that path ever cleared the marker.
+   *
+   * restore() now clears it, which fixes the cause. This is the other half:
+   * a sign-in page must be reachable whenever someone asks for it, or a stale
+   * client-side cookie can lock a user out of their own admin panel. The marker
+   * is set by JavaScript and holds no secret — it was never a safe thing to
+   * gate a recovery route on.
+   *
+   * Nothing is lost. A genuinely signed-in user who opens /login is redirected
+   * by the page itself once restore() confirms the session — a decision made
+   * from a verified session rather than guessed from a cookie, and one that
+   * honours ?next= exactly as before (see nextPath in app/login/page.jsx).
+   */
   return NextResponse.next();
 }
 
