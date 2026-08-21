@@ -1,12 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  UploadCloud,
+  Check,
+  AlertCircle,
+  Loader2,
+  X,
+  RotateCw,
+  Film,
+  Image as ImageIcon,
+} from "lucide-react";
+import { useData } from "@/lib/store";
+import { useToast } from "@/components/ui/Toast";
 import { Card, CardBody, CardHead, CardTitle } from "@/components/ui/Card";
 import { Input, Select } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { MediaLightbox } from "@/components/ui/MediaLightbox";
-import { products as productsApi } from "@/lib/api";
+import { products as productsApi, checkUploadFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
@@ -77,6 +89,218 @@ const MEDIA_STATE = {
 };
 const stateOf = (status) => MEDIA_STATE[status] ?? MEDIA_STATE.READY;
 
+const prettyBytes = (n) => {
+  if (!n || typeof n !== "number") return "0 B";
+  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.round(n / 1024)} KB`;
+};
+
+/**
+ * Upload Queue — shows batch progress, per-file status, Cloudinary processing state,
+ * and retry affordance for failed files.
+ */
+function UploadQueue({ queue, onRetryItem, onRetryAll, onDismiss }) {
+  if (!queue || queue.length === 0) return null;
+
+  const totalCount = queue.length;
+  const readyCount = queue.filter((q) => q.status === "READY").length;
+  const failedCount = queue.filter((q) => q.status === "FAILED").length;
+  const uploadingCount = queue.filter((q) => q.status === "UPLOADING").length;
+  const processingCount = queue.filter((q) => q.status === "PROCESSING").length;
+  const isComplete = totalCount > 0 && readyCount + failedCount === totalCount;
+  const isAllSuccessful = totalCount > 0 && readyCount === totalCount;
+  const isProcessing = processingCount > 0;
+
+  // Calculate overall progress (monotonically non-decreasing)
+  const totalProgressSum = queue.reduce((acc, q) => {
+    if (q.status === "READY") return acc + 100;
+    if (q.status === "PROCESSING") return acc + 96;
+    if (q.status === "UPLOADING") return acc + Math.round((q.progress || 0) * 0.9);
+    if (q.status === "FAILED") return acc + 100;
+    return acc;
+  }, 0);
+
+  const overallPercent = Math.min(100, Math.max(0, Math.round(totalProgressSum / totalCount)));
+
+  return (
+    <div className="rounded-xl border border-line bg-card p-4 shadow-card transition-all">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+        <div className="flex items-center gap-2.5">
+          {isAllSuccessful ? (
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-green-wash text-green-deep">
+              <Check size={16} strokeWidth={2.5} />
+            </div>
+          ) : failedCount > 0 && isComplete ? (
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-wash text-amber-deep">
+              <AlertCircle size={16} />
+            </div>
+          ) : (
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-teal-wash text-teal-deep">
+              <Loader2 size={16} className="animate-spin text-teal-deep" />
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-[13.5px] font-semibold text-ink">
+              {isAllSuccessful
+                ? "All media ready"
+                : failedCount > 0 && isComplete
+                  ? `${readyCount} of ${totalCount} ready (${failedCount} failed)`
+                  : isProcessing && uploadingCount === 0
+                    ? `Processing media (${readyCount} of ${totalCount} ready)`
+                    : `Uploading media (${readyCount} / ${totalCount} uploaded)`}
+            </h4>
+            <p className="text-[11.5px] text-grey-deep">
+              {isAllSuccessful
+                ? `✓ ${readyCount} ${readyCount === 1 ? "file" : "files"} added to gallery`
+                : failedCount > 0 && isComplete
+                  ? "Some uploads encountered an error. Click Retry to re-upload."
+                  : isProcessing && uploadingCount === 0
+                    ? "Finalizing Cloudinary optimizations…"
+                    : `${totalCount} ${totalCount === 1 ? "file" : "files"} in queue · ${uploadingCount} uploading`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {failedCount > 0 && (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={onRetryAll}
+              className="h-7 text-[11.5px]"
+            >
+              <RotateCw size={12} className="mr-1.5" />
+              Retry all failed
+            </Button>
+          )}
+
+          {isComplete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onDismiss}
+              className="h-7 text-[11.5px] text-muted hover:text-ink"
+            >
+              <X size={14} className="mr-1" />
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="relative mb-3 h-2 w-full overflow-hidden rounded-full bg-canvas">
+        <div
+          className={cn(
+            "h-full transition-all duration-300 ease-out",
+            isAllSuccessful
+              ? "bg-green-deep"
+              : failedCount > 0
+                ? "bg-amber-deep"
+                : "bg-teal",
+          )}
+          style={{ width: `${overallPercent}%` }}
+        />
+      </div>
+
+      {/* Queue Items */}
+      <div className="flex max-h-[220px] flex-col gap-1.5 overflow-y-auto pr-1">
+        {queue.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 rounded-lg border border-line-soft bg-canvas/40 p-2 text-[12px]"
+          >
+            {/* Thumbnail */}
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-line bg-grey-wash">
+              {item.previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+              ) : item.type === "VIDEO" ? (
+                <div className="flex h-full items-center justify-center text-[10px] text-grey-deep">
+                  <Film size={14} />
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center text-[10px] text-grey-deep">
+                  <ImageIcon size={14} />
+                </div>
+              )}
+              {item.type === "VIDEO" && (
+                <span className="absolute bottom-0 inset-x-0 bg-black/70 py-px text-center text-[8px] font-semibold text-white">
+                  VID
+                </span>
+              )}
+            </div>
+
+            {/* Details */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate font-medium text-ink" title={item.name}>
+                  {item.name}
+                </span>
+                <span className="shrink-0 text-[11px] text-muted-2">
+                  {item.formattedSize}
+                </span>
+                <span className="shrink-0 rounded bg-grey-wash px-1.5 py-0.5 text-[10px] font-medium text-grey-deep">
+                  {item.targetLabel}
+                </span>
+              </div>
+
+              {/* Status and Progress line */}
+              <div className="mt-0.5 flex items-center justify-between gap-2">
+                {item.status === "QUEUED" && (
+                  <span className="text-[11px] text-muted">Queued…</span>
+                )}
+                {item.status === "UPLOADING" && (
+                  <div className="flex flex-1 items-center gap-2">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-line">
+                      <div
+                        className="h-full bg-teal transition-all duration-150"
+                        style={{ width: `${item.progress}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 font-mono text-[10.5px] text-muted">
+                      Uploading… {item.progress}%
+                    </span>
+                  </div>
+                )}
+                {item.status === "PROCESSING" && (
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-deep">
+                    <Loader2 size={11} className="animate-spin text-amber-deep" />
+                    Processing…
+                  </span>
+                )}
+                {item.status === "READY" && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-green-deep">
+                    <Check size={12} className="text-green-deep" />
+                    Ready
+                  </span>
+                )}
+                {item.status === "FAILED" && (
+                  <div className="flex flex-1 items-center justify-between gap-2">
+                    <span className="truncate text-[11px] font-medium text-red-deep" title={item.error}>
+                      Failed: {item.error}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRetryItem(item.id)}
+                      className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-blue-deep hover:bg-blue-wash hover:underline"
+                    >
+                      <RotateCw size={10} /> Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Where a card's hover film comes from. Plain words, not resolver enum names. */
 const VIDEO_SOURCE = {
@@ -112,6 +336,9 @@ export default function MediaManager({
   uploadError,
   disabled,
 }) {
+  const uploadAsset = useData((s) => s.uploadAsset);
+  const toast = useToast();
+
   /** Server-resolved galleries, keyed by SKU. Null until the first response. */
   const [preview, setPreview] = useState(null);
   const [previewError, setPreviewError] = useState(null);
@@ -119,9 +346,253 @@ export default function MediaManager({
   const [busy, setBusy] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
+  /** Active upload queue items */
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const fileDropCounter = useRef(0);
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const fileInputRef = useRef(null);
+
   const activeVariants = useMemo(
     () => (variants ?? []).filter((v) => v.isActive !== false && v.sku?.trim()),
     [variants],
+  );
+
+  /**
+   * Enqueue files for upload with upfront format, size, and single-video validation.
+   * Target SKU is captured at the moment of queuing so switching tabs mid-upload
+   * does not misdirect files.
+   */
+  const enqueueFiles = useCallback(
+    (fileList, targetSku = null) => {
+      const rawFiles = Array.from(fileList ?? []);
+      if (rawFiles.length === 0) return;
+
+      const newQueueItems = [];
+      const rejectedItems = [];
+
+      const hasExistingVideo = (media ?? []).some((m) => m.type === "VIDEO");
+      let videoQueuedInBatch = uploadQueue.some(
+        (q) => q.type === "VIDEO" && q.status !== "FAILED",
+      );
+
+      for (const file of rawFiles) {
+        const isVideo =
+          file.type.startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
+        const resourceType = isVideo ? "video" : "image";
+
+        if (isVideo) {
+          if (hasExistingVideo || videoQueuedInBatch) {
+            rejectedItems.push({
+              name: file.name,
+              reason: "This product already has a video. Remove it first to replace it.",
+            });
+            continue;
+          }
+          videoQueuedInBatch = true;
+        }
+
+        const validationError = checkUploadFile(file, resourceType);
+        if (validationError) {
+          rejectedItems.push({
+            name: file.name,
+            reason: validationError,
+          });
+          continue;
+        }
+
+        let previewUrl = null;
+        try {
+          previewUrl = URL.createObjectURL(file);
+        } catch {
+          // ignore
+        }
+
+        let targetLabel = "Shared";
+        if (!isVideo && targetSku) {
+          const v = activeVariants.find((x) => x.sku === targetSku);
+          targetLabel = v?.pack ? `${v.pack} (${targetSku})` : targetSku;
+        }
+
+        const id = "upl-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+        newQueueItems.push({
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          formattedSize: prettyBytes(file.size),
+          type: isVideo ? "VIDEO" : "IMAGE",
+          targetSku: isVideo ? null : targetSku,
+          targetLabel,
+          status: "QUEUED",
+          progress: 0,
+          error: null,
+          previewUrl,
+        });
+      }
+
+      if (rejectedItems.length > 0) {
+        rejectedItems.forEach((r) => {
+          toast.push(`${r.name} — ${r.reason}`, { bad: true });
+        });
+      }
+
+      if (newQueueItems.length > 0) {
+        setUploadQueue((prev) => [...prev, ...newQueueItems]);
+      }
+    },
+    [media, uploadQueue, activeVariants, toast],
+  );
+
+  // Queue runner: processes queued files concurrently up to 2
+  useEffect(() => {
+    const queuedItems = uploadQueue.filter((q) => q.status === "QUEUED");
+    if (queuedItems.length === 0) return;
+
+    const activeCount = uploadQueue.filter(
+      (q) => q.status === "UPLOADING" || q.status === "PROCESSING",
+    ).length;
+    if (activeCount >= 2) return;
+
+    const nextItem = queuedItems[0];
+
+    const runUpload = async (item) => {
+      setUploadQueue((prev) =>
+        prev.map((q) => (q.id === item.id ? { ...q, status: "UPLOADING", progress: 0 } : q)),
+      );
+
+      try {
+        const isVideo = item.type === "VIDEO";
+        const mediaResult = await uploadAsset(item.file, {
+          folder: "products",
+          resourceType: isVideo ? "video" : "image",
+          slug: slug || undefined,
+          onProgress: (percent) => {
+            setUploadQueue((prev) =>
+              prev.map((q) =>
+                q.id === item.id ? { ...q, progress: Math.min(percent, 99) } : q,
+              ),
+            );
+          },
+        });
+
+        // Set status to PROCESSING (Cloudinary completed upload)
+        setUploadQueue((prev) =>
+          prev.map((q) =>
+            q.id === item.id ? { ...q, status: "PROCESSING", progress: 100 } : q,
+          ),
+        );
+
+        const finalMedia = {
+          ...mediaResult,
+          sku: item.targetSku || null,
+          skus: item.targetSku ? [item.targetSku] : [],
+        };
+
+        onChange((prevMedia) => [...(prevMedia || []), finalMedia]);
+
+        setTimeout(() => {
+          setUploadQueue((prev) =>
+            prev.map((q) => (q.id === item.id ? { ...q, status: "READY" } : q)),
+          );
+        }, 400);
+      } catch (err) {
+        const reason =
+          err.status === 503
+            ? "Cloudinary is not configured on this environment."
+            : err.message || "Upload did not complete.";
+
+        setUploadQueue((prev) =>
+          prev.map((q) =>
+            q.id === item.id ? { ...q, status: "FAILED", error: reason, progress: 0 } : q,
+          ),
+        );
+        toast.push(`Upload failed (${item.name}): ${reason}`, { bad: true });
+      }
+    };
+
+    runUpload(nextItem);
+  }, [uploadQueue, uploadAsset, slug, onChange, toast]);
+
+  const handleRetryItem = useCallback((id) => {
+    setUploadQueue((prev) =>
+      prev.map((q) =>
+        q.id === id ? { ...q, status: "QUEUED", error: null, progress: 0 } : q,
+      ),
+    );
+  }, []);
+
+  const handleRetryAll = useCallback(() => {
+    setUploadQueue((prev) =>
+      prev.map((q) =>
+        q.status === "FAILED" ? { ...q, status: "QUEUED", error: null, progress: 0 } : q,
+      ),
+    );
+  }, []);
+
+  const handleDismissQueue = useCallback(() => {
+    setUploadQueue((prev) => {
+      prev.forEach((q) => {
+        if (q.previewUrl) {
+          try {
+            URL.revokeObjectURL(q.previewUrl);
+          } catch {}
+        }
+      });
+      return [];
+    });
+  }, []);
+
+  const handleDragEnter = useCallback((e) => {
+    if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    fileDropCounter.current += 1;
+    if (fileDropCounter.current === 1) {
+      setIsDraggingFiles(true);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e) => {
+    if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  }, []);
+
+  const handleDragLeave = useCallback((e) => {
+    if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    fileDropCounter.current -= 1;
+    if (fileDropCounter.current <= 0) {
+      fileDropCounter.current = 0;
+      setIsDraggingFiles(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e) => {
+      if (!e.dataTransfer?.types || !Array.from(e.dataTransfer.types).includes("Files")) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      fileDropCounter.current = 0;
+      setIsDraggingFiles(false);
+
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const targetSku = view === "shared" ? null : view;
+        enqueueFiles(files, targetSku);
+      }
+    },
+    [view, enqueueFiles],
   );
 
   /** What the editor currently has, in the shape the preview endpoint wants. */
@@ -631,21 +1102,96 @@ export default function MediaManager({
               kind="image"
               label="Add photos"
               multiple
-              busy={uploading?.active}
               disabled={disabled}
-              onPick={(files) => onUpload(files, "image", view === "shared" ? null : view)}
+              onPick={(files) => enqueueFiles(files, view === "shared" ? null : view)}
             />
             {/* Video lives on Shared only: it shows the product, not one pack size. */}
             {view === "shared" && (
               <UploadButton
                 kind="video"
                 label="Add video"
-                busy={uploading?.active}
                 disabled={disabled}
-                onPick={(files) => onUpload(files, "video", null)}
+                onPick={(files) => enqueueFiles(files, null)}
               />
             )}
           </span>
+        </div>
+
+        {/* Upload Queue Panel (when active items exist) */}
+        {uploadQueue.length > 0 && (
+          <div className="mt-4">
+            <UploadQueue
+              queue={uploadQueue}
+              onRetryItem={handleRetryItem}
+              onRetryAll={handleRetryAll}
+              onDismiss={handleDismissQueue}
+            />
+          </div>
+        )}
+
+        {/* Finder File Drag & Drop Zone */}
+        <div
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            "mt-4 relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 text-center transition-all duration-150",
+            isDraggingFiles
+              ? "border-teal bg-teal-wash/60 ring-4 ring-teal/20 scale-[1.005] shadow-pop"
+              : "border-line-soft bg-canvas/40 hover:border-line hover:bg-canvas/70",
+          )}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+            multiple
+            className="sr-only"
+            disabled={disabled}
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                const targetSku = view === "shared" ? null : view;
+                enqueueFiles(e.target.files, targetSku);
+              }
+              e.target.value = "";
+            }}
+          />
+
+          <div className="pointer-events-none flex flex-col items-center gap-1.5">
+            <div
+              className={cn(
+                "grid h-9 w-9 place-items-center rounded-full transition-colors",
+                isDraggingFiles ? "bg-teal text-ink" : "bg-grey-wash text-grey-deep",
+              )}
+            >
+              <UploadCloud size={18} />
+            </div>
+            <div>
+              <p className="text-[12.5px] font-medium text-ink">
+                {isDraggingFiles ? (
+                  <span className="font-semibold text-teal-deep">
+                    Drop files to upload to {view === "shared" ? "Shared media" : `${viewVariant?.pack || view}`}
+                  </span>
+                ) : (
+                  <>
+                    Drag and drop images or video from Finder here, or{" "}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={disabled}
+                      className="pointer-events-auto font-semibold text-teal-deep underline underline-offset-2 hover:text-teal"
+                    >
+                      browse files
+                    </button>
+                  </>
+                )}
+              </p>
+              <p className="mt-0.5 text-[11px] text-grey-deep">
+                JPG, PNG, WebP, AVIF up to 10 MB {view === "shared" ? "· MP4, WebM, MOV up to 100 MB" : ""}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-6">
@@ -1120,6 +1666,9 @@ function MediaGrid({
 
   const handleDragOver = useCallback(
     (e, idx) => {
+      if (e.dataTransfer?.types && Array.from(e.dataTransfer.types).includes("Files")) {
+        return;
+      }
       if (dragState.groupId !== groupId || dragState.sourceIndex === null) {
         return;
       }
@@ -1150,6 +1699,9 @@ function MediaGrid({
 
   const handleDrop = useCallback(
     (e, idx) => {
+      if (e.dataTransfer?.types && Array.from(e.dataTransfer.types).includes("Files")) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 

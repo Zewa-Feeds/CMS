@@ -1111,9 +1111,13 @@ export function ProductEditor({ initial }) {
              up by slug, so an edited-but-unsaved slug would 404. A brand-new
              product has none yet, and the manager skips previewing until it does. */
           slug={initial?.slug ?? null}
-          representativeSku={form.representativeSku}
-          onChange={(media) => set({ media })}
-          onVariantsChange={(variants) => set({ variants })}
+          onChange={(media) => {
+            if (typeof media === "function") {
+              setForm((prev) => ({ ...prev, media: media(prev.media) }));
+            } else {
+              set({ media });
+            }
+          }}
           onRepresentativeChange={(representativeSku) => set({ representativeSku })}
           specificMode={specificMode}
           onSpecificModeChange={markSpecific}
