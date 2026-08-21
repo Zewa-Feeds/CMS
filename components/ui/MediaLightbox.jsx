@@ -107,7 +107,6 @@ export function MediaLightbox({ media, index, onClose, onIndexChange }) {
             src={item.url}
             poster={item.posterUrl ?? undefined}
             controls
-            autoPlay
             playsInline
             className="max-h-full max-w-full rounded-lg bg-black shadow-pop"
           />

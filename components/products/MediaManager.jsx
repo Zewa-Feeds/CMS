@@ -5,6 +5,7 @@ import { Card, CardBody, CardHead, CardTitle } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
+import { MediaLightbox } from "@/components/ui/MediaLightbox";
 import { products as productsApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +107,7 @@ export default function MediaManager({
   const [previewError, setPreviewError] = useState(null);
   const [previewSku, setPreviewSku] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const activeVariants = useMemo(
     () => (variants ?? []).filter((v) => v.isActive !== false && v.sku?.trim()),
@@ -302,24 +304,24 @@ export default function MediaManager({
         </CardBody>
       </Card>
 
-      {/* ---------- Listing card ---------- */}
+      {/* ---------- Main listing variant ---------- */}
       {packs.length > 0 && (
         <Card>
           <CardHead>
-            <CardTitle>Listing card</CardTitle>
-            <div className="w-[220px]">
+            <CardTitle>Main listing variant</CardTitle>
+            <div className="w-[240px]">
               <Select
                 value={representativeSku ?? ""}
                 onChange={(e) => onRepresentativeChange?.(e.target.value || null)}
                 disabled={disabled}
-                aria-label="Listing representative pack"
+                aria-label="Main listing variant"
               >
                 <option value="">
                   Default &mdash; {packs[0]?.pack ?? "first pack"}
                 </option>
                 {packs.map((p) => (
                   <option key={p.sku} value={p.sku}>
-                    {p.pack}
+                    {p.pack} ({p.sku})
                   </option>
                 ))}
               </Select>
@@ -327,10 +329,10 @@ export default function MediaManager({
           </CardHead>
           <CardBody>
             <p className="mb-3.5 text-[12px] text-grey-deep">
-              How this product appears on the shop grid and the homepage. This chooses the{" "}
-              <strong className="font-semibold text-ink">photography only</strong> &mdash; price,
-              stock and the Add-to-Cart button still follow the first pack a customer can actually
-              buy.
+              How this product appears on the shop grid and the homepage. The listing card uses the{" "}
+              <strong className="font-semibold text-ink">photography, price, and SKU</strong> of this
+              variant when in stock. If it sells out, the storefront automatically falls back to an
+              available in-stock variant without altering your configured setting.
             </p>
 
             {!listing ? (
@@ -342,7 +344,19 @@ export default function MediaManager({
                   panel with a square image well, and a light preview would flatter
                   artwork that disappears against the real thing.
                 */}
-                <div className="relative h-[168px] w-[168px] shrink-0 overflow-hidden rounded-xl border border-black/10 bg-[#0d1726]">
+                <div
+                  onClick={() => {
+                    if (listing.heroUrl) {
+                      const idx = media.findIndex((m) => m.url === listing.heroUrl);
+                      if (idx !== -1) setLightboxIndex(idx);
+                    } else if (listing.videoUrl) {
+                      const idx = media.findIndex((m) => m.type === "VIDEO" || m.url === listing.videoUrl);
+                      if (idx !== -1) setLightboxIndex(idx);
+                    }
+                  }}
+                  title="Click to preview full size"
+                  className="group relative h-[168px] w-[168px] shrink-0 cursor-pointer overflow-hidden rounded-xl border border-black/10 bg-[#0d1726] transition-transform hover:scale-[1.02]"
+                >
                   {listing.heroUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -377,7 +391,7 @@ export default function MediaManager({
                 </div>
 
                 <dl className="grid min-w-[260px] flex-1 grid-cols-[132px_1fr] gap-x-3 gap-y-2 text-[12.5px]">
-                  <dt className="text-grey-deep">Representative</dt>
+                  <dt className="text-grey-deep">Main listing variant</dt>
                   <dd className="font-medium">
                     {listing.pack ?? "—"}
                     <span className="ml-1.5 text-[11px] font-normal text-grey-deep">
@@ -457,7 +471,14 @@ export default function MediaManager({
                 <div className="flex flex-wrap gap-2.5">
                   {previewItems.map((m) => (
                     <figure key={m.id} className="w-[104px]">
-                      <div className="relative aspect-square overflow-hidden rounded-lg border border-black/10 bg-grey-wash">
+                      <div
+                        onClick={() => {
+                          const idx = media.findIndex((x) => (m.id && x.id === m.id) || x.url === m.url);
+                          if (idx !== -1) setLightboxIndex(idx);
+                        }}
+                        title="Click to preview full size"
+                        className="group relative aspect-square cursor-pointer overflow-hidden rounded-lg border border-black/10 bg-grey-wash transition-transform hover:scale-[1.03]"
+                      >
                         {m.type === "VIDEO" ? (
                           <span className="flex h-full items-center justify-center text-[11px] text-grey-deep">
                             Video
@@ -508,6 +529,7 @@ export default function MediaManager({
         remove={askToRemove}
         heroes={heroes}
         onSetHero={setHero}
+        onPreview={setLightboxIndex}
         toggleAssignment={toggleAssignment}
         makeShared={makeShared}
         total={media.length}
@@ -553,6 +575,7 @@ export default function MediaManager({
             remove={askToRemove}
             heroes={heroes}
             onSetHero={setHero}
+            onPreview={setLightboxIndex}
             packSku={v.sku}
             toggleAssignment={toggleAssignment}
             makeShared={makeShared}
@@ -571,6 +594,15 @@ export default function MediaManager({
             remove(pendingRemoval.index);
             setPendingRemoval(null);
           }}
+        />
+      )}
+
+      {lightboxIndex !== null && (
+        <MediaLightbox
+          media={media}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onIndexChange={setLightboxIndex}
         />
       )}
     </div>
@@ -710,6 +742,7 @@ function MediaSection({
   total,
   heroes,
   onSetHero,
+  onPreview,
   packSku,
 }) {
   /*
@@ -796,6 +829,7 @@ function MediaSection({
                   packSku && m.id && m.type !== "VIDEO" && (m.status ?? "READY") === "READY",
                 )}
                 onSetHero={() => onSetHero(packSku, m.id)}
+                onPreview={() => onPreview?.(m._i)}
                 onAlt={(alt) => update(m._i, { alt })}
                 onMove={(dir) => move(m._i, m._i + dir)}
                 onRemove={() => remove(m._i)}
@@ -819,7 +853,7 @@ function MediaSection({
 
 function MediaRow({
   item, variants, disabled, total,
-  isHero, canSetHero, onSetHero,
+  isHero, canSetHero, onSetHero, onPreview,
   onAlt, onMove, onRemove, onToggle, onShare,
   dragging, onDragStart, onDragEnd, onDropOn,
 }) {
@@ -854,7 +888,14 @@ function MediaRow({
         dragging && "opacity-50 ring-2 ring-teal",
       )}
     >
-      <div className="relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-md border border-black/10 bg-grey-wash">
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onPreview?.();
+        }}
+        title="Click to preview full size"
+        className="group relative h-[68px] w-[68px] shrink-0 cursor-pointer overflow-hidden rounded-md border border-black/10 bg-grey-wash transition-transform hover:scale-[1.03] hover:border-teal hover:shadow-sm"
+      >
         {item.type === "VIDEO" ? (
           /* The poster frame is a real picture of the asset and exists as soon
              as the original lands, so it is available even while the derived

@@ -907,119 +907,154 @@ export function ProductEditor({ initial }) {
       )}
 
       {tab === "variants" && (
-        <Card>
-          <CardHead>
-            <CardTitle>Variants / SKUs</CardTitle>
-            <Button variant="default" size="sm" className="ml-auto" onClick={addVariant}>
-              <Plus size={14} /> Add SKU
-            </Button>
-          </CardHead>
-          <TableWrap>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>SKU</Th>
-                  <Th>Pack</Th>
-                  <Th>MRP (₹)</Th>
-                  <Th>Price (₹)</Th>
-                  <Th>Stock</Th>
-                  <Th>HSN</Th>
-                  <Th right></Th>
-                </tr>
-              </thead>
-              <tbody>
-                {form.variants.map((v, i) => (
-                  <Tr key={i}>
-                    <Td>
-                      <Input
-                        className="!py-1.5 font-mono text-[12.5px]"
-                        value={v.sku}
-                        bad={!!errors[`variant_${i}_sku`]}
-                        onChange={(e) => setVariant(i, { sku: e.target.value.toUpperCase() })}
-                        placeholder="F3-45G"
-                      />
-                      {/* The red border alone does not say WHAT is wrong. */}
-                      {errors[`variant_${i}_sku`] && (
-                        <div className="mt-1 text-[11.5px] leading-snug text-red">
-                          {errors[`variant_${i}_sku`]}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <Input
-                        className="!py-1.5"
-                        value={v.pack}
-                        bad={!!errors[`variant_${i}_pack`]}
-                        onChange={(e) => setVariant(i, { pack: e.target.value })}
-                        placeholder="45 g"
-                      />
-                      {/* The red border alone does not say WHAT is wrong. */}
-                      {errors[`variant_${i}_pack`] && (
-                        <div className="mt-1 text-[11.5px] leading-snug text-red">
-                          {errors[`variant_${i}_pack`]}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <Input
-                        className="!py-1.5 w-24"
-                        type="number"
-                        step="0.01"
-                        value={v.mrp}
-                        bad={!!errors[`variant_${i}_mrp`]}
-                        onChange={(e) => setVariant(i, { mrp: e.target.value })}
-                      />
-                      {/* The red border alone does not say WHAT is wrong. */}
-                      {errors[`variant_${i}_mrp`] && (
-                        <div className="mt-1 text-[11.5px] leading-snug text-red">
-                          {errors[`variant_${i}_mrp`]}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <Input
-                        className="!py-1.5 w-24"
-                        type="number"
-                        step="0.01"
-                        value={v.price}
-                        bad={!!errors[`variant_${i}_price`]}
-                        onChange={(e) => setVariant(i, { price: e.target.value })}
-                      />
-                      {/* The red border alone does not say WHAT is wrong. */}
-                      {errors[`variant_${i}_price`] && (
-                        <div className="mt-1 text-[11.5px] leading-snug text-red">
-                          {errors[`variant_${i}_price`]}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <Input
-                        className="!py-1.5 w-20"
-                        type="number"
-                        value={v.stock}
-                        onChange={(e) => setVariant(i, { stock: Number(e.target.value) })}
-                      />
-                    </Td>
-                    <Td>
-                      <Input
-                        className="!py-1.5 w-28 font-mono text-[12.5px]"
-                        value={v.hsn}
-                        onChange={(e) => setVariant(i, { hsn: e.target.value })}
-                      />
-                    </Td>
-                    <Td right>
-                      {form.variants.length > 1 && (
-                        <Button variant="ghost" size="icon-sm" onClick={() => removeVariant(i)}>
-                          <Trash2 size={14} className="text-muted" />
-                        </Button>
-                      )}
-                    </Td>
-                  </Tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableWrap>
-        </Card>
+        <div className="flex flex-col gap-5">
+          <Card>
+            <CardHead>
+              <CardTitle>Variants / SKUs</CardTitle>
+              <Button variant="default" size="sm" className="ml-auto" onClick={addVariant}>
+                <Plus size={14} /> Add SKU
+              </Button>
+            </CardHead>
+            <TableWrap>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>SKU</Th>
+                    <Th>Pack</Th>
+                    <Th>MRP (₹)</Th>
+                    <Th>Price (₹)</Th>
+                    <Th>Stock</Th>
+                    <Th>HSN</Th>
+                    <Th right></Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.variants.map((v, i) => (
+                    <Tr key={i}>
+                      <Td>
+                        <Input
+                          className="!py-1.5 font-mono text-[12.5px]"
+                          value={v.sku}
+                          bad={!!errors[`variant_${i}_sku`]}
+                          onChange={(e) => setVariant(i, { sku: e.target.value.toUpperCase() })}
+                          placeholder="F3-45G"
+                        />
+                        {/* The red border alone does not say WHAT is wrong. */}
+                        {errors[`variant_${i}_sku`] && (
+                          <div className="mt-1 text-[11.5px] leading-snug text-red">
+                            {errors[`variant_${i}_sku`]}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <Input
+                          className="!py-1.5"
+                          value={v.pack}
+                          bad={!!errors[`variant_${i}_pack`]}
+                          onChange={(e) => setVariant(i, { pack: e.target.value })}
+                          placeholder="45 g"
+                        />
+                        {/* The red border alone does not say WHAT is wrong. */}
+                        {errors[`variant_${i}_pack`] && (
+                          <div className="mt-1 text-[11.5px] leading-snug text-red">
+                            {errors[`variant_${i}_pack`]}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <Input
+                          className="!py-1.5 w-24"
+                          type="number"
+                          step="0.01"
+                          value={v.mrp}
+                          bad={!!errors[`variant_${i}_mrp`]}
+                          onChange={(e) => setVariant(i, { mrp: e.target.value })}
+                        />
+                        {/* The red border alone does not say WHAT is wrong. */}
+                        {errors[`variant_${i}_mrp`] && (
+                          <div className="mt-1 text-[11.5px] leading-snug text-red">
+                            {errors[`variant_${i}_mrp`]}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <Input
+                          className="!py-1.5 w-24"
+                          type="number"
+                          step="0.01"
+                          value={v.price}
+                          bad={!!errors[`variant_${i}_price`]}
+                          onChange={(e) => setVariant(i, { price: e.target.value })}
+                        />
+                        {/* The red border alone does not say WHAT is wrong. */}
+                        {errors[`variant_${i}_price`] && (
+                          <div className="mt-1 text-[11.5px] leading-snug text-red">
+                            {errors[`variant_${i}_price`]}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <Input
+                          className="!py-1.5 w-20"
+                          type="number"
+                          value={v.stock}
+                          onChange={(e) => setVariant(i, { stock: Number(e.target.value) })}
+                        />
+                      </Td>
+                      <Td>
+                        <Input
+                          className="!py-1.5 w-28 font-mono text-[12.5px]"
+                          value={v.hsn}
+                          onChange={(e) => setVariant(i, { hsn: e.target.value })}
+                        />
+                      </Td>
+                      <Td right>
+                        {form.variants.length > 1 && (
+                          <Button variant="ghost" size="icon-sm" onClick={() => removeVariant(i)}>
+                            <Trash2 size={14} className="text-muted" />
+                          </Button>
+                        )}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableWrap>
+          </Card>
+
+          <Card>
+            <CardHead>
+              <CardTitle>Product Listing Configuration</CardTitle>
+            </CardHead>
+            <CardBody>
+              <Field
+                label="Main Listing Variant"
+                htmlFor="representativeSku"
+                hint="Select which variant represents this product on the shop grid and homepage. If this variant goes out of stock, the storefront automatically falls back to an available in-stock variant without altering your configured setting."
+              >
+                <div className="max-w-[420px]">
+                  <Select
+                    id="representativeSku"
+                    value={form.representativeSku ?? ""}
+                    onChange={(e) => set({ representativeSku: e.target.value || null })}
+                  >
+                    <option value="">
+                      Default &mdash; {form.variants[0]?.pack ? `${form.variants[0].pack} (${form.variants[0].sku || "first SKU"})` : "First active variant"}
+                    </option>
+                    {form.variants.filter((v) => v.sku?.trim()).map((v) => (
+                      <option key={v.sku} value={v.sku}>
+                        {v.pack || v.sku} ({v.sku}) &mdash; ₹{v.price || 0} {Number(v.stock) <= 0 ? "· Out of Stock" : `· ${v.stock} in stock`}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </Field>
+              <p className="mt-2 text-[12px] text-muted">
+                <strong>Note:</strong> On the product detail page (PDP), the customer&apos;s selected pack is always authoritative. To select the main image for each variant, visit the <em>Media</em> tab.
+              </p>
+            </CardBody>
+          </Card>
+        </div>
       )}
 
       {/*
