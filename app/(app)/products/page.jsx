@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Eye, Upload, ExternalLink, Pencil, PackageSearch } from "lucide-react";
+import { Plus, Eye, Upload, ExternalLink, Pencil, PackageSearch, ArrowUpDown } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { CATEGORIES, catColor, PROD_STATUS_PILL, PRODUCT_STATUSES } from "@/lib/constants";
 
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { StockModal } from "@/components/products/StockModal";
+import { DisplayOrderPanel } from "@/components/products/DisplayOrderPanel";
 import { useToast } from "@/components/ui/Toast";
 
 function StockCell({ product, onEdit, editable }) {
@@ -66,6 +67,14 @@ function ProductsInner() {
   const [status, setStatus] = useState("All");
   /** Slug whose preview token is being fetched, so the row's button can disable. */
   const [previewing, setPreviewing] = useState(null);
+  /*
+   * Catalogue-order mode.
+   *
+   * A mode on this screen rather than a route of its own: sequencing the
+   * catalogue is product management, and the filters above make no sense
+   * against a list that must be complete and in order to be draggable.
+   */
+  const [ordering, setOrdering] = useState(false);
 
   /**
    * Open the storefront preview for a product.
@@ -158,13 +167,32 @@ function ProductsInner() {
         title="Products"
         sub={`${meta?.total ?? rows.length} product families in the catalogue`}
         actions={
-          editable && (
-            <Link href="/products/new" className={button({ variant: "primary" })}>
-              <Plus size={15} /> Add Product
-            </Link>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={ordering ? "dark" : "default"}
+              onClick={() => setOrdering((v) => !v)}
+              aria-pressed={ordering}
+            >
+              <ArrowUpDown size={15} /> Display order
+            </Button>
+            {editable && (
+              <Link href="/products/new" className={button({ variant: "primary" })}>
+                <Plus size={15} /> Add Product
+              </Link>
+            )}
+          </div>
         }
       />
+
+      {/*
+        Shown ABOVE the table rather than replacing it, so an operator can still
+        see stock and status while deciding the sequence.
+      */}
+      {ordering && (
+        <div className="mb-4">
+          <DisplayOrderPanel editable={editable} onClose={() => setOrdering(false)} />
+        </div>
+      )}
 
       <Card>
         <FilterBar>
