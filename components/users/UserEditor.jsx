@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Copy, Check } from "lucide-react";
+import { Save, Copy, Check, Mail, Send, ExternalLink } from "lucide-react";
 import { useData } from "@/lib/store";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -10,17 +10,28 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Checkbox } from "@/components/ui/Field";
 import { InfoBox } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+import { Pill } from "@/components/ui/Pill";
 
-const ROLE_DISPLAY_NAMES = ["Content Editor", "Ops Manager", "Admin"];
-
-const ROLE_MAP = {
-  "Content Editor": "CONTENT_EDITOR",
-  "Ops Manager": "OPS_MANAGER",
-  Admin: "ADMIN",
-  CONTENT_EDITOR: "Content Editor",
-  OPS_MANAGER: "Ops Manager",
-  ADMIN: "Admin",
-};
+const ROLE_OPTIONS = [
+  {
+    key: "ADMIN",
+    label: "Admin",
+    tone: "teal",
+    description: "Full CMS access across all modules, settings, user management, audit logs, and refunds.",
+  },
+  {
+    key: "OPS_MANAGER",
+    label: "Ops Manager",
+    tone: "amber",
+    description: "Product listings management, SKU pricing/stock, order lifecycle transitions, invoices, and email updates.",
+  },
+  {
+    key: "CONTENT_EDITOR",
+    label: "Content Editor",
+    tone: "blue",
+    description: "Content creation (blog articles, promotional banners, homepage drafts) and read-only catalogue viewing.",
+  },
+];
 
 export function UserEditor({ initial }) {
   const router = useRouter();
@@ -34,7 +45,8 @@ export function UserEditor({ initial }) {
   const [form, setForm] = useState({
     name: initial?.name || "",
     email: initial?.email || "",
-    role: initial?.role ? ROLE_MAP[initial.role] || initial.role : "Content Editor",
+    phone: initial?.phone || "",
+    role: initial?.role || "CONTENT_EDITOR",
     status: initial?.status || "ACTIVE",
     twofa: initial?.twofa || "Pending setup",
   });
@@ -42,15 +54,15 @@ export function UserEditor({ initial }) {
   const [invite, setInvite] = useState(true);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
-  const [setupToken, setSetupToken] = useState(null);
-  const [copiedToken, setCopiedToken] = useState(false);
+  const [inviteResult, setInviteResult] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Full name is required.";
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) e.email = "Enter a valid email.";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) e.email = "Enter a valid email.";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -61,30 +73,30 @@ export function UserEditor({ initial }) {
       return;
     }
 
-    const roleEnum = ROLE_MAP[form.role] || form.role;
     setBusy(true);
 
     try {
       if (isNew) {
         const result = await createUser({
           name: form.name.trim(),
-          email: form.email.trim(),
-          role: roleEnum,
+          email: form.email.trim().toLowerCase(),
+          phone: form.phone.trim() || undefined,
+          role: form.role,
           sendInvite: invite,
         });
 
-        const token = result?.setupToken;
-        if (token) {
-          setSetupToken(token);
-          toast.push("User created! Copy the setup token below.");
+        if (result?.inviteUrl) {
+          setInviteResult(result);
+          toast.push("User invited! Invitation link generated.");
         } else {
-          toast.push("User invited.");
+          toast.push("User invited successfully.");
           router.push("/users");
         }
       } else {
         await updateUser(initial.id, {
           name: form.name.trim(),
-          role: roleEnum,
+          phone: form.phone.trim() || undefined,
+          role: form.role,
         });
 
         if (form.status !== initial.status) {
@@ -106,13 +118,15 @@ export function UserEditor({ initial }) {
     }
   };
 
-  const copySetupToken = () => {
-    if (!setupToken) return;
-    navigator.clipboard.writeText(setupToken);
-    setCopiedToken(true);
-    toast.push("Setup token copied to clipboard!");
-    setTimeout(() => setCopiedToken(false), 2000);
+  const copyInviteLink = () => {
+    if (!inviteResult?.inviteUrl) return;
+    navigator.clipboard.writeText(inviteResult.inviteUrl);
+    setCopiedLink(true);
+    toast.push("Invitation link copied to clipboard!");
+    setTimeout(() => setCopiedLink(false), 2000);
   };
+
+  const activeRoleOption = ROLE_OPTIONS.find((r) => r.key === form.role) || ROLE_OPTIONS[2];
 
   return (
     <>
@@ -124,32 +138,36 @@ export function UserEditor({ initial }) {
         ]}
       />
       <PageHeader
-        title={isNew ? "Add CMS User" : `Edit ${form.name}`}
+        title={isNew ? "Invite CMS User" : `Edit ${form.name}`}
+        sub={isNew ? "Send an invitation to onboard a new staff member with dedicated permissions." : "Manage user profile and account status."}
         actions={
           <Button variant="primary" onClick={save} disabled={busy}>
-            <Save size={15} /> {busy ? "Saving…" : isNew ? "Create user" : "Save changes"}
+            <Save size={15} /> {busy ? "Saving…" : isNew ? "Send Invitation" : "Save changes"}
           </Button>
         }
       />
 
-      {setupToken && (
-        <div className="mb-4 max-w-2xl rounded-lg border border-teal/40 bg-teal-wash p-4">
-          <h3 className="font-semibold text-teal-deep text-[14px] mb-1">
-            User Created — Setup Token Generated
-          </h3>
-          <p className="text-[12.5px] text-muted mb-3">
-            Pass this setup token to the user. They set their password and complete mandatory 2FA on first login.
+      {inviteResult && (
+        <div className="mb-5 max-w-2xl rounded-xl border border-teal/40 bg-teal-wash p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <Mail size={18} className="text-teal-deep" />
+            <h3 className="font-semibold text-teal-deep text-[14.5px]">
+              User Invitation Created
+            </h3>
+          </div>
+          <p className="text-[12.5px] text-muted mb-3 leading-relaxed">
+            An email invitation was queued for <b>{form.email}</b>. You can also directly copy their unique invitation link below:
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input
               type="text"
               readOnly
-              value={setupToken}
-              className="mono w-full rounded border border-line bg-card py-1.5 px-3 text-[13px] text-ink font-semibold"
+              value={inviteResult.inviteUrl}
+              className="mono flex-1 rounded border border-line bg-card py-2 px-3 text-[12.5px] text-ink font-medium select-all"
             />
-            <Button size="sm" variant="default" onClick={copySetupToken}>
-              {copiedToken ? <Check size={14} className="text-teal-deep" /> : <Copy size={14} />}
-              {copiedToken ? "Copied" : "Copy"}
+            <Button size="sm" variant="default" onClick={copyInviteLink}>
+              {copiedLink ? <Check size={14} className="text-teal-deep" /> : <Copy size={14} />}
+              {copiedLink ? "Copied" : "Copy Link"}
             </Button>
             <Button size="sm" variant="primary" onClick={() => router.push("/users")}>
               Done
@@ -166,6 +184,7 @@ export function UserEditor({ initial }) {
                 <Input
                   value={form.name}
                   bad={!!errors.name}
+                  placeholder="e.g. Parth K"
                   onChange={(e) => set({ name: e.target.value })}
                 />
               </Field>
@@ -174,26 +193,44 @@ export function UserEditor({ initial }) {
                 label="Email Address"
                 required
                 error={errors.email}
-                hint={isNew ? "Must be unique login email." : "Login identity and audit log anchor — cannot be changed."}
+                hint={isNew ? "The user's official login email address." : "Login identity — cannot be changed."}
               >
                 <Input
                   type="email"
                   value={form.email}
                   bad={!!errors.email}
+                  placeholder="name@zewafeeds.com"
                   onChange={(e) => set({ email: e.target.value })}
                   readOnly={!isNew}
                 />
               </Field>
 
-              <Field label="Role" required error={errors.role}>
+              <Field label="Phone Number (Optional)">
+                <Input
+                  type="tel"
+                  value={form.phone}
+                  placeholder="+91 98765 43210"
+                  onChange={(e) => set({ phone: e.target.value })}
+                />
+              </Field>
+
+              <Field label="Assigned Role" required error={errors.role}>
                 <Select value={form.role} onChange={(e) => set({ role: e.target.value })}>
-                  {ROLE_DISPLAY_NAMES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.key} value={r.key}>
+                      {r.label}
                     </option>
                   ))}
                 </Select>
               </Field>
+
+              <div className="md:col-span-2 rounded-lg border border-line bg-surface/40 p-3 my-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[12px] font-semibold text-ink">Role Scope:</span>
+                  <Pill tone={activeRoleOption.tone}>{activeRoleOption.label}</Pill>
+                </div>
+                <p className="text-[12px] text-muted leading-relaxed">{activeRoleOption.description}</p>
+              </div>
 
               {!isNew && (
                 <Field label="Status">
@@ -205,17 +242,17 @@ export function UserEditor({ initial }) {
               )}
 
               {!isNew && (
-                <Field label="2FA Status">
+                <Field label="2FA Security Status">
                   <Input value={form.twofa} readOnly className="text-muted" />
                 </Field>
               )}
 
               {isNew && (
-                <div className="md:col-span-2 mt-1">
+                <div className="md:col-span-2 mt-2">
                   <Checkbox
                     checked={invite}
                     onChange={setInvite}
-                    label="Generate setup token for first-time login — user sets password and completes mandatory 2FA."
+                    label="Send invitation email via ZeptoMail (user sets their own password and completes mandatory 2FA on first login)."
                   />
                 </div>
               )}
@@ -225,11 +262,10 @@ export function UserEditor({ initial }) {
 
         <div className="mt-4">
           <InfoBox>
-            2FA is mandatory for every CMS user regardless of role. New users complete 2FA setup on first login before accessing any module.
+            Two-factor authentication (2FA) is mandatory for every CMS role. Invited staff choose their own password and complete 2FA setup upon their first sign-in.
           </InfoBox>
         </div>
       </div>
     </>
   );
 }
-

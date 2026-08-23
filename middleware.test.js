@@ -54,6 +54,10 @@ describe("the sign-in page is always reachable", () => {
     expect(isRedirect(res)).toBe(false);
   });
 
+  it("renders /accept-invitation without session marker", () => {
+    expect(isRedirect(middleware(makeRequest("/accept-invitation", { search: "?token=xyz" })))).toBe(false);
+  });
+
   it("cannot produce /login -> / -> /login", () => {
     // The loop needed BOTH halves. This is the half middleware owned.
     const toLogin = middleware(makeRequest("/login", { marker: true }));

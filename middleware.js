@@ -38,7 +38,7 @@ import { NextResponse } from "next/server";
 export const SESSION_MARKER = "zewa_cms_session";
 
 /** Reachable without a session. */
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/accept-invitation"];
 
 export function middleware(request) {
   const { pathname, search } = request.nextUrl;
