@@ -184,7 +184,7 @@ export function UserEditor({ initial }) {
                 <Input
                   value={form.name}
                   bad={!!errors.name}
-                  placeholder="e.g. Parth K"
+                  placeholder="e.g. Priya Nair"
                   onChange={(e) => set({ name: e.target.value })}
                 />
               </Field>

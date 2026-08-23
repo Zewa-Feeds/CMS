@@ -19,18 +19,21 @@ const PASSWORD_CHECKS = [
 
 function Brand() {
   return (
-    <div className="mb-6 flex flex-col items-center gap-2 text-center">
-      <div className="flex items-center gap-2.5">
-        <Image
-          src="/brand/icon.svg"
-          alt="Zewa Feeds"
-          width={32}
-          height={32}
-          className="h-8 w-8 rounded-lg bg-navy p-1 ring-1 ring-teal/30"
-        />
-        <span className="font-serif text-[22px] font-bold tracking-tight text-white">Zewa Feeds</span>
+    <div className="mb-6 flex items-center justify-center gap-3">
+      <Image
+        src="/logo.png"
+        alt="Zewa Feeds"
+        width={120}
+        height={120}
+        priority
+        className="h-10 w-auto object-contain brightness-0 invert"
+      />
+      <div className="border-l border-white/15 pl-3 text-left">
+        <div className="text-[16px] font-semibold text-white">Zewa Feeds</div>
+        <div className="font-mono text-[11px] uppercase tracking-[.14em] text-navy-text">
+          CMS Invitation
+        </div>
       </div>
-      <p className="text-[12.5px] text-white/50">CMS Invitation & Account Activation</p>
     </div>
   );
 }
