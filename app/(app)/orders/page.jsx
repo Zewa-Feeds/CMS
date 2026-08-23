@@ -223,6 +223,11 @@ function OrdersInner() {
                       </Td>
                       <Td>
                         <Pill tone={PAY_STATUS_PILL[o.paymentLabel]}>{o.paymentLabel}</Pill>
+                        {o.status === "CANCELLED" && o.paymentStatus === "PAID" && (
+                          <div className="mt-1">
+                            <Pill tone="red" size="sm">Refund Pending</Pill>
+                          </div>
+                        )}
                         <CellSub>
                           <span className="mono">{o.razorpayPaymentId ?? o.paymentMethod}</span>
                         </CellSub>

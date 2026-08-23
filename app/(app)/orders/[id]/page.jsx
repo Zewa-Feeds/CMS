@@ -417,6 +417,48 @@ export default function OrderDetailPage() {
         </div>
 
         <div className="flex flex-col gap-4">
+          {/* Status & Payment Overview Card */}
+          <Card>
+            <CardHead>
+              <CardTitle>Status & Payment</CardTitle>
+            </CardHead>
+            <CardBody className="space-y-3 text-[13px]">
+              <div className="flex items-center justify-between border-b border-line-soft pb-2">
+                <span className="text-muted">Order Status</span>
+                <Pill tone={ORDER_STATUS_PILL[order.statusLabel || order.status] || "grey"}>
+                  {order.statusLabel || order.status}
+                </Pill>
+              </div>
+
+              <div className="flex items-center justify-between border-b border-line-soft pb-2">
+                <span className="text-muted">Payment Status</span>
+                <div className="flex items-center gap-1.5">
+                  <Pill tone={PAY_STATUS_PILL[order.paymentLabel || order.paymentStatus] || "grey"}>
+                    {order.paymentLabel || order.paymentStatus}
+                  </Pill>
+                  <span className="text-[11.5px] text-muted-2">
+                    ({order.paymentMethod === "COD" ? "COD" : "Online"})
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Refund Status</span>
+                {order.paymentStatus === "REFUNDED" ? (
+                  <Pill tone="green">Refunded</Pill>
+                ) : order.paymentStatus === "PARTIALLY_REFUNDED" ? (
+                  <Pill tone="amber">Partially Refunded</Pill>
+                ) : order.awaitingRefund || (order.status === "CANCELLED" && order.paymentStatus === "PAID") ? (
+                  <Pill tone="red">Refund Pending</Pill>
+                ) : order.paymentMethod === "COD" && order.status === "CANCELLED" ? (
+                  <span className="text-[12px] text-muted-2">No Refund (COD)</span>
+                ) : (
+                  <span className="text-[12px] text-muted-2">None</span>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
           <Card>
             <CardHead>
               <CardTitle>Customer</CardTitle>
