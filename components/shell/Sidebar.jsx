@@ -127,17 +127,30 @@ export function Sidebar({ open, onClose, counts }) {
                         const [subPath, subQuery = ""] = s.href.split("?");
                         const subActive =
                           pathname === subPath && (search || "") === subQuery;
+                        const subCount = s.countKey ? counts?.orderCounts?.[s.countKey] : undefined;
                         return (
                           <Link
                             key={s.href}
                             href={s.href}
                             onClick={onClose}
                             className={cn(
-                              "rounded-md px-2.5 py-[5px] text-[12.5px] text-navy-text hover:bg-navy-2 hover:text-white",
+                              "flex items-center justify-between rounded-md px-2.5 py-[5px] text-[12.5px] text-navy-text hover:bg-navy-2 hover:text-white",
                               subActive && "text-teal"
                             )}
                           >
-                            {s.label}
+                            <span className="truncate">{s.label}</span>
+                            {typeof subCount === "number" && (
+                              <span
+                                className={cn(
+                                  "ml-2 font-mono text-[11px] text-navy-text opacity-70",
+                                  s.countKey === "pending" && subCount > 0 && "font-semibold text-amber opacity-100",
+                                  s.countKey === "cancelled" && subCount > 0 && "text-[#F87171] opacity-90",
+                                  subActive && "text-teal opacity-100"
+                                )}
+                              >
+                                ({subCount})
+                              </span>
+                            )}
                           </Link>
                         );
                       })}

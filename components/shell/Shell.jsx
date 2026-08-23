@@ -53,6 +53,14 @@ export function Shell({ children }) {
     pendingOrders: counters.pendingOrders ?? 0,
     lowStock: counters.lowStockProducts ?? 0,
     pendingReviews: counters.pendingReviews ?? 0,
+    orderCounts: counters.orderCounts ?? {
+      all: 0,
+      pending: counters.pendingOrders ?? 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0,
+    },
   };
 
   return (

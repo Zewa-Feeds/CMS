@@ -42,7 +42,9 @@ function fmtDateTime(iso) {
 /** CMS label -> the enum the API expects. */
 const STATUS_ENUM = {
   Pending: "PENDING",
+  New: "PENDING",
   Processing: "PROCESSING",
+  Accepted: "PROCESSING",
   Shipped: "SHIPPED",
   Delivered: "DELIVERED",
   Cancelled: "CANCELLED",
