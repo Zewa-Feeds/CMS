@@ -23,6 +23,14 @@ export const metadata = {
   },
   description: "Internal admin panel for the Zewa Feeds e-commerce website.",
   robots: { index: false, follow: false },
+  icons: {
+    icon: [
+      { url: "/logo.png" },
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: [{ url: "/logo.png" }],
+  },
 };
 
 export default function RootLayout({ children }) {
