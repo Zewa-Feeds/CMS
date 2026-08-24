@@ -42,12 +42,13 @@ import MediaManager from "@/components/products/MediaManager";
 import { TableWrap, Table, Th, Td, Tr } from "@/components/ui/Table";
 
 const NUTRITION_FIELDS = [
-  ["protein", "Crude Protein (min)", "42"],
+  ["protein", "Crude Protein (min)", "42%"],
   ["fat", "Crude Fat (min)", "12%"],
-  ["fibre", "Crude Fibre (max)", "3%"],
-  ["moisture", "Moisture (max)", "8%"],
-  ["ash", "Ash (max)", "9%"],
-  ["astaxanthin", "Astaxanthin", "50 ppm"],
+  ["fiber", "Crude Fiber (max)", "5%"],
+  ["moisture", "Moisture (max)", "<5%"],
+  ["ash", "Ash (max)", "6%"],
+  ["calcium", "Calcium (min)", "1.8%"],
+  ["phosphorus", "Phosphorus (min)", "1.2%"],
 ];
 
 const EMPTY = {
@@ -1194,7 +1195,11 @@ export function ProductEditor({ initial }) {
               {NUTRITION_FIELDS.map(([key, label, placeholder]) => (
                 <Field key={key} label={label}>
                   <Input
-                    value={key === "protein" ? form.protein : form.nutrition?.[key] || ""}
+                    value={
+                      key === "protein"
+                        ? form.protein
+                        : form.nutrition?.[key] || (key === "fiber" ? form.nutrition?.fibre : "") || ""
+                    }
                     placeholder={placeholder}
                     readOnly={key === "protein"}
                     onChange={(e) =>
