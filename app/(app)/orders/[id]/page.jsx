@@ -161,7 +161,10 @@ export default function OrderDetailPage() {
     setDownloadingInvoice(true);
     try {
       toast.push("Downloading invoice PDF…");
-      await downloadInvoice(orderNo);
+      const invNum = (fulfilment.invoiceNumber || order.invoiceNumber || orderNo).trim().replace(/[/\\?%*:|"<>]/g, "-");
+      const custName = (order.customerName || order.cust || "").trim().replace(/[/\\?%*:|"<>]/g, "");
+      const filename = custName ? `${invNum}-${custName}.pdf` : `${invNum}.pdf`;
+      await downloadInvoice(orderNo, filename);
     } catch (err) {
       toast.push(err.message || "Failed to download invoice.", { bad: true });
     } finally {
