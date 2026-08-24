@@ -16,6 +16,7 @@ import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/
 import { RoleGate } from "@/components/shell/RoleGate";
 
 const STATUS_TONE = { Active: "green", Inactive: "grey", Expired: "red" };
+const STACKING_TONE = { STACKABLE: "green", NON_STACKABLE: "grey", EXCLUSIVE: "amber" };
 
 /** ISO -> "01 Jul 2026". */
 const fmtDate = (iso) =>
@@ -31,6 +32,12 @@ export default function CouponsPage() {
   const toast = useToast();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
+  /*
+   * Trigger and exhaustion are derived, not stored, so they filter here rather
+   * than in SQL — the same reasoning the server applies to status. The coupon
+   * table is tens of rows, so this is cheaper than another query parameter.
+   */
+  const [kind, setKind] = useState("All");
   const [del, setDel] = useState(null);
 
   /** Status is DERIVED server-side from the dates (§10.2), so it filters there. */
@@ -53,10 +60,18 @@ export default function CouponsPage() {
     return () => clearTimeout(timer);
   }, [refetch]);
 
-  const rows = data ?? [];
+  const all = data ?? [];
+  const rows = all.filter((c) => {
+    if (kind === "Automatic") return c.automatic;
+    if (kind === "Code-based") return !c.automatic;
+    if (kind === "Exhausted") return c.limit != null && c.used >= c.limit;
+    if (kind === "Stackable") return c.stackingMode === "STACKABLE";
+    if (kind === "Exclusive") return c.stackingMode === "EXCLUSIVE";
+    return true;
+  });
 
   /** Totals across the loaded set, so a manager sees the headline immediately. */
-  const totals = rows.reduce(
+  const totals = all.reduce(
     (acc, c) => ({
       revenue: acc.revenue + (c.revenuePaise ?? 0),
       discounted: acc.discounted + (c.discountedPaise ?? 0),
@@ -92,6 +107,11 @@ export default function CouponsPage() {
           <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto">
             {["All", "Active", "Inactive", "Expired"].map((s) => <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>)}
           </Select>
+          <Select value={kind} onChange={(e) => setKind(e.target.value)} className="w-auto">
+            {["All", "Automatic", "Code-based", "Stackable", "Exclusive", "Exhausted"].map((k) => (
+              <option key={k} value={k}>{k === "All" ? "All types" : k}</option>
+            ))}
+          </Select>
         </FilterBar>
 
         {/*
@@ -111,6 +131,9 @@ export default function CouponsPage() {
                 <tr>
                   <Th>Code</Th>
                   <Th>Discount</Th>
+                  <Th>Eligibility</Th>
+                  <Th>Stacking</Th>
+                  <Th right>Priority</Th>
                   <Th right>Min. Order</Th>
                   <Th>Valid</Th>
                   <Th>Usage</Th>
@@ -123,8 +146,25 @@ export default function CouponsPage() {
               <tbody>
                 {rows.map((c) => (
                   <Tr key={c.id}>
-                    <Td><span className="mono font-semibold">{c.code}</span></Td>
-                    <Td>{c.type === "Percentage" ? `${c.val}% off` : `${inr(c.val)} off`}</Td>
+                    <Td>
+                      <span className="mono font-semibold">{c.code}</span>
+                      {c.name && <CellSub>{c.name}</CellSub>}
+                      {c.automatic && (
+                        <CellSub>
+                          <span className="rounded bg-grey-wash px-1.5 py-0.5 text-[10px]">automatic</span>
+                        </CellSub>
+                      )}
+                    </Td>
+                    <Td>
+                      {c.discountLabel ?? (c.type === "Percentage" ? `${c.val}% off` : `${inr(c.val)} off`)}
+                    </Td>
+                    <Td><span className="text-[12.5px]">{c.eligibilityLabel ?? "All customers"}</span></Td>
+                    <Td>
+                      <Pill tone={STACKING_TONE[c.stackingMode] ?? "grey"}>
+                        {c.stackingLabel ?? "Cannot be combined"}
+                      </Pill>
+                    </Td>
+                    <Td right><span className="mono text-[12.5px]">{c.priority ?? 0}</span></Td>
                     <Td right>{c.min ? <span className="mono">{inr(c.min)}</span> : <span className="text-muted-2">—</span>}</Td>
                     <Td>
                       <div className="text-[12.5px]">{fmtDate(c.startsAt)}</div>

@@ -110,3 +110,49 @@ export function Checkbox({ checked, onChange, label, className }) {
     </label>
   );
 }
+
+/**
+ * Exclusive choice with a description per option.
+ *
+ * A Select would fit the same data in less space, but hides the options until
+ * clicked — wrong for a setting like coupon stacking, where the whole point is
+ * that an operator can see the three behaviours side by side and read what each
+ * one does before choosing.
+ */
+export function RadioGroup({ name, value, onChange, options = [], className }) {
+  return (
+    <div role="radiogroup" className={cn("flex flex-col gap-2", className)}>
+      {options.map((opt) => {
+        const selected = value === opt.value;
+        return (
+          <label
+            key={opt.value}
+            className={cn(
+              "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 transition-colors",
+              selected
+                ? "border-teal-deep bg-[#F2FAFA]"
+                : "border-line bg-card hover:border-[#CFD6E0]"
+            )}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={opt.value}
+              checked={selected}
+              onChange={() => onChange?.(opt.value)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-teal-deep"
+            />
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium">{opt.label}</span>
+              {opt.hint && (
+                <span className="mt-0.5 block text-[11.5px] leading-relaxed text-muted">
+                  {opt.hint}
+                </span>
+              )}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
