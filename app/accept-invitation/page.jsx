@@ -171,7 +171,7 @@ function AcceptInvitationForm() {
             </div>
             <h1 className="text-[18px] font-semibold text-ink">Account Activated!</h1>
             <p className="mb-5 mt-2 text-[13px] text-muted leading-relaxed">
-              Your password has been securely set. Sign in with your credentials to complete mandatory two-factor authentication (2FA) setup on your first login.
+              Your password has been securely set. You can now sign in with your credentials. A one-time verification code will be sent to your email to verify your sign-in.
             </p>
             <Link href={`/login?email=${encodeURIComponent(invitation?.email || "")}`} className="w-full">
               <Button variant="primary" className="w-full">

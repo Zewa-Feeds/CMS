@@ -4,47 +4,47 @@ import { useEffect, useState } from "react";
 import { Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck, ArrowRight, Lock, KeyRound, Download, Eye, EyeOff } from "lucide-react";
+import {
+  ShieldCheck,
+  ArrowRight,
+  Lock,
+  KeyRound,
+  Download,
+  Eye,
+  EyeOff,
+  Mail,
+  RefreshCw,
+} from "lucide-react";
 import { useAuth } from "@/lib/store";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Checkbox } from "@/components/ui/Field";
 import { InfoBox } from "@/components/ui/Modal";
 
 /**
- * CMS sign-in — real backend (§14).
+ * CMS sign-in (§14).
  *
- * Three steps, because 2FA is mandatory for every role (§14.3):
- *
- *   password → 2FA code            (already enrolled)
- *   password → enrol → 2FA code    (first login, forced setup)
- *
- * The password step never returns a session: it returns a short-lived challenge
- * token, so a correct password alone grants nothing.
+ * Email OTP is the PRIMARY / DEFAULT authentication method for all CMS users.
+ * Authenticator App (TOTP) is an OPTIONAL fallback for users who configure it.
  */
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  /**
-   * Where to land after signing in.
-   *
-   * middleware.js appends ?next= when it bounces an unauthenticated request, so a
-   * deep link survives the detour. Guarded to same-origin paths — an open
-   * redirect here would let a phishing link bounce off our own login page.
-   */
   const nextPath = (() => {
     const raw = searchParams.get("next");
     if (!raw || !raw.startsWith("/")) return "/";
-    // Same rejections as safeNext() in middleware.js: protocol-relative, the
-    // backslash form some browsers normalise to "//", and /login itself.
     if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
     if (raw === "/login" || raw.startsWith("/login?")) return "/";
     return raw;
   })();
+
   const {
     status,
     login,
     verify2fa,
+    resendOtp,
+    maskedEmail,
+    hasTotp,
     startEnrolment,
     completeEnrolment,
     restore,
@@ -60,10 +60,18 @@ function LoginForm() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [setupInfo, setSetupInfo] = useState(null);
-  /** Which 2FA method the form is asking for. */
+
+  /** "email_otp" (default) or "totp" */
+  const [authMethod, setAuthMethod] = useState("email_otp");
+  /** When in TOTP mode, whether entering a single-use backup code */
   const [useBackup, setUseBackup] = useState(false);
 
-  // An existing refresh cookie should land the user straight in.
+  /** Cooldown timer (seconds) for resending email OTP */
+  const [cooldown, setCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState("");
+
+  // Restore existing session on mount
   useEffect(() => {
     void restore();
   }, [restore]);
@@ -72,7 +80,16 @@ function LoginForm() {
     if (status === "in" && !backupCodes) router.replace(nextPath);
   }, [status, backupCodes, router, nextPath]);
 
-  // Fetch the enrolment secret as soon as the flow reaches that step.
+  // Cooldown interval effect
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  // Legacy fallback if user reaches enrol status
   useEffect(() => {
     if (status !== "enrol" || setupInfo) return;
     let cancelled = false;
@@ -90,19 +107,42 @@ function LoginForm() {
   const submitLogin = async (e) => {
     e.preventDefault();
     setErr("");
+    setResendNotice("");
     setBusy(true);
     const result = await login(email.trim(), password, remember);
-    if (!result.ok) setErr(result.error);
+    if (!result.ok) {
+      setErr(result.error);
+    } else {
+      setAuthMethod("email_otp");
+      setCooldown(60);
+      setCode("");
+    }
     setBusy(false);
   };
 
-  const submit2fa = async (e) => {
+  const submitVerification = async (e) => {
     e.preventDefault();
     setErr("");
+    setResendNotice("");
     setBusy(true);
     const result = await verify2fa(code.trim(), remember);
     if (!result.ok) setErr(result.error);
     setBusy(false);
+  };
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || resending) return;
+    setErr("");
+    setResendNotice("");
+    setResending(true);
+    const result = await resendOtp();
+    if (!result.ok) {
+      setErr(result.error);
+    } else {
+      setCooldown(result.cooldownSeconds || 60);
+      setResendNotice("A fresh 6-digit code has been sent to your email.");
+    }
+    setResending(false);
   };
 
   const submitEnrol = async (e) => {
@@ -114,8 +154,7 @@ function LoginForm() {
     setBusy(false);
   };
 
-  // ---- One-time backup codes (§14.3) -------------------------------------
-  // Shown after enrolment and never again, so this gate sits before the redirect.
+  // ---- One-time backup codes modal (§14.3) ---------------------------------
   if (backupCodes?.length) {
     return (
       <div className="grid min-h-screen place-items-center bg-navy p-5">
@@ -125,10 +164,9 @@ function LoginForm() {
             <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
               <KeyRound size={22} />
             </div>
-            <h1 className="text-[18px] font-semibold">Save your backup codes</h1>
+            <h1 className="text-[18px] font-semibold text-white">Save your backup codes</h1>
             <p className="mb-5 mt-1 text-[13px] text-muted">
-              Each code works once if you lose your authenticator. This is the only time they are
-              shown.
+              Each code works once if you lose access to your Authenticator app. This is the only time they are shown.
             </p>
 
             <div className="mb-4 grid grid-cols-2 gap-2 rounded-lg border border-line bg-navy p-3">
@@ -187,8 +225,6 @@ function LoginForm() {
 
   const step = status === "twofa" ? "twofa" : status === "enrol" ? "enrol" : "password";
 
-
-
   return (
     <div className="grid min-h-screen place-items-center bg-navy p-5">
       <div className="w-full max-w-[400px]">
@@ -197,9 +233,9 @@ function LoginForm() {
         <div className="rounded-xl border border-line bg-card p-6 shadow-pop">
           {step === "password" && (
             <>
-              <h1 className="text-[18px] font-semibold">Sign in</h1>
+              <h1 className="text-[18px] font-semibold text-white">Sign in</h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
-                Use your CMS credentials. All accounts require 2FA.
+                Use your CMS credentials. A verification code will be sent to your email.
               </p>
               <form onSubmit={submitLogin}>
                 <Field label="Email address" required htmlFor="email">
@@ -210,6 +246,7 @@ function LoginForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@zewafeeds.com"
                     autoComplete="username"
+                    autoFocus
                   />
                 </Field>
                 <Field label="Password" required htmlFor="password" error={err}>
@@ -243,10 +280,162 @@ function LoginForm() {
                   />
                 </div>
                 <Button variant="primary" className="w-full" disabled={busy}>
-                  {busy ? "Checking…" : "Continue"}
+                  {busy ? "Sending code…" : "Continue"}
                   {!busy && <ArrowRight size={15} />}
                 </Button>
               </form>
+            </>
+          )}
+
+          {step === "twofa" && authMethod === "email_otp" && (
+            <>
+              <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
+                <Mail size={22} />
+              </div>
+              <h1 className="text-[18px] font-semibold text-white">Check your email</h1>
+              <p className="mb-5 mt-1 text-[13px] text-muted">
+                We sent a 6-digit verification code to{" "}
+                <strong className="font-mono text-white">{maskedEmail || "your email"}</strong>.
+                Enter it below to sign in.
+              </p>
+
+              {resendNotice && (
+                <div className="mb-4 rounded-lg border border-teal-deep/30 bg-teal-wash/20 p-2.5 text-center text-[12.5px] text-teal-deep">
+                  {resendNotice}
+                </div>
+              )}
+
+              <form onSubmit={submitVerification}>
+                <Field
+                  label="6-Digit Verification Code"
+                  required
+                  htmlFor="otp-code"
+                  error={err}
+                  hint="Code expires in 10 minutes."
+                >
+                  <Input
+                    id="otp-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="000000"
+                    className="text-center font-mono text-[20px] tracking-[.35em]"
+                    maxLength={6}
+                    inputMode="numeric"
+                    bad={!!err}
+                    autoFocus
+                  />
+                </Field>
+
+                <Button variant="primary" className="w-full" disabled={busy || code.trim().length < 6}>
+                  <Lock size={14} />
+                  {busy ? "Verifying…" : "Verify & Sign In"}
+                </Button>
+              </form>
+
+              <div className="mt-4 flex flex-col items-center gap-2 border-t border-line/60 pt-4">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={cooldown > 0 || resending}
+                  className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium transition-colors ${
+                    cooldown > 0
+                      ? "cursor-not-allowed text-muted"
+                      : "text-teal-deep hover:underline"
+                  }`}
+                >
+                  <RefreshCw size={13} className={resending ? "animate-spin" : ""} />
+                  {cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend verification code"}
+                </button>
+
+                {hasTotp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMethod("totp");
+                      setCode("");
+                      setErr("");
+                      setResendNotice("");
+                    }}
+                    className="mt-1 text-[12.5px] font-medium text-muted hover:text-white hover:underline transition-colors"
+                  >
+                    Use Authenticator App instead
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          {step === "twofa" && authMethod === "totp" && (
+            <>
+              <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
+                {useBackup ? <KeyRound size={22} /> : <ShieldCheck size={22} />}
+              </div>
+              <h1 className="text-[18px] font-semibold text-white">
+                {useBackup ? "Use a backup code" : "Authenticator App"}
+              </h1>
+              <p className="mb-5 mt-1 text-[13px] text-muted">
+                {useBackup
+                  ? "Enter one of the single-use backup codes you saved when setting up your authenticator."
+                  : "Enter the 6-digit code from your authenticator app."}
+              </p>
+              <form onSubmit={submitVerification}>
+                <Field
+                  label={useBackup ? "Backup code" : "Authenticator code"}
+                  required
+                  htmlFor="totp-code"
+                  error={err}
+                  hint={
+                    useBackup
+                      ? "Format XXXX-XXXX. It stops working after this sign-in."
+                      : "Six digits, refreshes every 30 seconds."
+                  }
+                >
+                  <Input
+                    id="totp-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder={useBackup ? "XXXX-XXXX" : "000000"}
+                    className="text-center font-mono text-[16px] tracking-[.25em]"
+                    maxLength={useBackup ? 20 : 6}
+                    inputMode={useBackup ? "text" : "numeric"}
+                    bad={!!err}
+                    autoFocus
+                  />
+                </Field>
+                <Button variant="primary" className="w-full" disabled={busy}>
+                  <Lock size={14} />
+                  {busy ? "Verifying…" : "Verify & sign in"}
+                </Button>
+              </form>
+
+              <div className="mt-4 flex flex-col items-center gap-2 border-t border-line/60 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseBackup((v) => !v);
+                    setCode("");
+                    setErr("");
+                  }}
+                  className="text-[12.5px] font-medium text-teal-deep hover:underline"
+                >
+                  {useBackup
+                    ? "Use 6-digit authenticator code"
+                    : "Lost your authenticator? Use a backup code"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod("email_otp");
+                    setCode("");
+                    setErr("");
+                    setResendNotice("");
+                  }}
+                  className="text-[12.5px] font-medium text-muted hover:text-white hover:underline transition-colors"
+                >
+                  Use Email verification code instead
+                </button>
+              </div>
             </>
           )}
 
@@ -255,10 +444,9 @@ function LoginForm() {
               <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
                 <ShieldCheck size={22} />
               </div>
-              <h1 className="text-[18px] font-semibold">Set up two-factor authentication</h1>
+              <h1 className="text-[18px] font-semibold text-white">Set up Authenticator App</h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
-                Required before you can access any module. Add this key to your authenticator app,
-                then enter the code it shows.
+                Add this setup key to your authenticator app, then enter the 6-digit confirmation code.
               </p>
 
               {setupInfo?.secret ? (
@@ -296,77 +484,6 @@ function LoginForm() {
             </>
           )}
 
-          {step === "twofa" && (
-            <>
-              <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
-                {useBackup ? <KeyRound size={22} /> : <ShieldCheck size={22} />}
-              </div>
-              <h1 className="text-[18px] font-semibold">
-                {useBackup ? "Use a backup code" : "Two-factor authentication"}
-              </h1>
-              <p className="mb-5 mt-1 text-[13px] text-muted">
-                {useBackup
-                  ? "Enter one of the single-use codes you saved when setting up 2FA. Each code works only once."
-                  : "Enter the 6-digit code from your authenticator app."}
-              </p>
-              <form onSubmit={submit2fa}>
-                <Field
-                  label={useBackup ? "Backup code" : "Verification code"}
-                  required
-                  htmlFor="code"
-                  error={err}
-                  hint={
-                    useBackup
-                      ? "Format XXXX-XXXX. It stops working after this sign-in."
-                      : "Six digits, refreshes every 30 seconds."
-                  }
-                >
-                  <Input
-                    id="code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    // Deliberately not "123456" — that was the old mock code and
-                    // reads as a hint that it would work.
-                    placeholder={useBackup ? "XXXX-XXXX" : "000000"}
-                    className="text-center font-mono text-[16px] tracking-[.25em]"
-                    maxLength={useBackup ? 20 : 6}
-                    inputMode={useBackup ? "text" : "numeric"}
-                    bad={!!err}
-                    autoFocus
-                  />
-                </Field>
-                <Button variant="primary" className="w-full" disabled={busy}>
-                  <Lock size={14} />
-                  {busy ? "Verifying…" : "Verify & sign in"}
-                </Button>
-              </form>
-
-              {/*
-                The escape hatch. Without this, someone who has lost their phone
-                has no visible way in — the backup code field looks like it only
-                accepts authenticator digits.
-              */}
-              <button
-                type="button"
-                onClick={() => {
-                  setUseBackup((v) => !v);
-                  setCode("");
-                  setErr("");
-                }}
-                className="mt-4 w-full text-center text-[12.5px] font-medium text-teal-deep hover:underline"
-              >
-                {useBackup
-                  ? "Use my authenticator app instead"
-                  : "Lost your authenticator? Use a backup code"}
-              </button>
-            </>
-          )}
-
-          {/*
-            Development-only cheat sheet. Guarded on NODE_ENV so it never ships:
-            it names the seeded TOTP key, which is dev-only anyway (real accounts
-            generate a unique secret at enrolment).
-          */}
           {process.env.NODE_ENV !== "production" && step === "password" && (
             <div className="mt-5">
               <InfoBox>
@@ -374,27 +491,7 @@ function LoginForm() {
                 <br />
                 <span className="mono">aditi@</span> Admin ·{" "}
                 <span className="mono">rahul@</span> Ops ·{" "}
-                <span className="mono">priya@</span> Editor ·{" "}
-                <span className="mono">devika@</span> Editor, forced 2FA setup
-              </InfoBox>
-            </div>
-          )}
-
-          {process.env.NODE_ENV !== "production" && step === "twofa" && (
-            <div className="mt-5">
-              <InfoBox>
-                <b>Dev 2FA — two options</b>
-                <br />
-                <b>1.</b> Add this key to Google Authenticator / Authy / 1Password, then enter the
-                6-digit code it shows:
-                <br />
-                <span className="mono select-all text-[11.5px]">
-                  JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP
-                </span>
-                <br />
-                <b>2.</b> Or type a backup code — <span className="mono">ZEWA-DEV1</span> …{" "}
-                <span className="mono">ZEWA-DEV8</span>. Each works <b>once</b>, so move to the next
-                if one is rejected.
+                <span className="mono">priya@</span> Editor
               </InfoBox>
             </div>
           )}
@@ -411,13 +508,6 @@ function LoginForm() {
 function Brand() {
   return (
     <div className="mb-6 flex items-center gap-3">
-      {/*
-        The real mark, replacing a placeholder "Z" tile.
-
-        `brightness-0 invert` renders the dark-ink logo white, matching how the
-        storefront header uses the same asset on a dark background — the source
-        PNG is not a white variant.
-      */}
       <Image
         src="/logo.png"
         alt="Zewa Feeds"
@@ -436,11 +526,6 @@ function Brand() {
   );
 }
 
-/*
- * useSearchParams() (we read ?next=) opts the tree into client-side rendering, so
- * Next 14 requires a Suspense boundary or the static export of /login fails.
- * The fallback is deliberately blank — the form paints in the same tick.
- */
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
