@@ -5,6 +5,7 @@ import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { DateRangePicker, computePresetDates, DATE_PRESETS } from "@/components/analytics/DateRangePicker";
 import { ProductAnalyticsTable } from "@/components/analytics/ProductAnalyticsTable";
 import { analytics, formatPaise } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
 import { Package, TrendingUp, ShoppingBag, AlertCircle } from "lucide-react";
 
 export default function ProductAnalyticsPage() {
@@ -69,7 +70,7 @@ export default function ProductAnalyticsPage() {
   const topProduct = productsList[0];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4">
       <div>
         <Breadcrumbs
           parts={[
@@ -98,48 +99,51 @@ export default function ProductAnalyticsPage() {
       />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-700">
-          <AlertCircle size={16} />
+        <div className="flex items-center gap-2 rounded-lg border border-red-line bg-red-wash px-4 py-3 text-[13px] text-red-deep">
+          <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Highlights */}
+      {/* Highlights Grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-muted">
-            <ShoppingBag size={16} />
-            <span className="text-[12.5px] font-medium">Period Units Sold</span>
-          </div>
-          <p className="mt-2 text-[22px] font-bold text-ink">
-            {totalUnits.toLocaleString("en-IN")}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-muted">
-            <TrendingUp size={16} />
-            <span className="text-[12.5px] font-medium">Period Catalogue Sales</span>
-          </div>
-          <p className="mt-2 text-[22px] font-bold text-ink">
-            {formatPaise(totalSales)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-muted">
-            <Package size={16} />
-            <span className="text-[12.5px] font-medium">Revenue Leader</span>
-          </div>
-          <p className="mt-2 text-[15px] font-semibold text-brand truncate">
-            {topProduct ? topProduct.productName : "—"}
-          </p>
-          {topProduct && (
-            <span className="text-[11.5px] text-muted">
-              {formatPaise(topProduct.grossSalesPaise)} · {topProduct.unitsSold} units
+        <Card className="flex items-center gap-3.5 p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-blue-wash text-blue-deep">
+            <ShoppingBag size={19} />
+          </span>
+          <div>
+            <span className="block font-mono text-[24px] font-semibold leading-none tracking-[-.02em] text-ink">
+              {loading && !data ? "—" : totalUnits.toLocaleString("en-IN")}
             </span>
-          )}
-        </div>
+            <span className="mt-1 block text-[12.5px] text-muted">Units Sold in Period</span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-3.5 p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-teal-wash text-teal-deep">
+            <TrendingUp size={19} />
+          </span>
+          <div>
+            <span className="block font-mono text-[24px] font-semibold leading-none tracking-[-.02em] text-ink">
+              {loading && !data ? "—" : formatPaise(totalSales)}
+            </span>
+            <span className="mt-1 block text-[12.5px] text-muted">Catalogue Line Sales</span>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-3.5 p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-amber-wash text-amber-deep">
+            <Package size={19} />
+          </span>
+          <div className="min-w-0">
+            <span className="block truncate text-[14.5px] font-semibold text-ink">
+              {topProduct ? topProduct.productName : "—"}
+            </span>
+            <span className="mt-1 block text-[12px] text-muted font-mono">
+              {topProduct ? `${formatPaise(topProduct.grossSalesPaise)} · ${topProduct.unitsSold} units` : "Top volume leader"}
+            </span>
+          </div>
+        </Card>
       </div>
 
       {/* Main Table */}

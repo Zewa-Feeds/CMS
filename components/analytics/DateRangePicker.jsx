@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, RefreshCw, Download, Check } from "lucide-react";
+import { Calendar, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
 export const DATE_PRESETS = [
@@ -68,19 +69,19 @@ export function DateRangePicker({
   };
 
   return (
-    <div className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-surface px-4 py-3", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg border border-line bg-surface-subtle p-1">
+    <Card className={cn("p-3 flex flex-wrap items-center justify-between gap-3", className)}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-1 rounded-md border border-line bg-canvas p-1">
           {DATE_PRESETS.map((p) => (
             <button
               key={p.label}
               type="button"
               onClick={() => handleSelectPreset(p)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors",
+                "rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-colors",
                 selectedPreset === p.label && !customOpen
-                  ? "bg-surface font-semibold text-ink shadow-sm"
-                  : "text-muted hover:text-ink"
+                  ? "bg-navy font-semibold text-white shadow-sm"
+                  : "text-muted hover:text-ink hover:bg-card"
               )}
             >
               {p.label}
@@ -90,10 +91,10 @@ export function DateRangePicker({
             type="button"
             onClick={() => setCustomOpen(!customOpen)}
             className={cn(
-              "flex items-center gap-1 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors",
+              "flex items-center gap-1 rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-colors",
               customOpen
-                ? "bg-surface font-semibold text-ink shadow-sm"
-                : "text-muted hover:text-ink"
+                ? "bg-navy font-semibold text-white shadow-sm"
+                : "text-muted hover:text-ink hover:bg-card"
             )}
           >
             <Calendar size={12} />
@@ -102,7 +103,7 @@ export function DateRangePicker({
         </div>
 
         {customOpen && (
-          <div className="flex items-center gap-2 rounded-lg border border-line bg-surface p-1 px-2 text-[12px]">
+          <div className="flex items-center gap-1.5 rounded-md border border-line bg-card px-2.5 py-1 text-[12px]">
             <input
               type="date"
               value={from}
@@ -110,9 +111,9 @@ export function DateRangePicker({
                 setSelectedPreset("Custom");
                 onChange({ from: e.target.value, to, compare });
               }}
-              className="rounded border border-line-soft px-1.5 py-0.5 text-[12px] text-ink"
+              className="h-6 rounded border border-line-soft bg-canvas px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
             />
-            <span className="text-muted">to</span>
+            <span className="text-muted-2 text-[11px]">to</span>
             <input
               type="date"
               value={to}
@@ -120,45 +121,47 @@ export function DateRangePicker({
                 setSelectedPreset("Custom");
                 onChange({ from, to: e.target.value, compare });
               }}
-              className="rounded border border-line-soft px-1.5 py-0.5 text-[12px] text-ink"
+              className="h-6 rounded border border-line-soft bg-canvas px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
             />
           </div>
         )}
 
-        <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-muted hover:text-ink">
+        <label className="ml-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-muted hover:text-ink select-none">
           <input
             type="checkbox"
             checked={compare}
             onChange={(e) => onChange({ from, to, compare: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-line accent-brand"
+            className="h-3.5 w-3.5 rounded border-line accent-navy"
           />
-          Compare with previous period
+          <span>Compare previous period</span>
         </label>
       </div>
 
       <div className="flex items-center gap-2">
         {onExport && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={onExport}
-            className="flex items-center gap-1.5 text-[12px]"
+            className="flex items-center gap-1.5"
           >
             <Download size={13} />
             Export CSV
           </Button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-[12px]"
-        >
-          <RefreshCw size={13} className={cn(loading && "animate-spin")} />
-          Refresh
-        </Button>
+        {onRefresh && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-1.5"
+          >
+            <RefreshCw size={13} className={cn(loading && "animate-spin")} />
+            Refresh
+          </Button>
+        )}
       </div>
-    </div>
+    </Card>
   );
 }

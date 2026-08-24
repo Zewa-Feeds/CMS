@@ -51,12 +51,12 @@ export default function AnalyticsOverviewPage() {
   const kpis = data?.kpis;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4">
       <div>
-        <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Analytics Overview" }]} />
+        <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Analytics" }]} />
         <PageHeader
-          title="E-Commerce Analytics"
-          sub="Live operational performance, revenue trends, customer growth, and business KPIs"
+          title="Analytics Overview"
+          sub="Live performance metrics, revenue trends, customer growth, and business KPIs"
         />
       </div>
 
@@ -74,13 +74,13 @@ export default function AnalyticsOverviewPage() {
       />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-700">
-          <AlertCircle size={16} />
+        <div className="flex items-center gap-2 rounded-lg border border-red-line bg-red-wash px-4 py-3 text-[13px] text-red-deep">
+          <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Primary KPI Cards */}
+      {/* Primary KPI Grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           title="Gross Revenue"
@@ -114,7 +114,7 @@ export default function AnalyticsOverviewPage() {
         />
       </div>
 
-      {/* Secondary Financial KPIs */}
+      {/* Secondary Financial Breakdown Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <KpiCard
           title="Discounts Given"
@@ -145,8 +145,8 @@ export default function AnalyticsOverviewPage() {
         />
       </div>
 
-      {/* Time-series Trend */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Time-series Trend & Order Status Distribution */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <TimeSeriesChart
             title="Daily Gross Revenue Trend"
@@ -155,7 +155,7 @@ export default function AnalyticsOverviewPage() {
             isCurrency={true}
           />
         </div>
-        <div className="space-y-4">
+        <div>
           <BreakdownBarList
             title="Orders by Status"
             isCurrency={false}
@@ -171,14 +171,14 @@ export default function AnalyticsOverviewPage() {
       </div>
 
       {/* Customer Insights Section */}
-      <div className="space-y-3">
-        <h2 className="text-[16px] font-semibold text-ink">Customer Insights</h2>
+      <div className="space-y-2.5 pt-2">
+        <h2 className="text-[14.5px] font-semibold tracking-[-.01em] text-ink">Customer Insights</h2>
         <CustomerAnalyticsCard data={customerData} />
       </div>
 
-      {/* Geographic Breakdown */}
-      <div className="space-y-3">
-        <h2 className="text-[16px] font-semibold text-ink">Regional Distribution</h2>
+      {/* Regional Distribution Section */}
+      <div className="space-y-2.5 pt-2">
+        <h2 className="text-[14.5px] font-semibold tracking-[-.01em] text-ink">Regional Distribution</h2>
         <GeographicTable
           data={geoData?.data || []}
           onExport={() => analytics.exportCsv("geography", { from: dateRange.from, to: dateRange.to })}

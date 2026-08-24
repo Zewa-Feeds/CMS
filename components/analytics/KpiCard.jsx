@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { formatPaise } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
 export function KpiCard({
@@ -16,69 +17,63 @@ export function KpiCard({
   const current = delta?.current ?? (typeof value === "number" ? value : 0);
   const previous = delta?.previous;
   const pctChange = delta?.pctChange;
-  const absChange = delta?.absChange;
 
   const formattedValue = isCurrency
     ? formatPaise(current)
     : current.toLocaleString("en-IN");
 
-  const formattedPrev = previous !== undefined
+  const formattedPrev = previous !== undefined && previous !== null
     ? isCurrency
       ? formatPaise(previous)
       : previous.toLocaleString("en-IN")
     : null;
 
-  // Determine trend tone: positive is usually green, unless invertTone is true (e.g., refunds)
-  const isPositive = pctChange !== null && pctChange > 0;
-  const isNegative = pctChange !== null && pctChange < 0;
-  const isNeutral = pctChange === 0 || pctChange === null;
+  // Determine trend tone: positive is green, unless invertTone is true (e.g., refunds)
+  const isPositive = pctChange !== null && pctChange !== undefined && pctChange > 0;
+  const isNegative = pctChange !== null && pctChange !== undefined && pctChange < 0;
+  const isNeutral = pctChange === 0 || pctChange === null || pctChange === undefined;
 
-  let toneColor = "text-muted bg-surface-subtle";
+  let toneClasses = "text-grey-deep bg-grey-wash border border-line";
   if (isPositive) {
-    toneColor = invertTone
-      ? "text-red-700 bg-red-50 border border-red-200"
-      : "text-emerald-700 bg-emerald-50 border border-emerald-200";
+    toneClasses = invertTone
+      ? "text-red-deep bg-red-wash border border-[#F8C8C4]"
+      : "text-green-deep bg-green-wash border border-[#B6EAD6]";
   } else if (isNegative) {
-    toneColor = invertTone
-      ? "text-emerald-700 bg-emerald-50 border border-emerald-200"
-      : "text-red-700 bg-red-50 border border-red-200";
+    toneClasses = invertTone
+      ? "text-green-deep bg-green-wash border border-[#B6EAD6]"
+      : "text-red-deep bg-red-wash border border-[#F8C8C4]";
   }
 
   return (
-    <div
-      className={cn(
-        "flex flex-col justify-between rounded-xl border border-line bg-surface p-4 shadow-sm transition-all hover:border-line-dark",
-        className
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-medium text-muted">{title}</span>
-        {pctChange !== undefined && (
+    <Card className={cn("p-4 flex flex-col justify-between transition-all hover:border-[#CFD6E0]", className)}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-[12.5px] font-medium text-muted leading-tight">{title}</span>
+        {pctChange !== undefined && pctChange !== null && (
           <span
             className={cn(
-              "flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11.5px] font-semibold",
-              toneColor
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.2 font-mono text-[10.5px] font-medium shrink-0",
+              toneClasses
             )}
           >
-            {isPositive && <ArrowUpRight size={13} />}
-            {isNegative && <ArrowDownRight size={13} />}
-            {isNeutral && <Minus size={11} />}
-            {pctChange !== null ? `${Math.abs(pctChange)}%` : "—"}
+            {isPositive && <ArrowUpRight size={12} />}
+            {isNegative && <ArrowDownRight size={12} />}
+            {isNeutral && <Minus size={10} />}
+            {Math.abs(pctChange)}%
           </span>
         )}
       </div>
 
-      <div className="mt-2">
-        <div className="text-[24px] font-bold tracking-tight text-ink">
+      <div className="mt-2.5">
+        <div className="font-mono text-[23px] font-semibold leading-tight tracking-[-.025em] text-ink">
           {formattedValue}
         </div>
         {formattedPrev && (
-          <p className="mt-1 text-[12px] text-muted">
+          <p className="mt-1 text-[11.5px] text-muted truncate">
             vs {formattedPrev} previous period
           </p>
         )}
-        {subtext && <p className="mt-1 text-[12px] text-muted">{subtext}</p>}
+        {subtext && <p className="mt-1 text-[11.5px] text-muted truncate">{subtext}</p>}
       </div>
-    </div>
+    </Card>
   );
 }

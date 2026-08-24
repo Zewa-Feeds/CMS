@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { DateRangePicker, computePresetDates, DATE_PRESETS } from "@/components/analytics/DateRangePicker";
 import { TimeSeriesChart, BreakdownBarList } from "@/components/analytics/AnalyticsCharts";
-import { GeographicTable } from "@/components/analytics/GeographicTable";
 import { analytics } from "@/lib/api";
+import { Card } from "@/components/ui/Card";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,14 +50,14 @@ export default function RevenueAnalyticsPage() {
     { key: "discountPaise", label: "Discounts", isCurrency: true },
     { key: "shippingPaise", label: "Shipping", isCurrency: true },
     { key: "taxPaise", label: "Taxes", isCurrency: true },
-    { key: "orders", label: "Order Count", isCurrency: false },
+    { key: "orders", label: "Orders", isCurrency: false },
     { key: "itemsSold", label: "Units Sold", isCurrency: false },
   ];
 
   const currentMetric = metricOptions.find((m) => m.key === activeMetric) || metricOptions[0];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4">
       <div>
         <Breadcrumbs
           parts={[
@@ -83,14 +83,14 @@ export default function RevenueAnalyticsPage() {
       />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-700">
-          <AlertCircle size={16} />
+        <div className="flex items-center gap-2 rounded-lg border border-red-line bg-red-wash px-4 py-3 text-[13px] text-red-deep">
+          <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Metric Selector & Interval Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-3 shadow-sm">
+      {/* Metric Selector & Interval Controls Bar */}
+      <Card className="p-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {metricOptions.map((m) => (
             <button
@@ -98,10 +98,10 @@ export default function RevenueAnalyticsPage() {
               type="button"
               onClick={() => setActiveMetric(m.key)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+                "rounded-md px-2.5 py-1 text-[12.5px] font-medium transition-colors",
                 activeMetric === m.key
-                  ? "bg-brand text-white shadow-sm"
-                  : "bg-surface-subtle text-ink hover:bg-line-soft"
+                  ? "bg-navy font-semibold text-white shadow-sm"
+                  : "border border-line bg-card text-ink hover:bg-canvas"
               )}
             >
               {m.label}
@@ -109,16 +109,16 @@ export default function RevenueAnalyticsPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-subtle p-1">
+        <div className="flex items-center gap-1 rounded-md border border-line bg-canvas p-1">
           {["day", "week", "month"].map((int) => (
             <button
               key={int}
               type="button"
               onClick={() => setInterval(int)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-[12px] font-medium capitalize transition-colors",
+                "rounded-[6px] px-2.5 py-1 text-[12px] font-medium capitalize transition-colors",
                 interval === int
-                  ? "bg-surface font-semibold text-ink shadow-sm"
+                  ? "bg-card font-semibold text-ink shadow-sm"
                   : "text-muted hover:text-ink"
               )}
             >
@@ -126,7 +126,7 @@ export default function RevenueAnalyticsPage() {
             </button>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Main Time-Series Trend Chart */}
       <TimeSeriesChart
@@ -137,7 +137,7 @@ export default function RevenueAnalyticsPage() {
       />
 
       {/* Breakdown Grids */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <BreakdownBarList
           title="Revenue by Product Category"
           isCurrency={true}
@@ -151,25 +151,9 @@ export default function RevenueAnalyticsPage() {
           title="Revenue by Payment Method"
           isCurrency={true}
           items={data?.byPaymentMethod?.map((p) => ({
-            label: p.method,
+            label: p.method === "ONLINE" ? "Razorpay Online" : p.method === "COD" ? "Cash on Delivery" : p.method,
             value: p.grossPaise,
           })) || []}
-        />
-      </div>
-
-      {/* State Geographic Breakdown */}
-      <div className="space-y-3">
-        <h2 className="text-[16px] font-semibold text-ink">Regional Revenue Breakdown</h2>
-        <GeographicTable
-          data={data?.byState?.map((s) => ({
-            state: s.state,
-            orders: s.orders,
-            grossRevenuePaise: s.grossPaise,
-            shippingRevenuePaise: 0,
-            aovPaise: s.orders > 0 ? Math.round(s.grossPaise / s.orders) : 0,
-            revenueSharePct: 0,
-          })) || []}
-          onExport={() => analytics.exportCsv("geography", { from: dateRange.from, to: dateRange.to })}
         />
       </div>
     </div>

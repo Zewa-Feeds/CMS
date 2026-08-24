@@ -43,7 +43,7 @@ export default function PromotionsAnalyticsPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-4">
       <div>
         <Breadcrumbs
           parts={[
@@ -54,7 +54,7 @@ export default function PromotionsAnalyticsPage() {
         />
         <PageHeader
           title="Promotions & Discounts Performance"
-          sub="Attributed revenue, total discount cost, conversion lift, and per-coupon redemption trends"
+          sub="Attributed revenue, discount costs, redemption volume, and coupon conversion metrics"
         />
       </div>
 
@@ -72,8 +72,8 @@ export default function PromotionsAnalyticsPage() {
       />
 
       {error && (
-        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-[13px] text-red-700">
-          <AlertCircle size={16} />
+        <div className="flex items-center gap-2 rounded-lg border border-red-line bg-red-wash px-4 py-3 text-[13px] text-red-deep">
+          <AlertCircle size={16} className="shrink-0" />
           <span>{error}</span>
         </div>
       )}

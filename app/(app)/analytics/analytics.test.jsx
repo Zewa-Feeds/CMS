@@ -34,7 +34,7 @@ describe("CMS Analytics UI Component Tests", () => {
 
       expect(screen.getByText("Refunds")).toBeDefined();
       const badge = screen.getByText("150%");
-      expect(badge.className).toContain("text-red-700");
+      expect(badge.className).toContain("text-red-deep");
     });
   });
 

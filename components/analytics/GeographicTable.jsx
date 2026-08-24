@@ -2,6 +2,7 @@
 
 import { formatPaise } from "@/lib/api";
 import { Table, TableWrap, Th, Td, Tr } from "@/components/ui/Table";
+import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,34 +11,34 @@ export function GeographicTable({ data = [], onExport, className }) {
   const maxRevenue = Math.max(...data.map((d) => d.grossRevenuePaise), 1);
 
   return (
-    <div className={cn("rounded-xl border border-line bg-surface shadow-sm overflow-hidden", className)}>
-      <div className="flex items-center justify-between border-b border-line-soft p-4">
+    <Card className={cn("overflow-hidden", className)}>
+      <CardHead className="justify-between">
         <div>
-          <h3 className="text-[15px] font-semibold text-ink">State Breakdown</h3>
-          <p className="text-[12px] text-muted">Geographic order distribution and revenue density</p>
+          <CardTitle>State Breakdown</CardTitle>
+          <p className="mt-0.5 text-[12px] text-muted">Geographic order distribution and revenue density</p>
         </div>
         {onExport && (
           <Button
             size="sm"
-            variant="outline"
+            variant="default"
             onClick={onExport}
-            className="flex items-center gap-1.5 h-8 text-[12px]"
+            className="flex items-center gap-1.5"
           >
             <Download size={13} />
             Export States CSV
           </Button>
         )}
-      </div>
+      </CardHead>
 
       <TableWrap>
         <Table>
           <thead>
             <tr>
               <Th>State</Th>
-              <Th>Orders</Th>
-              <Th>Gross Revenue</Th>
-              <Th>Shipping Revenue</Th>
-              <Th>AOV</Th>
+              <Th right>Orders</Th>
+              <Th right>Gross Revenue</Th>
+              <Th right>Shipping Revenue</Th>
+              <Th right>AOV</Th>
               <Th>Revenue Share</Th>
             </tr>
           </thead>
@@ -52,21 +53,21 @@ export function GeographicTable({ data = [], onExport, className }) {
               data.map((s) => {
                 const shareWidth = Math.max(4, Math.round((s.grossRevenuePaise / maxRevenue) * 100));
                 return (
-                  <Tr key={s.state} className="hover:bg-surface-subtle">
+                  <Tr key={s.state} className="hover:bg-canvas">
                     <Td className="font-semibold text-ink">{s.state}</Td>
-                    <Td className="text-ink">{s.orders.toLocaleString("en-IN")}</Td>
-                    <Td className="font-semibold text-ink">{formatPaise(s.grossRevenuePaise)}</Td>
-                    <Td className="text-muted">{formatPaise(s.shippingRevenuePaise)}</Td>
-                    <Td className="text-muted">{formatPaise(s.aovPaise)}</Td>
+                    <Td right className="font-mono text-ink">{s.orders.toLocaleString("en-IN")}</Td>
+                    <Td right className="font-mono font-semibold text-ink">{formatPaise(s.grossRevenuePaise)}</Td>
+                    <Td right className="font-mono text-muted">{formatPaise(s.shippingRevenuePaise)}</Td>
+                    <Td right className="font-mono text-muted">{formatPaise(s.aovPaise)}</Td>
                     <Td className="w-48">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-28 overflow-hidden rounded-full bg-surface-subtle">
+                        <div className="h-2 w-28 overflow-hidden rounded-full border border-line-soft bg-canvas">
                           <div
-                            className="h-full rounded-full bg-brand"
+                            className="h-full rounded-full bg-navy"
                             style={{ width: `${shareWidth}%` }}
                           />
                         </div>
-                        <span className="text-[11.5px] font-medium text-muted">
+                        <span className="font-mono text-[11.5px] font-medium text-muted">
                           {s.revenueSharePct}%
                         </span>
                       </div>
@@ -78,6 +79,6 @@ export function GeographicTable({ data = [], onExport, className }) {
           </tbody>
         </Table>
       </TableWrap>
-    </div>
+    </Card>
   );
 }

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { formatPaise } from "@/lib/api";
-import { Table, TableWrap, Th, Td, Tr } from "@/components/ui/Table";
+import { Table, TableWrap, Th, Td, Tr, Pager } from "@/components/ui/Table";
 import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
+import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,51 +22,51 @@ export function PromotionAnalyticsTable({
     <div className={cn("space-y-4", className)}>
       {summary && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-line bg-surface p-3.5 shadow-sm">
-            <span className="text-[12px] font-medium text-muted">Total Redemptions</span>
-            <p className="mt-1 text-[18px] font-bold text-ink">
+          <Card className="p-4">
+            <span className="text-[12.5px] font-medium text-muted">Total Redemptions</span>
+            <p className="mt-2 font-mono text-[22px] font-semibold leading-none tracking-[-.02em] text-ink">
               {summary.totalRedemptions.toLocaleString("en-IN")}
             </p>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-3.5 shadow-sm">
-            <span className="text-[12px] font-medium text-muted">Discount Given</span>
-            <p className="mt-1 text-[18px] font-bold text-red-600">
+          </Card>
+          <Card className="p-4">
+            <span className="text-[12.5px] font-medium text-muted">Discounts Given</span>
+            <p className="mt-2 font-mono text-[22px] font-semibold leading-none tracking-[-.02em] text-red-deep">
               {formatPaise(summary.totalDiscountsGivenPaise)}
             </p>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-3.5 shadow-sm">
-            <span className="text-[12px] font-medium text-muted">Attributed Revenue</span>
-            <p className="mt-1 text-[18px] font-bold text-emerald-700">
+          </Card>
+          <Card className="p-4">
+            <span className="text-[12.5px] font-medium text-muted">Attributed Revenue</span>
+            <p className="mt-2 font-mono text-[22px] font-semibold leading-none tracking-[-.02em] text-green-deep">
               {formatPaise(summary.totalAttributedRevenuePaise)}
             </p>
-          </div>
-          <div className="rounded-xl border border-line bg-surface p-3.5 shadow-sm">
-            <span className="text-[12px] font-medium text-muted">Coupon Usage Rate</span>
-            <p className="mt-1 text-[18px] font-bold text-brand">
+          </Card>
+          <Card className="p-4">
+            <span className="text-[12.5px] font-medium text-muted">Coupon Usage Rate</span>
+            <p className="mt-2 font-mono text-[22px] font-semibold leading-none tracking-[-.02em] text-ink">
               {summary.couponUsageRatePct}%
             </p>
-            <span className="text-[11px] text-muted">
+            <span className="mt-1 block font-mono text-[11px] text-muted">
               {summary.couponOrdersCount} of {summary.totalOrdersCount} orders
             </span>
-          </div>
+          </Card>
         </div>
       )}
 
-      <div className="rounded-xl border border-line bg-surface shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-line-soft p-4">
-          <h3 className="text-[15px] font-semibold text-ink">Coupon Performance</h3>
+      <Card className="overflow-hidden">
+        <CardHead className="justify-between">
+          <CardTitle>Coupon Performance</CardTitle>
           {onExport && (
             <Button
               size="sm"
-              variant="outline"
+              variant="default"
               onClick={onExport}
-              className="flex items-center gap-1.5 h-8 text-[12px]"
+              className="flex items-center gap-1.5"
             >
               <Download size={13} />
               Export Promotions CSV
             </Button>
           )}
-        </div>
+        </CardHead>
 
         <TableWrap>
           <Table>
@@ -73,10 +74,10 @@ export function PromotionAnalyticsTable({
               <tr>
                 <Th>Coupon Code</Th>
                 <Th>Type & Trigger</Th>
-                <Th>Redemptions</Th>
-                <Th>Attributed Revenue</Th>
-                <Th>Discount Given</Th>
-                <Th>AOV</Th>
+                <Th right>Redemptions</Th>
+                <Th right>Attributed Revenue</Th>
+                <Th right>Discount Given</Th>
+                <Th right>AOV</Th>
                 <Th>Status</Th>
               </tr>
             </thead>
@@ -89,11 +90,11 @@ export function PromotionAnalyticsTable({
                 </Tr>
               ) : (
                 data.map((c) => (
-                  <Tr key={c.couponId || c.code} className="hover:bg-surface-subtle">
+                  <Tr key={c.couponId || c.code} className="hover:bg-canvas">
                     <Td className="font-semibold text-ink font-mono text-[13px]">
                       <Link
                         href={`/coupons/${c.couponId}/edit`}
-                        className="hover:text-brand hover:underline"
+                        className="hover:text-teal hover:underline"
                       >
                         {c.code}
                       </Link>
@@ -107,16 +108,16 @@ export function PromotionAnalyticsTable({
                       <span className="font-medium text-ink">{c.discountType}</span>
                       <span className="block text-[11px] text-muted">{c.trigger}</span>
                     </Td>
-                    <Td className="font-semibold text-ink">
+                    <Td right className="font-mono font-semibold text-ink">
                       {c.redemptionCount.toLocaleString("en-IN")}
                     </Td>
-                    <Td className="font-semibold text-ink">
+                    <Td right className="font-mono font-semibold text-ink">
                       {formatPaise(c.attributedRevenuePaise)}
                     </Td>
-                    <Td className="text-red-600 font-medium">
+                    <Td right className="font-mono text-red-deep font-medium">
                       {formatPaise(c.discountCostPaise)}
                     </Td>
-                    <Td className="text-muted text-[12.5px]">
+                    <Td right className="font-mono text-muted text-[12.5px]">
                       {formatPaise(c.aovPaise)}
                     </Td>
                     <Td>
@@ -131,34 +132,16 @@ export function PromotionAnalyticsTable({
           </Table>
         </TableWrap>
 
-        {meta && meta.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-line-soft p-3 text-[12.5px] text-muted">
-            <span>
-              Page {meta.page} of {meta.totalPages} ({meta.totalCount} coupons)
-            </span>
-            <div className="flex items-center gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={meta.page <= 1}
-                onClick={() => onPageChange?.(meta.page - 1)}
-                className="h-7 px-2 text-[12px]"
-              >
-                Previous
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={meta.page >= meta.totalPages}
-                onClick={() => onPageChange?.(meta.page + 1)}
-                className="h-7 px-2 text-[12px]"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+        {meta && (
+          <Pager
+            page={meta.page}
+            pages={meta.totalPages}
+            total={meta.totalCount}
+            onPage={onPageChange}
+            unit="coupons"
+          />
         )}
-      </div>
+      </Card>
     </div>
   );
 }
