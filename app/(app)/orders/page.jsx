@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, Suspense, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Download, Eye, ClipboardList } from "lucide-react";
+import { Download, Eye, ClipboardList, RefreshCw } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL } from "@/lib/constants";
 import { inr } from "@/lib/utils";
@@ -68,6 +68,7 @@ function OrdersInner() {
   const [q, setQ] = useState("");
   const [pay, setPay] = useState("All");
   const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
 
   // The URL owns the status filter so the sidebar's Pending/Shipped links work
   // on client-side navigation (this component does not remount between them).
@@ -98,6 +99,26 @@ function OrdersInner() {
     return loadOrders(query).catch(() => undefined);
   }, [loadOrders, page, q, status, pay]);
 
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      const query = {
+        page,
+        limit: PER_PAGE,
+        q: q.trim() || undefined,
+        status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
+        paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+      };
+      await loadOrders(query);
+      toast.push("Orders refreshed.");
+    } catch (err) {
+      toast.push(err?.message ?? "Failed to refresh orders.", { bad: true });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // The FIRST load must not wait for the debounce — a 250ms delay on mount is
   // pure latency on top of an already ~1s round trip. Only subsequent changes
   // (typing in the search box, flipping a filter) are debounced.
@@ -122,26 +143,39 @@ function OrdersInner() {
         title="Orders"
         sub={`${meta?.total ?? rows.length} orders`}
         actions={
-          permissions.includes("orders.export") && (
+          <div className="flex items-center gap-2">
             <Button
               variant="default"
-              onClick={async () => {
-                try {
-                  // Exports the CURRENT filter set, not just the visible page.
-                  await exportOrdersCsv({
-                    q: q.trim() || undefined,
-                    status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
-                    paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
-                  });
-                  toast.push("Orders exported.");
-                } catch (err) {
-                  toast.push(err.message, { bad: true });
-                }
-              }}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh orders list"
+              aria-label="Refresh orders"
             >
-              <Download size={15} /> Export CSV
+              <RefreshCw size={15} className={refreshing ? "animate-spin text-teal-deep" : ""} />
+              {refreshing ? "Refreshing…" : "Refresh"}
             </Button>
-          )
+
+            {permissions.includes("orders.export") && (
+              <Button
+                variant="default"
+                onClick={async () => {
+                  try {
+                    // Exports the CURRENT filter set, not just the visible page.
+                    await exportOrdersCsv({
+                      q: q.trim() || undefined,
+                      status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
+                      paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+                    });
+                    toast.push("Orders exported.");
+                  } catch (err) {
+                    toast.push(err.message, { bad: true });
+                  }
+                }}
+              >
+                <Download size={15} /> Export CSV
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -172,14 +206,22 @@ function OrdersInner() {
           `data === null` means the first fetch has not resolved. Showing the empty
           state then would read as "nothing here" when rows are still in flight.
         */}
-        {error ? (
+        {error && rows.length === 0 ? (
           <div className="px-4 py-12 text-center text-[13px] text-red-deep">{error}</div>
         ) : data === null ? (
           <div className="px-4 py-12 text-center text-[13px] text-muted">Loading…</div>
         ) : rows.length === 0 ? (
           <EmptyState icon={ClipboardList} title="No orders match">Adjust the filters above.</EmptyState>
         ) : (
-          <>
+          <div className="relative">
+            {refreshing && (
+              <div className="absolute inset-0 bg-card/40 backdrop-blur-[0.5px] z-10 flex items-center justify-center transition-opacity">
+                <div className="flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-[12.5px] font-medium text-ink shadow-sm">
+                  <RefreshCw size={14} className="animate-spin text-teal-deep" />
+                  <span>Refreshing…</span>
+                </div>
+              </div>
+            )}
             <TableWrap>
               <Table>
                 <thead>
@@ -250,7 +292,7 @@ function OrdersInner() {
               </Table>
             </TableWrap>
             <Pager page={page} pages={pages} total={meta?.total ?? rows.length} onPage={setPage} unit="orders" />
-          </>
+          </div>
         )}
       </Card>
     </RoleGate>
