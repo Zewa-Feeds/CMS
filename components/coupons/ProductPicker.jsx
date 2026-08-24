@@ -158,11 +158,12 @@ export function ProductPicker({ open, onClose, selectedIds = [], onConfirm }) {
  * Read-only summary of the chosen products, shown on the coupon form.
  * Each chip can be removed inline so a small correction needs no dialog.
  */
-export function SelectedProducts({ products = [], onRemove }) {
+export function SelectedProducts({ products = [], onRemove, emptyWarning }) {
   if (products.length === 0) {
+    if (!emptyWarning) return null;
     return (
       <p className="text-[12.5px] text-amber-deep">
-        No products selected — this coupon would not apply to anything.
+        {emptyWarning}
       </p>
     );
   }
