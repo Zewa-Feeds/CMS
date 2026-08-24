@@ -25,11 +25,11 @@ export const metadata = {
   robots: { index: false, follow: false },
   icons: {
     icon: [
-      { url: "/logo.png" },
       { url: "/favicon.png", type: "image/png" },
       { url: "/favicon.ico" },
+      { url: "/logo.png" },
     ],
-    apple: [{ url: "/logo.png" }],
+    apple: [{ url: "/favicon.png" }],
   },
 };
 
