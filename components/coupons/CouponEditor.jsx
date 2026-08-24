@@ -221,7 +221,7 @@ export function CouponEditor({ initial }) {
       isActive: Boolean(form.isActive),
       scope: form.scope,
       productIds: specific ? form.products.map((p) => p.id) : [],
-      qualifyingProductIds: form.qualifyingProducts.map((p) => p.id),
+      qualifyingProductIds: specific ? form.qualifyingProducts.map((p) => p.id) : [],
       excludedProductIds: form.excludedProducts.map((p) => p.id),
       stackingMode: form.stackingMode,
       priority: Number(form.priority) || 0,
@@ -267,10 +267,12 @@ export function CouponEditor({ initial }) {
     else parts.push(`₹${form.val || 0} off`);
 
     if (specific && form.products.length) parts.push(`on ${form.products.length} product(s)`);
-    if (form.qualifyingProducts.length)
+    if (specific && form.qualifyingProducts.length)
       parts.push(
         `when the cart contains ${form.requireAllQualifiers ? "all of" : "any of"} ${form.qualifyingProducts.length} product(s)`
       );
+    if (form.excludedProducts.length)
+      parts.push(`excluding ${form.excludedProducts.length} product(s)`);
 
     if (form.customerEligibility === "FIRST_ORDER") parts.push("on a customer's first order");
     if (form.customerEligibility === "FIRST_N_ORDERS")
@@ -605,53 +607,61 @@ export function CouponEditor({ initial }) {
             {tab === "products" && (
               <div className="grid gap-x-[18px]">
                 <Field
+                  htmlFor="coupon-scope"
                   label="Discount applies to"
                   required
                   error={errors.productIds}
-                  hint="A product-specific promotion only discounts the eligible items in a cart."
+                  hint={
+                    specific
+                      ? "A product-specific promotion only discounts the eligible items in a cart."
+                      : "Applies to every product in the cart unless excluded below."
+                  }
                 >
-                  <Select value={form.scope} onChange={(e) => set({ scope: e.target.value })}>
+                  <Select id="coupon-scope" value={form.scope} onChange={(e) => set({ scope: e.target.value })}>
                     <option value="ALL_PRODUCTS">All products</option>
                     <option value="SPECIFIC_PRODUCTS">Specific products…</option>
                   </Select>
                 </Field>
 
                 {specific && (
-                  <PickerBlock
-                    label="Discounted products"
-                    products={form.products}
-                    onOpen={() => setPicker("discount")}
-                    onRemove={(id) => set({ products: form.products.filter((p) => p.id !== id) })}
-                  />
-                )}
-
-                <div className="mt-2">
-                  <Field
-                    label="Qualifying products"
-                    hint="Must be in the cart for the promotion to apply. These are NOT discounted unless they are also in the discounted list."
-                  >
+                  <>
                     <PickerBlock
-                      products={form.qualifyingProducts}
-                      onOpen={() => setPicker("qualify")}
-                      onRemove={(id) =>
-                        set({ qualifyingProducts: form.qualifyingProducts.filter((p) => p.id !== id) })
-                      }
+                      label="Discounted products"
+                      products={form.products}
+                      onOpen={() => setPicker("discount")}
+                      onRemove={(id) => set({ products: form.products.filter((p) => p.id !== id) })}
+                      emptyWarning="No products selected — choose at least one product."
                     />
-                  </Field>
-                  {form.qualifyingProducts.length > 1 && (
-                    <Field label="Qualifying rule">
-                      <RadioGroup
-                        name="requireAll"
-                        value={form.requireAllQualifiers ? "all" : "any"}
-                        onChange={(v) => set({ requireAllQualifiers: v === "all" })}
-                        options={[
-                          { value: "any", label: "Any one of these products", hint: "Buy A or B." },
-                          { value: "all", label: "All of these products", hint: "Buy A and B together." },
-                        ]}
-                      />
-                    </Field>
-                  )}
-                </div>
+
+                    <div className="mt-2">
+                      <Field
+                        label="Qualifying products"
+                        hint="Must be in the cart for the promotion to apply. These are NOT discounted unless they are also in the discounted list."
+                      >
+                        <PickerBlock
+                          products={form.qualifyingProducts}
+                          onOpen={() => setPicker("qualify")}
+                          onRemove={(id) =>
+                            set({ qualifyingProducts: form.qualifyingProducts.filter((p) => p.id !== id) })
+                          }
+                        />
+                      </Field>
+                      {form.qualifyingProducts.length > 1 && (
+                        <Field label="Qualifying rule">
+                          <RadioGroup
+                            name="requireAll"
+                            value={form.requireAllQualifiers ? "all" : "any"}
+                            onChange={(v) => set({ requireAllQualifiers: v === "all" })}
+                            options={[
+                              { value: "any", label: "Any one of these products", hint: "Buy A or B." },
+                              { value: "all", label: "All of these products", hint: "Buy A and B together." },
+                            ]}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div className="mt-2">
                   <Field label="Excluded products" hint="Never discounted, even if a broader rule selects them.">
@@ -740,7 +750,7 @@ export function CouponEditor({ initial }) {
 
             {/* ---- 7. Preview ------------------------------------------- */}
             {tab === "preview" && (
-              <PromotionPreview code={form.code} disabled={isNew} />
+              <PromotionPreview code={form.code} payload={payload} />
             )}
           </fieldset>
         </CardBody>
@@ -771,7 +781,7 @@ export function CouponEditor({ initial }) {
   );
 }
 
-function PickerBlock({ label, products, onOpen, onRemove }) {
+function PickerBlock({ label, products, onOpen, onRemove, emptyWarning }) {
   return (
     <div className="mb-4 rounded-lg border border-line bg-canvas p-3.5">
       <div className="mb-2.5 flex items-center justify-between gap-3">
@@ -791,7 +801,7 @@ function PickerBlock({ label, products, onOpen, onRemove }) {
           )}
         </Button>
       </div>
-      <SelectedProducts products={products} onRemove={onRemove} />
+      <SelectedProducts products={products} onRemove={onRemove} emptyWarning={emptyWarning} />
     </div>
   );
 }
