@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import {
   FileText,
   RotateCcw,
+  RefreshCw,
   MapPin,
   Package,
   Mail,
@@ -37,6 +38,7 @@ export default function OrderDetailPage() {
   const permissions = useAuth((s) => s.permissions);
   const getOrder = useData((s) => s.getOrder);
   const refundOrder = useData((s) => s.refundOrder);
+  const reconcilePayment = useData((s) => s.reconcilePayment);
   const downloadInvoice = useData((s) => s.downloadInvoice);
   const updateOrderNote = useData((s) => s.updateOrderNote);
   const toast = useToast();
@@ -48,6 +50,7 @@ export default function OrderDetailPage() {
   const [refundAmt, setRefundAmt] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
 
   const [internalNote, setInternalNote] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
@@ -172,8 +175,30 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleReconcile = async () => {
+    if (reconciling) return;
+    setReconciling(true);
+    try {
+      toast.push("Checking payment status with Razorpay…");
+      const res = await reconcilePayment(orderNo);
+      if (res.reconciled) {
+        toast.push(res.message || "Payment verified and order confirmed!");
+        await fetchOrder();
+      } else {
+        toast.push(res.message || "No captured payment found on Razorpay.", { bad: true });
+      }
+    } catch (err) {
+      toast.push(err.message || "Failed to reconcile payment with Razorpay.", { bad: true });
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   const forwardMoves = availableTransitions.filter((t) => t.to !== "CANCELLED");
   const cancelMove = availableTransitions.find((t) => t.to === "CANCELLED");
+  const showReconcile =
+    order.paymentMethod === "RAZORPAY" &&
+    (order.paymentStatus === "UNPAID" || order.status === "CANCELLED");
 
   return (
     <RoleGate perm="orders.view">
@@ -199,6 +224,17 @@ export default function OrderDetailPage() {
         }
         actions={
           <>
+            {showReconcile && (
+              <Button
+                variant="outline"
+                onClick={handleReconcile}
+                disabled={reconciling}
+                title="Check Razorpay for captured payment and verify/restore order"
+              >
+                <RefreshCw size={15} className={reconciling ? "animate-spin" : ""} />
+                {reconciling ? "Checking Razorpay…" : "Verify with Razorpay"}
+              </Button>
+            )}
             {forwardMoves.map((m) => (
               <Button key={m.to} variant="primary" onClick={() => setAdvanceTarget(m)}>
                 {m.verb || m.label} <ArrowRight size={15} />
