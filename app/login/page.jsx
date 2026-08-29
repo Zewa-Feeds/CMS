@@ -210,6 +210,19 @@ function LoginForm() {
     );
   }
 
+  if (status === "restoring") {
+    return (
+      <div className="grid min-h-screen place-items-center bg-navy p-5">
+        <div className="w-full max-w-[400px]">
+          <Brand />
+          <div className="rounded-xl border border-line bg-card p-8 text-center shadow-pop">
+            <div className="text-[14px] font-medium text-white">Checking session…</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (status === "in") {
     return (
       <div className="grid min-h-screen place-items-center bg-navy p-5">
