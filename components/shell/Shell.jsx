@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useAuth, useData } from "@/lib/store";
+import * as api from "@/lib/api";
 
 /**
  * Authenticated app shell.
@@ -32,9 +33,37 @@ export function Shell({ children }) {
     if (status === "restoring") void restore();
   }, [status, restore]);
 
+  /*
+   * ONLY a confirmed sign-out redirects.
+   *
+   * "offline" means the API could not be reached, which says nothing about
+   * whether the session is still good — so it must not land on /login. It
+   * retries instead, and recovers on its own when the API comes back.
+   */
   useEffect(() => {
     if (status === "out") router.replace("/login");
   }, [status, router]);
+
+  useEffect(() => {
+    if (status !== "offline") return;
+    const timer = setTimeout(() => void restore(), 3000);
+    return () => clearTimeout(timer);
+  }, [status, restore]);
+
+  // A sibling tab signing in or renewing is reason enough to try again here.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const retry = () => {
+      const s = useAuth.getState().status;
+      if (s === "offline" || s === "out") void restore();
+    };
+    const unsubscribe = api.session.onRenewed(retry);
+    window.addEventListener("online", retry);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("online", retry);
+    };
+  }, [restore]);
 
   useEffect(() => {
     if (status === "in") void loadDashboard().catch(() => undefined);
@@ -42,8 +71,25 @@ export function Shell({ children }) {
 
   if (status !== "in") {
     return (
-      <div className="grid min-h-screen place-items-center bg-canvas text-[13px] text-muted">
-        {status === "restoring" ? "Loading…" : "Redirecting to sign-in…"}
+      <div className="grid min-h-screen place-items-center bg-canvas px-6 text-center text-[13px] text-muted">
+        {status === "restoring" && "Loading…"}
+        {status === "offline" && (
+          <div className="space-y-2">
+            <p>Can&rsquo;t reach the server.</p>
+            <p className="text-muted">
+              You are still signed in — retrying automatically.
+            </p>
+            <button
+              type="button"
+              onClick={() => void restore()}
+              className="underline underline-offset-2"
+            >
+              Retry now
+            </button>
+          </div>
+        )}
+        {status === "out" && "Redirecting to sign-in…"}
+        {status !== "restoring" && status !== "offline" && status !== "out" && "Loading…"}
       </div>
     );
   }

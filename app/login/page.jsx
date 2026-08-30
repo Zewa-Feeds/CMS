@@ -76,6 +76,17 @@ function LoginForm() {
     void restore();
   }, [restore]);
 
+  /*
+   * Only reachable while holding a credential the API could not be asked about.
+   * Retry rather than stall — and note a visitor with NO credential never lands
+   * here at all, because restore() answers "out" without a request.
+   */
+  useEffect(() => {
+    if (status !== "offline") return;
+    const timer = setTimeout(() => void restore(), 3000);
+    return () => clearTimeout(timer);
+  }, [status, restore]);
+
   useEffect(() => {
     if (status === "in" && !backupCodes) router.replace(nextPath);
   }, [status, backupCodes, router, nextPath]);
@@ -210,7 +221,9 @@ function LoginForm() {
     );
   }
 
-  if (status === "restoring") {
+  // "offline" is still an unfinished restore, not a signed-out user — showing
+  // the form here would invite a sign-in that cannot possibly succeed.
+  if (status === "restoring" || status === "offline") {
     return (
       <div className="grid min-h-screen place-items-center bg-navy p-5">
         <div className="w-full max-w-[400px]">
