@@ -170,14 +170,14 @@ export default function SettingsPage() {
                 <strong className="font-semibold block mb-1">Weight-Slab Shipping Calculation:</strong>
                 <div>1. Billable Weight = Total Product Net Weight + Packaging Weight ({form.shipping.packagingWeightGrams || 100}g).</div>
                 <div>2. Chargeable Slab = Rounded UP to the next {form.shipping.slabWeightGrams || 500}g slab.</div>
-                <div>3. Rate = Kerala (₹{form.shipping.keralaRatePerKg || 45}/kg) or Outside Kerala (₹{form.shipping.outsideKeralaRatePerKg || 70}/kg).</div>
+                <div>3. Rate = Kerala (₹{form.shipping.keralaRatePerKg || 45} per 500g slab) or Outside Kerala (₹{form.shipping.outsideKeralaRatePerKg || 70} per 500g slab).</div>
               </div>
 
               <div className="grid gap-x-[18px] md:grid-cols-2">
-                <Field label="Kerala Shipping Rate (₹ / kg)" hint="Charge per kg for addresses in Kerala.">
+                <Field label="Kerala Shipping Rate (₹ / 500g slab)" hint="Base charge per 500g slab for addresses in Kerala.">
                   <Input type="number" min="0" step="0.1" value={form.shipping.keralaRatePerKg} onChange={(e) => setGroup("shipping", "keralaRatePerKg", e.target.value)} />
                 </Field>
-                <Field label="Outside Kerala Rate (₹ / kg)" hint="Charge per kg for all other states & UTs.">
+                <Field label="Outside Kerala Rate (₹ / 500g slab)" hint="Base charge per 500g slab for all other states & UTs.">
                   <Input type="number" min="0" step="0.1" value={form.shipping.outsideKeralaRatePerKg} onChange={(e) => setGroup("shipping", "outsideKeralaRatePerKg", e.target.value)} />
                 </Field>
                 <Field label="Packaging Weight Overhead (grams)" hint="Added to net product weight (default 100g).">
