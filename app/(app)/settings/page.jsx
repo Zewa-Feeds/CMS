@@ -14,12 +14,15 @@ import { useToast } from "@/components/ui/Toast";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 import { INDIAN_STATES } from "@/lib/constants";
+import { INDIA_STATES, ZONES, zoneForState } from "@/lib/india-states";
 
 /** Editor defaults, so a missing settings row still renders every field. */
 const EMPTY = {
   shipping: {
-    keralaRatePerKg: 45,
-    outsideKeralaRatePerKg: 70,
+    /** { [state]: rupees } — one editable rate per state and UT. */
+    stateRates: Object.fromEntries(INDIA_STATES.map((s) => [s, 60])),
+    defaultRate: 60,
+    internationalRate: 0,
     packagingWeightGrams: 100,
     slabWeightGrams: 500,
     freeThreshold: 999,
@@ -43,8 +46,20 @@ function toForm(api) {
 
   return {
     shipping: {
-      keralaRatePerKg: (api.shipping?.keralaRatePerKgPaise ?? 4500) / 100,
-      outsideKeralaRatePerKg: (api.shipping?.outsideKeralaRatePerKgPaise ?? 7000) / 100,
+      /*
+       * Every state gets a row, whether or not the API has a rate for it — an
+       * unlisted state falls back to the default rate, and the editor should
+       * show that rather than an empty box.
+       */
+      stateRates: Object.fromEntries(
+        INDIA_STATES.map((state) => {
+          const paise =
+            api.shipping?.stateRatesPaise?.[state] ?? api.shipping?.defaultRatePaise ?? 6000;
+          return [state, paise / 100];
+        }),
+      ),
+      defaultRate: (api.shipping?.defaultRatePaise ?? 6000) / 100,
+      internationalRate: (api.shipping?.internationalRatePaise ?? 0) / 100,
       packagingWeightGrams: api.shipping?.packagingWeightGrams ?? 100,
       slabWeightGrams: api.shipping?.slabWeightGrams ?? 500,
       freeThreshold: (api.shipping?.freeThresholdPaise ?? 0) / 100,
@@ -72,8 +87,14 @@ function toPayload(group, form) {
   switch (group) {
     case "shipping": {
       return {
-        keralaRatePerKgPaise: Math.round(Number(form.shipping.keralaRatePerKg || 0) * 100),
-        outsideKeralaRatePerKgPaise: Math.round(Number(form.shipping.outsideKeralaRatePerKg || 0) * 100),
+        stateRatesPaise: Object.fromEntries(
+          Object.entries(form.shipping.stateRates ?? {}).map(([state, rupees]) => [
+            state,
+            Math.max(0, Math.round(Number(rupees || 0) * 100)),
+          ]),
+        ),
+        defaultRatePaise: Math.max(0, Math.round(Number(form.shipping.defaultRate || 0) * 100)),
+        internationalRatePaise: Math.max(0, Math.round(Number(form.shipping.internationalRate || 0) * 100)),
         packagingWeightGrams: Math.max(0, Math.round(Number(form.shipping.packagingWeightGrams || 100))),
         slabWeightGrams: Math.max(1, Math.round(Number(form.shipping.slabWeightGrams || 500))),
         freeThresholdPaise: Math.round(Number(form.shipping.freeThreshold || 0) * 100),
@@ -170,15 +191,13 @@ export default function SettingsPage() {
                 <strong className="font-semibold block mb-1">Weight-Slab Shipping Calculation:</strong>
                 <div>1. Billable Weight = Total Product Net Weight + Packaging Weight ({form.shipping.packagingWeightGrams || 100}g).</div>
                 <div>2. Chargeable Slab = Rounded UP to the next {form.shipping.slabWeightGrams || 500}g slab.</div>
-                <div>3. Rate = Kerala (₹{form.shipping.keralaRatePerKg || 45} per 500g slab) or Outside Kerala (₹{form.shipping.outsideKeralaRatePerKg || 70} per 500g slab).</div>
+                <div>3. Rate = the destination state&rsquo;s own charge per {form.shipping.slabWeightGrams || 500}g slab, set below.</div>
+                <div className="mt-1 opacity-80">Shipping = slabs &times; that state&rsquo;s rate. A first-order ZEWA1 coupon waives it.</div>
               </div>
 
               <div className="grid gap-x-[18px] md:grid-cols-2">
-                <Field label="Kerala Shipping Rate (₹ / 500g slab)" hint="Base charge per 500g slab for addresses in Kerala.">
-                  <Input type="number" min="0" step="0.1" value={form.shipping.keralaRatePerKg} onChange={(e) => setGroup("shipping", "keralaRatePerKg", e.target.value)} />
-                </Field>
-                <Field label="Outside Kerala Rate (₹ / 500g slab)" hint="Base charge per 500g slab for all other states & UTs.">
-                  <Input type="number" min="0" step="0.1" value={form.shipping.outsideKeralaRatePerKg} onChange={(e) => setGroup("shipping", "outsideKeralaRatePerKg", e.target.value)} />
+                <Field label={`Default rate (₹ / ${form.shipping.slabWeightGrams || 500}g slab)`} hint="Used for any destination not listed below.">
+                  <Input type="number" min="0" step="0.1" value={form.shipping.defaultRate} onChange={(e) => setGroup("shipping", "defaultRate", e.target.value)} />
                 </Field>
                 <Field label="Packaging Weight Overhead (grams)" hint="Added to net product weight (default 100g).">
                   <Input type="number" min="0" value={form.shipping.packagingWeightGrams} onChange={(e) => setGroup("shipping", "packagingWeightGrams", e.target.value)} />
@@ -192,6 +211,95 @@ export default function SettingsPage() {
                 <Field label="Default / fallback delivery text">
                   <Input value={form.shipping.deliveryText} onChange={(e) => setGroup("shipping", "deliveryText", e.target.value)} />
                 </Field>
+                <div className="md:col-span-2 mt-2 rounded-lg border border-line bg-canvas p-3.5">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span className="text-[13px] font-semibold">Outside India</span>
+                    <span className="rounded-full border border-amber/40 bg-amber-wash px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-amber-deep">
+                      Not active yet
+                    </span>
+                  </div>
+                  <p className="mb-3 text-[12px] text-muted leading-relaxed">
+                    Checkout cannot take an overseas address yet — it asks for a +91 mobile
+                    and a 6-digit PIN that has to match an Indian state, and the invoice
+                    splits GST by that state. Saving a rate here is safe and changes nothing
+                    for customers; it is the value international orders will use once the
+                    checkout collects a country.
+                  </p>
+                  <Field label={`International rate (₹ / ${form.shipping.slabWeightGrams || 500}g slab)`} hint="Charged per slab for destinations outside India.">
+                    <Input type="number" min="0" step="0.1" value={form.shipping.internationalRate} onChange={(e) => setGroup("shipping", "internationalRate", e.target.value)} />
+                  </Field>
+                </div>
+
+                <div className="md:col-span-2 mt-2 border-t border-line pt-4">
+                  <div className="mb-1 text-[13px] font-semibold">Rate per state (₹ / {form.shipping.slabWeightGrams || 500}g slab)</div>
+                  <p className="mb-3 text-[12px] text-muted">
+                    Every state has its own charge. The groups below are a starting point —
+                    set one state differently and it simply keeps that rate.
+                  </p>
+
+                  {ZONES.map((zone) => {
+                    const states = INDIA_STATES.filter((st) => zoneForState(st) === zone.key);
+                    /* Bulk-set makes the common case — "all of the south moves to ₹55" —
+                       one action instead of five identical edits. */
+                    const applyToGroup = (value) => {
+                      const rupees = Number(value);
+                      if (!Number.isFinite(rupees) || rupees < 0) return;
+                      setForm((f) => ({
+                        ...f,
+                        shipping: {
+                          ...f.shipping,
+                          stateRates: {
+                            ...f.shipping.stateRates,
+                            ...Object.fromEntries(states.map((st) => [st, rupees])),
+                          },
+                        },
+                      }));
+                    };
+                    return (
+                      <div key={zone.key} className="mb-5">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="text-[12.5px] font-semibold">{zone.label}</span>
+                          <span className="text-[11.5px] text-muted">{zone.hint}</span>
+                          <label className="ml-auto flex items-center gap-1.5 text-[11.5px] text-muted">
+                            Set all
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              className="h-7 w-20 rounded-md border border-line bg-canvas px-2 text-[12.5px]"
+                              onChange={(e) => applyToGroup(e.target.value)}
+                            />
+                          </label>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {states.map((st) => (
+                            <label key={st} className="flex items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-[12.5px]" title={st}>{st}</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                aria-label={`Shipping rate for ${st}`}
+                                className="h-8 w-24 shrink-0 rounded-md border border-line bg-canvas px-2 text-[12.5px] tabular-nums"
+                                value={form.shipping.stateRates?.[st] ?? ""}
+                                onChange={(e) =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    shipping: {
+                                      ...f.shipping,
+                                      stateRates: { ...f.shipping.stateRates, [st]: e.target.value },
+                                    },
+                                  }))
+                                }
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <Field className="md:col-span-2" label="PIN code blacklist" hint="Comma-separated PIN codes we don't deliver to.">
                   <Textarea value={form.shipping.pinBlacklist} onChange={(e) => setGroup("shipping", "pinBlacklist", e.target.value)} className="mono text-[12.5px]" />
                 </Field>
