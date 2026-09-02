@@ -78,6 +78,11 @@ const STACKING_OPTIONS = [
     label: "Exclusive",
     hint: "Applies on its own and outranks every other promotion when the engine has to choose. Use for the strongest offers.",
   },
+  {
+    value: "GLOBALLY_STACKABLE",
+    label: "Always combines",
+    hint: "Rides alongside ANY other coupon, even an exclusive one — but never beside a second 'always combines' coupon. Meant for a perk that is not a percentage off the cart, such as free shipping, so it can always apply without ever being a second discount.",
+  },
 ];
 
 const ELIGIBILITY_OPTIONS = [
@@ -109,6 +114,7 @@ const EMPTY = {
   priority: 0,
   trigger: "CODE",
   combinesWithAutomatic: true,
+  showAtCheckout: false,
   customerEligibility: "ALL_CUSTOMERS",
   firstNOrders: 2,
   minQty: "",
@@ -152,6 +158,7 @@ function toForm(api) {
     priority: api.priority ?? 0,
     trigger: api.trigger ?? "CODE",
     combinesWithAutomatic: api.combinesWithAutomatic ?? true,
+    showAtCheckout: api.showAtCheckout ?? false,
     customerEligibility: api.customerEligibility ?? "ALL_CUSTOMERS",
     firstNOrders: api.firstNOrders ?? 2,
     minQty: api.minQty == null ? "" : String(api.minQty),
@@ -227,6 +234,7 @@ export function CouponEditor({ initial }) {
       priority: Number(form.priority) || 0,
       trigger: form.trigger,
       combinesWithAutomatic: Boolean(form.combinesWithAutomatic),
+      showAtCheckout: Boolean(form.showAtCheckout),
       customerEligibility: form.customerEligibility,
       firstNOrders:
         form.customerEligibility === "FIRST_N_ORDERS" ? Number(form.firstNOrders) || 1 : null,
@@ -290,6 +298,7 @@ export function CouponEditor({ initial }) {
 
     if (form.stackingMode === "EXCLUSIVE") parts.push("exclusive of all other offers");
     else if (form.stackingMode === "NON_STACKABLE") parts.push("not combinable");
+    else if (form.stackingMode === "GLOBALLY_STACKABLE") parts.push("always combinable");
     else parts.push("combinable with other stackable offers");
 
     if (form.to) parts.push(`valid until ${form.to}`);
@@ -745,6 +754,21 @@ export function CouponEditor({ initial }) {
                     />
                   </div>
                 )}
+
+                {/* Publishing a code is a deliberate act: a private referral or
+                    an influencer's personal code must never be advertised by
+                    accident, so this is off unless someone turns it on. */}
+                <div className="md:col-span-2">
+                  <Switch
+                    checked={form.showAtCheckout}
+                    onChange={(v) => set({ showAtCheckout: v })}
+                    label="Show this code to shoppers at checkout"
+                  />
+                  <p className="mt-1 text-[12px] text-muted">
+                    Lists the code in the storefront&rsquo;s &ldquo;available offers&rdquo; panel.
+                    Leave off for private, referral or influencer codes.
+                  </p>
+                </div>
               </div>
             )}
 
