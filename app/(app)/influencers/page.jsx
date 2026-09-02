@@ -78,12 +78,12 @@ export default function InfluencersPage() {
 
   return (
     <>
-      <Breadcrumbs items={[{ label: "Dashboard", href: "/" }, { label: "Influencers" }]} />
+      <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Influencers" }]} />
       <PageHeader
         title="Influencers"
-        subtitle={`${rows.length} affiliate${rows.length === 1 ? "" : "s"}`}
+        sub={`${rows.length} affiliate${rows.length === 1 ? "" : "s"}`}
         actions={
-          <RoleGate permission="coupons.edit">
+          <RoleGate perm="coupons.edit">
             <Link href="/influencers/new" className={button({ variant: "primary" })}>
               <Plus size={15} /> Add influencer
             </Link>
@@ -93,7 +93,7 @@ export default function InfluencersPage() {
 
       <Card>
         <FilterBar>
-          <SearchInput value={q} onChange={setQ} placeholder="Search name, code or handle…" />
+          <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, code or handle…" />
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="All">All statuses</option>
             <option value="ACTIVE">Active</option>
@@ -160,7 +160,7 @@ export default function InfluencersPage() {
                         >
                           <Eye size={14} />
                         </Link>
-                        <RoleGate permission="coupons.edit">
+                        <RoleGate perm="coupons.edit">
                           <Link
                             href={`/influencers/${r.id}?edit=1`}
                             className={button({ variant: "ghost", size: "icon-sm" })}

@@ -79,13 +79,13 @@ export default function NewInfluencerPage() {
   return (
     <>
       <Breadcrumbs
-        items={[
+        parts={[
           { label: "Dashboard", href: "/" },
           { label: "Influencers", href: "/influencers" },
           { label: "Add" },
         ]}
       />
-      <PageHeader title="Add influencer" subtitle="Creates their profile and personal coupon code." />
+      <PageHeader title="Add influencer" sub="Creates their profile and personal coupon code." />
 
       <form onSubmit={submit} className="max-w-2xl">
         <Card>

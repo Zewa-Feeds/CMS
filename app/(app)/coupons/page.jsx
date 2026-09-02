@@ -71,7 +71,17 @@ export default function CouponsPage() {
   });
 
   /** Totals across the loaded set, so a manager sees the headline immediately. */
-  const totals = all.reduce(
+  /*
+   * Summed in PAISE, converted once at the end.
+   *
+   * These read `revenuePaise` and `discountedPaise` — the API serves both those
+   * and their rupee twins (`revenue`, `discounted`). Summing the paise fields
+   * and handing them to inr(), which formats a RUPEE amount, reported every
+   * figure a hundred times over: ₹1,287 of real coupon revenue showed as
+   * ₹1,28,700. Adding up paise and dividing once is also exact, where summing
+   * pre-rounded rupees would drift.
+   */
+  const totalsPaise = all.reduce(
     (acc, c) => ({
       revenue: acc.revenue + (c.revenuePaise ?? 0),
       discounted: acc.discounted + (c.discountedPaise ?? 0),
@@ -79,6 +89,11 @@ export default function CouponsPage() {
     }),
     { revenue: 0, discounted: 0, orders: 0 },
   );
+  const totals = {
+    revenue: totalsPaise.revenue / 100,
+    discounted: totalsPaise.discounted / 100,
+    orders: totalsPaise.orders,
+  };
 
   return (
     <RoleGate perm="coupons.edit">

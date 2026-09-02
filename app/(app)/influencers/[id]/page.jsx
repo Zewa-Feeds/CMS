@@ -165,7 +165,7 @@ export default function InfluencerDetailPage() {
   return (
     <>
       <Breadcrumbs
-        items={[
+        parts={[
           { label: "Dashboard", href: "/" },
           { label: "Influencers", href: "/influencers" },
           { label: profile.name },
@@ -173,13 +173,13 @@ export default function InfluencerDetailPage() {
       />
       <PageHeader
         title={profile.name}
-        subtitle={
+        sub={
           profile.coupon
             ? `${profile.coupon.code} · ${profile.coupon.discountValue}% off`
             : "No coupon attached"
         }
         actions={
-          <RoleGate permission="coupons.edit">
+          <RoleGate perm="coupons.edit">
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setEditing((v) => !v)}>
                 {editing ? "Cancel edit" : "Edit"}
@@ -316,7 +316,7 @@ export default function InfluencerDetailPage() {
           <CardTitle>Attributed orders</CardTitle>
         </CardHead>
         <FilterBar>
-          <SearchInput value={q} onChange={setQ} placeholder="Order no or email…" />
+          <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Order no or email…" />
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="All">All statuses</option>
             {["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
