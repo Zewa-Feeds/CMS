@@ -22,6 +22,19 @@ const fmtDate = (iso) =>
     ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : "—";
 
+/** Mirrors the create form; "Always combines" is deliberately not offered. */
+const STACKING_CHOICES = [
+  { value: "NON_STACKABLE", label: "Cannot be combined (recommended)",
+    hint: "Applies on its own, so a customer never gets two percentage discounts on one order. Free shipping still applies alongside it." },
+  { value: "STACKABLE", label: "Can combine with other stackable coupons",
+    hint: "Adds to any other stackable code — including SPECIAL10's 10%. Use only when you mean the discounts to add up." },
+  { value: "EXCLUSIVE", label: "Exclusive — blocks every other coupon",
+    hint: "Applies alone and outranks everything. Any other code is refused while this one is on the cart." },
+];
+const STACKING_LABEL = Object.fromEntries(
+  [...STACKING_CHOICES.map((c) => [c.value, c.label]), ["GLOBALLY_STACKABLE", "Always combines"]],
+);
+
 const STATUS_TONE = {
   PENDING: "amber", PROCESSING: "blue", SHIPPED: "purple",
   DELIVERED: "green", CANCELLED: "red",
@@ -75,8 +88,16 @@ export default function InfluencerDetailPage() {
       socialHandle: p.socialHandle ?? "",
       notes: p.notes ?? "",
       couponCode: p.coupon?.code ?? "",
-      discountPct: p.coupon?.discountValue ?? 15,
+      discountType: p.coupon?.discountType ?? "PERCENTAGE",
+      discountPct: p.coupon?.discountType === "FLAT" ? 15 : (p.coupon?.discountValue ?? 15),
+      discountAmount:
+        p.coupon?.discountType === "FLAT" ? (p.coupon?.discountValue ?? 0) / 100 : "",
       minOrder: (p.coupon?.minOrderPaise ?? 0) / 100,
+      maxDiscount:
+        p.coupon?.maxDiscountPaise == null ? "" : p.coupon.maxDiscountPaise / 100,
+      totalUsageLimit: p.coupon?.totalUsageLimit ?? "",
+      perCustomerLimit: p.coupon?.perCustomerLimit ?? "",
+      stackingMode: p.coupon?.stackingMode ?? "NON_STACKABLE",
       startsAt: p.coupon?.startsAt ? p.coupon.startsAt.slice(0, 10) : "",
       endsAt: p.coupon?.endsAt ? p.coupon.endsAt.slice(0, 10) : "",
     });
@@ -120,6 +141,7 @@ export default function InfluencerDetailPage() {
     setSaving(true);
     setErrors({});
     try {
+      const isFlat = form.discountType === "FLAT";
       await api.update(id, {
         name: form.name,
         email: form.email || undefined,
@@ -127,8 +149,15 @@ export default function InfluencerDetailPage() {
         socialHandle: form.socialHandle || undefined,
         notes: form.notes || undefined,
         couponCode: form.couponCode,
-        discountPct: Number(form.discountPct),
+        discountType: form.discountType,
+        discountPct: isFlat ? undefined : Number(form.discountPct),
+        discountAmount: isFlat ? Number(form.discountAmount) : undefined,
         minOrder: Number(form.minOrder) || 0,
+        maxDiscount: !isFlat && form.maxDiscount !== "" ? Number(form.maxDiscount) : null,
+        totalUsageLimit: form.totalUsageLimit !== "" ? Number(form.totalUsageLimit) : null,
+        perCustomerLimit:
+          form.perCustomerLimit !== "" ? Number(form.perCustomerLimit) : undefined,
+        stackingMode: form.stackingMode,
         startsAt: form.startsAt,
         endsAt: form.endsAt,
       });
@@ -255,15 +284,66 @@ export default function InfluencerDetailPage() {
                     onChange={(e) => set("couponCode", e.target.value.toUpperCase())}
                   />
                 </Field>
-                <Field label="Discount %" required error={errors.discountPct}>
-                  <Input
-                    type="number" min="1" max="90" step="1"
-                    value={form.discountPct}
-                    onChange={(e) => set("discountPct", e.target.value)}
-                  />
+                <Field label="Discount type" error={errors.discountType}>
+                  <Select value={form.discountType} onChange={(e) => set("discountType", e.target.value)}>
+                    <option value="PERCENTAGE">Percentage off</option>
+                    <option value="FLAT">Flat amount off</option>
+                  </Select>
                 </Field>
+                {form.discountType === "PERCENTAGE" ? (
+                  <Field label="Discount %" required error={errors.discountPct}>
+                    <Input
+                      type="number" min="1" max="90" step="1"
+                      value={form.discountPct}
+                      onChange={(e) => set("discountPct", e.target.value)}
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Discount amount (₹)" required error={errors.discountAmount}>
+                    <Input
+                      type="number" min="1" step="1"
+                      value={form.discountAmount}
+                      onChange={(e) => set("discountAmount", e.target.value)}
+                    />
+                  </Field>
+                )}
                 <Field label="Minimum order (₹)" error={errors.minOrder}>
                   <Input type="number" min="0" value={form.minOrder} onChange={(e) => set("minOrder", e.target.value)} />
+                </Field>
+                {form.discountType === "PERCENTAGE" && (
+                  <Field label="Maximum discount (₹)" hint="Blank for no cap." error={errors.maxDiscount}>
+                    <Input
+                      type="number" min="1" placeholder="No cap"
+                      value={form.maxDiscount}
+                      onChange={(e) => set("maxDiscount", e.target.value)}
+                    />
+                  </Field>
+                )}
+                <Field label="Total uses allowed" hint="Blank for unlimited." error={errors.totalUsageLimit}>
+                  <Input
+                    type="number" min="1" placeholder="Unlimited"
+                    value={form.totalUsageLimit}
+                    onChange={(e) => set("totalUsageLimit", e.target.value)}
+                  />
+                </Field>
+                <Field label="Uses per customer" error={errors.perCustomerLimit}>
+                  <Input
+                    type="number" min="1" placeholder="Default"
+                    value={form.perCustomerLimit}
+                    onChange={(e) => set("perCustomerLimit", e.target.value)}
+                  />
+                </Field>
+                <Field
+                  className="md:col-span-2"
+                  label="Combining with other coupons"
+                  hint={STACKING_CHOICES.find((c) => c.value === form.stackingMode)?.hint}
+                  error={errors.stackingMode}
+                >
+                  <Select value={form.stackingMode} onChange={(e) => set("stackingMode", e.target.value)}>
+                    {STACKING_CHOICES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </Select>
                 </Field>
                 <Field label="Starts" required error={errors.startsAt}>
                   <Input type="date" value={form.startsAt} onChange={(e) => set("startsAt", e.target.value)} />
@@ -291,7 +371,24 @@ export default function InfluencerDetailPage() {
                   {profile.status === "ACTIVE" ? "Active" : "Inactive"}</Pill></dd></div>
               <div><dt className="text-muted">Code</dt><dd className="mono">{profile.coupon?.code ?? "—"}</dd></div>
               <div><dt className="text-muted">Discount</dt>
-                <dd>{profile.coupon ? `${profile.coupon.discountValue}%` : "—"}</dd></div>
+                <dd>
+                  {profile.coupon
+                    ? profile.coupon.discountType === "FLAT"
+                      ? inr(profile.coupon.discountValue / 100)
+                      : `${profile.coupon.discountValue}%`
+                    : "—"}
+                  {profile.coupon?.maxDiscountPaise != null && (
+                    <span className="text-muted"> (max {inr(profile.coupon.maxDiscount)})</span>
+                  )}
+                </dd></div>
+              <div><dt className="text-muted">Combining</dt>
+                <dd>{STACKING_LABEL[profile.coupon?.stackingMode] ?? "—"}</dd></div>
+              <div><dt className="text-muted">Usage limit</dt>
+                <dd>
+                  {profile.coupon?.totalUsageLimit ?? "Unlimited"}
+                  {profile.coupon?.perCustomerLimit != null &&
+                    ` · ${profile.coupon.perCustomerLimit} per customer`}
+                </dd></div>
               <div><dt className="text-muted">Minimum order</dt>
                 <dd>{profile.coupon?.minOrderPaise ? inr(profile.coupon.minOrder) : "None"}</dd></div>
               <div><dt className="text-muted">Runs</dt>
