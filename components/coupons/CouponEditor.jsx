@@ -86,19 +86,20 @@ const STACKING_OPTIONS = [
   {
     value: "STACKABLE",
     label: "Stackable",
-    hint: "Can be combined with other stackable discounts and universal benefits.",
+    hint: "Can be combined with other stackable discounts and universal coupons.",
   },
   {
     value: "EXCLUSIVE",
     label: "Exclusive",
-    hint: "Applies alone alongside universal benefits, and takes priority over competing discounts.",
+    hint: "Can only be applied alone or with other universal coupons.",
   },
   {
     value: "GLOBALLY_STACKABLE",
     label: "Universal",
-    hint: "Applies alongside any discount except a non-stackable one. Only one universal benefit per order. Best suited for benefits such as free shipping rather than further price reductions.",
+    hint: "Can apply alongside any discount, including exclusive discounts, other than Non-Stackable coupon. Only one universal coupon can be applied per order. Best suited for benefits such as free shipping rather than additional price reductions.",
   },
 ];
+
 
 
 const ELIGIBILITY_OPTIONS = [
@@ -764,10 +765,9 @@ export function CouponEditor({ initial }) {
                 {form.stackingMode === "STACKABLE" && form.discountType === "PERCENTAGE" && (
                   <div className="md:col-span-2 mb-[15px]">
                     <WarnBox>
-                      This is a percentage discount that adds to other stackable coupons. A
-                      customer using it with SPECIAL10 gets both — about{" "}
-                      <strong>{combinedPct(form.discountValue, 10)}% off</strong> rather than{" "}
-                      {Number(form.discountValue) || 0}%. Pick &ldquo;Non-Stackable&rdquo; if that is
+                      Savings add together. Beside another stackable 10% discount this takes
+                      about <strong>{combinedPct(form.discountValue, 10)}% off</strong> rather
+                      than {Number(form.discountValue) || 0}%. Choose Non-Stackable if that is
                       not what you mean.
                     </WarnBox>
                   </div>

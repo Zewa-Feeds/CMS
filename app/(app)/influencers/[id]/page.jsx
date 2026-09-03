@@ -27,17 +27,17 @@ const STACKING_CHOICES = [
   {
     value: "NON_STACKABLE",
     label: "Non-Stackable (recommended)",
-    hint: "Cannot be combined with any other discount. Note that free shipping will not apply alongside it either.",
+    hint: "Cannot be combined with any other discount. If another discount is already applied, the customer must choose one — free shipping included.",
   },
   {
     value: "STACKABLE",
     label: "Stackable",
-    hint: "Combines with other stackable discounts, so the savings add together — a 15% code beside a 10% one takes roughly 24% off. Free shipping applies alongside it.",
+    hint: "Can be combined with other stackable discounts and universal coupons.",
   },
   {
     value: "EXCLUSIVE",
     label: "Exclusive",
-    hint: "Applies alone and outranks competing discounts, but free shipping still applies alongside it.",
+    hint: "Can only be applied alone or with other universal coupons.",
   },
 ];
 const STACKING_LABEL = Object.fromEntries(

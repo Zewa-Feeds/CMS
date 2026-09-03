@@ -27,24 +27,25 @@ const NEXT_YEAR = iso(new Date(Date.now() + 365 * 86400000));
  *
  * "Always combines" is deliberately absent: it exists for a perk that is not a
  * percentage off the cart, and an affiliate percentage set that way would ride
- * on top of SPECIAL10 and compound. Free shipping still applies alongside all
- * three, because ZEWA1 carries that property rather than these codes.
+ * on top of another discount and compound. A universal benefit such as free
+ * shipping rides alongside the two combinable options, but not alongside a
+ * non-stackable code.
  */
 const STACKING_CHOICES = [
   {
     value: "NON_STACKABLE",
     label: "Non-Stackable (recommended)",
-    hint: "Cannot be combined with any other discount. Note that free shipping will not apply alongside it either.",
+    hint: "Cannot be combined with any other discount. If another discount is already applied, the customer must choose one — free shipping included.",
   },
   {
     value: "STACKABLE",
     label: "Stackable",
-    hint: "Combines with other stackable discounts, so the savings add together — a 15% code beside a 10% one takes roughly 24% off. Free shipping applies alongside it.",
+    hint: "Can be combined with other stackable discounts and universal coupons.",
   },
   {
     value: "EXCLUSIVE",
     label: "Exclusive",
-    hint: "Applies alone and outranks competing discounts, but free shipping still applies alongside it.",
+    hint: "Can only be applied alone or with other universal coupons.",
   },
 ];
 
@@ -137,8 +138,8 @@ export default function NewInfluencerPage() {
               <strong className="mb-1 block font-semibold">How an affiliate code works</strong>
               The code is an ordinary coupon, validated and priced by the same engine as every
               other. It is <strong>not</strong> advertised on the storefront — it is personal to
-              this creator. It cannot be combined with another percentage coupon such as SPECIAL10,
-              but the first-order free-shipping benefit still applies alongside it.
+              this creator. By default it applies on its own, so no other discount and no free
+              shipping can be used with it; change that below if you want it to combine.
               </InfoBox>
             </div>
 
@@ -208,7 +209,7 @@ export default function NewInfluencerPage() {
               {form.discountType === "PERCENTAGE" ? (
                 <Field
                   label="Discount %" required
-                  hint="Typically 12–15, so it beats the public SPECIAL10."
+                  hint="Typically 12–15, so it is worth more to a customer than a public offer."
                   error={errors.discountPct}
                 >
                   <Input
