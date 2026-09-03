@@ -33,18 +33,18 @@ const NEXT_YEAR = iso(new Date(Date.now() + 365 * 86400000));
 const STACKING_CHOICES = [
   {
     value: "NON_STACKABLE",
-    label: "Cannot be combined (recommended)",
-    hint: "Applies on its own, so a customer never gets two percentage discounts on one order. Free shipping still applies alongside it.",
+    label: "On its own — one discount per order (recommended)",
+    hint: "If the customer already has another code applied, they are told the two cannot be combined. Free shipping still applies alongside it — that is a separate perk, not a second discount.",
   },
   {
     value: "STACKABLE",
-    label: "Can combine with other stackable coupons",
-    hint: "Adds to any other stackable code — including SPECIAL10's 10%. Use only when you mean the discounts to add up.",
+    label: "Adds on top of other stackable coupons",
+    hint: "This code and SPECIAL10 would BOTH apply and the savings add together — roughly 24% off for a 15% code, not 15%. Choose it only when you mean to give away both.",
   },
   {
     value: "EXCLUSIVE",
-    label: "Exclusive — blocks every other coupon",
-    hint: "Applies alone and outranks everything. Any other code is refused while this one is on the cart.",
+    label: "Blocks every other coupon",
+    hint: "Applies alone and outranks everything else, so any other code is refused while this one is on the cart. For a creator whose offer should never be combined.",
   },
 ];
 

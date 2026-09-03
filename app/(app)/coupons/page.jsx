@@ -16,7 +16,13 @@ import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/
 import { RoleGate } from "@/components/shell/RoleGate";
 
 const STATUS_TONE = { Active: "green", Inactive: "grey", Expired: "red" };
-const STACKING_TONE = { STACKABLE: "green", NON_STACKABLE: "grey", EXCLUSIVE: "amber" };
+const STACKING_TONE = {
+  STACKABLE: "green",
+  NON_STACKABLE: "grey",
+  EXCLUSIVE: "amber",
+  // Distinct from the rest: it is the only mode that ignores the others.
+  GLOBALLY_STACKABLE: "blue",
+};
 
 /** ISO -> "01 Jul 2026". */
 const fmtDate = (iso) =>

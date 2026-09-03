@@ -9,7 +9,7 @@ import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Switch, RadioGroup, Textarea } from "@/components/ui/Field";
 import { Tabs } from "@/components/ui/Tabs";
-import { InfoBox } from "@/components/ui/Modal";
+import { InfoBox, WarnBox } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { ProductPicker, SelectedProducts } from "./ProductPicker";
 import { PromotionPreview } from "./PromotionPreview";
@@ -62,26 +62,41 @@ const FIELD_TAB = {
   priority: "stacking",
 };
 
+/**
+ * How a coupon behaves when the customer already has another one applied.
+ *
+ * The copy names REAL codes rather than describing the rule in the abstract:
+ * whoever picks one of these is deciding whether two discounts can land on the
+ * same order, and "combines with other stackable coupons" does not make that
+ * consequence visible. Each option therefore answers the same three questions —
+ * what happens, what it is for, and what it costs you.
+ */
+/** Two discounts applied in series: 15% then 10% is 23.5% off, not 25%. */
+const combinedPct = (a, b) => {
+  const x = Number(a) || 0;
+  return Math.round((1 - (1 - x / 100) * (1 - b / 100)) * 1000) / 10;
+};
+
 const STACKING_OPTIONS = [
   {
-    value: "STACKABLE",
-    label: "Stackable",
-    hint: "Can be combined with other stackable coupons and automatic promotions.",
+    value: "NON_STACKABLE",
+    label: "On its own — one discount per order",
+    hint: "The safe choice, and the right one for almost every percentage discount. If the customer already has another code applied, they are told the two cannot be combined and asked to remove one. Nothing silently adds up.",
   },
   {
-    value: "NON_STACKABLE",
-    label: "Cannot be combined with other coupons",
-    hint: "Applies on its own. If another coupon is already applied, the customer is told they cannot be combined and must remove one.",
+    value: "STACKABLE",
+    label: "Adds on top of other stackable coupons",
+    hint: "This discount and any other stackable one BOTH apply, and the savings add together. A 15% code beside SPECIAL10's 10% takes roughly 24% off, not 15%. Choose this only when you mean to give away both.",
   },
   {
     value: "EXCLUSIVE",
-    label: "Exclusive",
-    hint: "Applies on its own and outranks every other promotion when the engine has to choose. Use for the strongest offers.",
+    label: "Blocks everything else",
+    hint: "Applies alone, and wins when the engine has to pick between offers. Stronger than 'on its own': that one loses to a code already on the cart, this one takes precedence. For your single best offer — BENS12 uses it.",
   },
   {
     value: "GLOBALLY_STACKABLE",
-    label: "Always combines",
-    hint: "Rides alongside ANY other coupon, even an exclusive one — but never beside a second 'always combines' coupon. Meant for a perk that is not a percentage off the cart, such as free shipping, so it can always apply without ever being a second discount.",
+    label: "Always applies, alongside anything",
+    hint: "Ignores every restriction above — it rides along even beside an exclusive coupon. Only ever use it for a perk that is NOT money off the cart, such as free shipping (ZEWA1). A percentage set this way would stack on top of every other discount, which is the one thing this mode is designed to make impossible. Two of these can never combine with each other.",
   },
 ];
 
@@ -723,10 +738,12 @@ export function CouponEditor({ initial }) {
             {tab === "stacking" && (
               <div className="grid gap-x-[18px] md:grid-cols-2">
                 <div className="md:col-span-2">
+                  {/* The question first, in the words of the decision being made.
+                      "Coupon stacking" is the field's name, not what it asks. */}
                   <Field
-                    label="Coupon stacking"
+                    label="If the customer already has another coupon applied…"
                     required
-                    hint="Enforced by the backend on every quote and at checkout. The storefront never decides this."
+                    hint="The server decides this on every quote and again at checkout, so a customer cannot get two discounts by editing the page."
                   >
                     <RadioGroup
                       name="stackingMode"
@@ -736,6 +753,34 @@ export function CouponEditor({ initial }) {
                     />
                   </Field>
                 </div>
+
+                {/*
+                  A warning only where one is warranted. Both remaining modes let
+                  a second discount land on the same order, and that is the
+                  mistake worth catching before it ships — not after a customer
+                  has been given 24% off.
+                */}
+                {form.stackingMode === "STACKABLE" && form.discountType === "PERCENTAGE" && (
+                  <div className="md:col-span-2 mb-[15px]">
+                    <WarnBox>
+                      This is a percentage discount that adds to other stackable coupons. A
+                      customer using it with SPECIAL10 gets both — about{" "}
+                      <strong>{combinedPct(form.discountValue, 10)}% off</strong> rather than{" "}
+                      {Number(form.discountValue) || 0}%. Pick &ldquo;on its own&rdquo; if that is
+                      not what you mean.
+                    </WarnBox>
+                  </div>
+                )}
+                {form.stackingMode === "GLOBALLY_STACKABLE" && form.discountType !== "FREE_SHIPPING" && (
+                  <div className="md:col-span-2 mb-[15px]">
+                    <WarnBox>
+                      &ldquo;Always applies&rdquo; is meant for free shipping, not for money off
+                      the cart. This coupon would apply on top of{" "}
+                      <strong>every other discount</strong>, including exclusive ones, with nothing
+                      able to stop it.
+                    </WarnBox>
+                  </div>
+                )}
 
                 <Field
                   label="Priority"
