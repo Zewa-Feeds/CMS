@@ -26,22 +26,22 @@ const fmtDate = (iso) =>
 const STACKING_CHOICES = [
   {
     value: "NON_STACKABLE",
-    label: "On its own — one discount per order (recommended)",
-    hint: "If the customer already has another code applied, they are told the two cannot be combined. Free shipping still applies alongside it — that is a separate perk, not a second discount.",
+    label: "Non-Stackable (recommended)",
+    hint: "Cannot be combined with any other discount. Note that free shipping will not apply alongside it either.",
   },
   {
     value: "STACKABLE",
-    label: "Adds on top of other stackable coupons",
-    hint: "This code and SPECIAL10 would BOTH apply and the savings add together — roughly 24% off for a 15% code, not 15%. Choose it only when you mean to give away both.",
+    label: "Stackable",
+    hint: "Combines with other stackable discounts, so the savings add together — a 15% code beside a 10% one takes roughly 24% off. Free shipping applies alongside it.",
   },
   {
     value: "EXCLUSIVE",
-    label: "Blocks every other coupon",
-    hint: "Applies alone and outranks everything else, so any other code is refused while this one is on the cart. For a creator whose offer should never be combined.",
+    label: "Exclusive",
+    hint: "Applies alone and outranks competing discounts, but free shipping still applies alongside it.",
   },
 ];
 const STACKING_LABEL = Object.fromEntries(
-  [...STACKING_CHOICES.map((c) => [c.value, c.label]), ["GLOBALLY_STACKABLE", "Always applies, alongside anything"]],
+  [...STACKING_CHOICES.map((c) => [c.value, c.label]), ["GLOBALLY_STACKABLE", "Universal"]],
 );
 
 const STATUS_TONE = {

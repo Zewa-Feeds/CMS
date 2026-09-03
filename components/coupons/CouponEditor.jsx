@@ -80,25 +80,26 @@ const combinedPct = (a, b) => {
 const STACKING_OPTIONS = [
   {
     value: "NON_STACKABLE",
-    label: "On its own — one discount per order",
-    hint: "The safe choice, and the right one for almost every percentage discount. If the customer already has another code applied, they are told the two cannot be combined and asked to remove one. Nothing silently adds up.",
+    label: "Non-Stackable",
+    hint: "Cannot be combined with any other discount. If another discount is already applied, the customer must choose one.",
   },
   {
     value: "STACKABLE",
-    label: "Adds on top of other stackable coupons",
-    hint: "This discount and any other stackable one BOTH apply, and the savings add together. A 15% code beside SPECIAL10's 10% takes roughly 24% off, not 15%. Choose this only when you mean to give away both.",
+    label: "Stackable",
+    hint: "Can be combined with other stackable discounts and universal benefits.",
   },
   {
     value: "EXCLUSIVE",
-    label: "Blocks everything else",
-    hint: "Applies alone, and wins when the engine has to pick between offers. Stronger than 'on its own': that one loses to a code already on the cart, this one takes precedence. For your single best offer — BENS12 uses it.",
+    label: "Exclusive",
+    hint: "Applies alone alongside universal benefits, and takes priority over competing discounts.",
   },
   {
     value: "GLOBALLY_STACKABLE",
-    label: "Always applies, alongside anything",
-    hint: "Ignores every restriction above — it rides along even beside an exclusive coupon. Only ever use it for a perk that is NOT money off the cart, such as free shipping (ZEWA1). A percentage set this way would stack on top of every other discount, which is the one thing this mode is designed to make impossible. Two of these can never combine with each other.",
+    label: "Universal",
+    hint: "Applies alongside any discount except a non-stackable one. Only one universal benefit per order. Best suited for benefits such as free shipping rather than further price reductions.",
   },
 ];
+
 
 const ELIGIBILITY_OPTIONS = [
   { value: "ALL_CUSTOMERS", label: "All customers" },
@@ -766,7 +767,7 @@ export function CouponEditor({ initial }) {
                       This is a percentage discount that adds to other stackable coupons. A
                       customer using it with SPECIAL10 gets both — about{" "}
                       <strong>{combinedPct(form.discountValue, 10)}% off</strong> rather than{" "}
-                      {Number(form.discountValue) || 0}%. Pick &ldquo;on its own&rdquo; if that is
+                      {Number(form.discountValue) || 0}%. Pick &ldquo;Non-Stackable&rdquo; if that is
                       not what you mean.
                     </WarnBox>
                   </div>
@@ -774,10 +775,9 @@ export function CouponEditor({ initial }) {
                 {form.stackingMode === "GLOBALLY_STACKABLE" && form.discountType !== "FREE_SHIPPING" && (
                   <div className="md:col-span-2 mb-[15px]">
                     <WarnBox>
-                      &ldquo;Always applies&rdquo; is meant for free shipping, not for money off
-                      the cart. This coupon would apply on top of{" "}
-                      <strong>every other discount</strong>, including exclusive ones, with nothing
-                      able to stop it.
+                      &ldquo;Universal&rdquo; is meant for benefits such as free shipping, not for
+                      money off the cart. This coupon would apply on top of{" "}
+                      <strong>every other discount</strong> except a non-stackable one.
                     </WarnBox>
                   </div>
                 )}
