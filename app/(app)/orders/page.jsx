@@ -13,6 +13,7 @@ import { Button, button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
+import { DateRangePicker } from "@/components/analytics/DateRangePicker";
 import {
   TableWrap,
   Table,
@@ -69,6 +70,8 @@ function OrdersInner() {
   const [pay, setPay] = useState("All");
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
+  // Undefined until a preset/custom range is picked — no date filter applied.
+  const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
 
   // The URL owns the status filter so the sidebar's Pending/Shipped links work
   // on client-side navigation (this component does not remount between them).
@@ -82,7 +85,7 @@ function OrdersInner() {
   };
 
   // Reset to page 1 whenever a filter changes.
-  useEffect(() => setPage(1), [status, pay, q]);
+  useEffect(() => setPage(1), [status, pay, q, dateRange.from, dateRange.to]);
 
   /**
    * Filtering and pagination are SERVER-side (§6.1). Filtering here would only
@@ -95,9 +98,11 @@ function OrdersInner() {
       q: q.trim() || undefined,
       status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
       paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+      from: dateRange.from || undefined,
+      to: dateRange.to || undefined,
     };
     return loadOrders(query).catch(() => undefined);
-  }, [loadOrders, page, q, status, pay]);
+  }, [loadOrders, page, q, status, pay, dateRange.from, dateRange.to]);
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -109,6 +114,8 @@ function OrdersInner() {
         q: q.trim() || undefined,
         status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
         paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+        from: dateRange.from || undefined,
+        to: dateRange.to || undefined,
       };
       await loadOrders(query);
       toast.push("Orders refreshed.");
@@ -165,6 +172,8 @@ function OrdersInner() {
                       q: q.trim() || undefined,
                       status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
                       paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+                      from: dateRange.from || undefined,
+                      to: dateRange.to || undefined,
                     });
                     toast.push("Orders exported.");
                   } catch (err) {
@@ -177,6 +186,16 @@ function OrdersInner() {
             )}
           </div>
         }
+      />
+
+      <DateRangePicker
+        from={dateRange.from}
+        to={dateRange.to}
+        compare={false}
+        showCompare={false}
+        defaultPreset={null}
+        onChange={({ from, to }) => setDateRange({ from, to })}
+        className="mb-4"
       />
 
       <Card>

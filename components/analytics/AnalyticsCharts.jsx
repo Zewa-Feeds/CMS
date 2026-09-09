@@ -5,17 +5,38 @@ import { formatPaise } from "@/lib/api";
 import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
+/** Compact axis label: paise -> "₹1.2k" / "₹45k" / "1.2k" for a plain count. */
+function axisLabel(value, isCurrency) {
+  const n = isCurrency ? value / 100 : value;
+  const abs = Math.abs(n);
+  const short =
+    abs >= 100000 ? `${(n / 100000).toFixed(1)}L` : abs >= 1000 ? `${(n / 1000).toFixed(1)}k` : Math.round(n).toString();
+  return isCurrency ? `₹${short}` : short;
+}
+
 /**
- * Interactive Time-Series Bar Chart rendered directly in SVG with CMS design styling.
+ * Interactive Time-Series Line Chart rendered directly in SVG with CMS design styling.
+ * Optionally overlays a `previousData` series (same length/order) for period comparison.
  */
 export function TimeSeriesChart({
   data = [],
+  previousData = null,
   metric = "grossRevenuePaise",
   isCurrency = true,
   title,
+  loading = false,
   className,
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
+
+  if (loading) {
+    return (
+      <Card className={cn("flex h-64 flex-col items-center justify-center gap-2 p-6 text-center", className)}>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+        <p className="text-[12.5px] text-muted">Loading trend…</p>
+      </Card>
+    );
+  }
 
   if (!data || data.length === 0) {
     return (
@@ -25,10 +46,22 @@ export function TimeSeriesChart({
     );
   }
 
-  const values = data.map((d) => d[metric] ?? 0);
-  const maxValue = Math.max(...values, 1);
+  const chartWidth = Math.max(data.length * 40, 320);
   const chartHeight = 160;
-  const barWidthRatio = 0.65;
+  const padTop = 10;
+  const plotHeight = chartHeight - padTop;
+
+  const values = data.map((d) => d[metric] ?? 0);
+  const prevValues = previousData ? previousData.map((d) => d[metric] ?? 0) : [];
+  const maxValue = Math.max(...values, ...prevValues, 1);
+
+  const xAt = (i) => (data.length === 1 ? chartWidth / 2 : (i / (data.length - 1)) * chartWidth);
+  const yAt = (val) => padTop + plotHeight - (val / maxValue) * plotHeight;
+
+  const linePath = (series) =>
+    series.map((val, i) => `${i === 0 ? "M" : "L"}${xAt(i)},${yAt(val)}`).join(" ");
+
+  const ticks = [0, 0.5, 1].map((f) => Math.round(maxValue * f));
 
   return (
     <Card className={className}>
@@ -46,32 +79,66 @@ export function TimeSeriesChart({
               {data[hoveredIndex].orders !== undefined && (
                 <span className="ml-2 text-muted-2">({data[hoveredIndex].orders} orders)</span>
               )}
+              {previousData?.[hoveredIndex] && (
+                <span className="ml-2 text-muted-2">
+                  vs {isCurrency
+                    ? formatPaise(previousData[hoveredIndex][metric] ?? 0)
+                    : (previousData[hoveredIndex][metric] ?? 0).toLocaleString("en-IN")}{" "}
+                  prev.
+                </span>
+              )}
             </div>
           )}
         </CardHead>
       )}
 
       <div className="p-4">
-        <div className="relative h-44 w-full">
-          <svg
-            viewBox={`0 0 ${data.length * 40} ${chartHeight}`}
-            className="h-full w-full overflow-visible"
-            preserveAspectRatio="none"
+        <div className="flex gap-2">
+          {/* Y-axis */}
+          <div
+            className="flex shrink-0 flex-col justify-between py-[10px] text-right font-mono text-[10.5px] text-muted-2"
+            style={{ height: `${chartHeight}px` }}
           >
-            {/* Grid lines */}
-            <line x1="0" y1="0" x2={data.length * 40} y2="0" stroke="#EEF1F5" strokeWidth="1" />
-            <line x1="0" y1={chartHeight / 2} x2={data.length * 40} y2={chartHeight / 2} stroke="#EEF1F5" strokeWidth="1" />
-            <line x1="0" y1={chartHeight} x2={data.length * 40} y2={chartHeight} stroke="#E4E8EE" strokeWidth="1" />
+            {[...ticks].reverse().map((t, i) => (
+              <span key={i}>{axisLabel(t, isCurrency)}</span>
+            ))}
+          </div>
 
-            {/* Bars */}
-            {data.map((d, i) => {
-              const val = d[metric] ?? 0;
-              const barHeight = Math.max(2, (val / maxValue) * (chartHeight - 15));
-              const x = i * 40 + (40 * (1 - barWidthRatio)) / 2;
-              const y = chartHeight - barHeight;
-              const isHovered = hoveredIndex === i;
+          <div className="relative h-40 w-full" style={{ height: `${chartHeight}px` }}>
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              className="h-full w-full overflow-visible"
+              preserveAspectRatio="none"
+            >
+              {/* Grid lines at each tick */}
+              {ticks.map((t, i) => (
+                <line
+                  key={i}
+                  x1="0"
+                  y1={yAt(t)}
+                  x2={chartWidth}
+                  y2={yAt(t)}
+                  stroke="#EEF1F5"
+                  strokeWidth="1"
+                />
+              ))}
 
-              return (
+              {/* Previous period, dashed */}
+              {previousData && previousData.length > 0 && (
+                <path
+                  d={linePath(prevValues)}
+                  fill="none"
+                  stroke="#B7C0CC"
+                  strokeWidth="1.75"
+                  strokeDasharray="4 3"
+                />
+              )}
+
+              {/* Current period */}
+              <path d={linePath(values)} fill="none" stroke="#12203D" strokeWidth="2" />
+
+              {/* Hover targets + dots */}
+              {data.map((d, i) => (
                 <g
                   key={d.date || i}
                   onMouseEnter={() => setHoveredIndex(i)}
@@ -79,28 +146,45 @@ export function TimeSeriesChart({
                   className="cursor-pointer"
                 >
                   <rect
-                    x={x}
-                    y={y}
-                    width={40 * barWidthRatio}
-                    height={barHeight}
-                    rx="3"
-                    className={cn(
-                      "transition-colors duration-150",
-                      isHovered ? "fill-navy" : "fill-navy/25 hover:fill-navy"
-                    )}
+                    x={xAt(i) - chartWidth / data.length / 2}
+                    y="0"
+                    width={chartWidth / data.length}
+                    height={chartHeight}
+                    fill="transparent"
+                  />
+                  <circle
+                    cx={xAt(i)}
+                    cy={yAt(values[i])}
+                    r={hoveredIndex === i ? 4 : 2.5}
+                    className={cn("transition-all duration-100", hoveredIndex === i ? "fill-navy" : "fill-navy/70")}
                   />
                 </g>
-              );
-            })}
-          </svg>
+              ))}
+            </svg>
+          </div>
         </div>
 
         {/* X-axis labels */}
-        <div className="mt-2.5 flex justify-between font-mono text-[11px] text-muted-2">
+        <div className="mt-2.5 flex justify-between pl-[calc(2.5em+0.5rem)] font-mono text-[11px] text-muted-2">
           <span>{data[0]?.date}</span>
           {data.length > 2 && <span>{data[Math.floor(data.length / 2)]?.date}</span>}
           <span>{data[data.length - 1]?.date}</span>
         </div>
+
+        {previousData && previousData.length > 0 && (
+          <div className="mt-3 flex items-center gap-4 pl-[calc(2.5em+0.5rem)] text-[11px] text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="h-[2px] w-4 rounded bg-navy" /> Current period
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                className="h-0 w-4 border-t-[1.75px] border-dashed"
+                style={{ borderColor: "#B7C0CC" }}
+              />
+              Previous period
+            </span>
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -109,7 +193,16 @@ export function TimeSeriesChart({
 /**
  * Breakdown Bar List (e.g. for Category, Payment Methods, Order Status).
  */
-export function BreakdownBarList({ items = [], title, isCurrency = true, className }) {
+export function BreakdownBarList({ items = [], title, isCurrency = true, loading = false, className }) {
+  if (loading) {
+    return (
+      <Card className={cn("flex h-48 flex-col items-center justify-center gap-2 p-4 text-center", className)}>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+        <p className="text-[12px] text-muted">Loading…</p>
+      </Card>
+    );
+  }
+
   if (!items || items.length === 0) {
     return (
       <Card className={cn("flex h-48 flex-col items-center justify-center p-4 text-center", className)}>

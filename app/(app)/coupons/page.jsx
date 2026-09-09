@@ -44,12 +44,19 @@ export default function CouponsPage() {
    * table is tens of rows, so this is cheaper than another query parameter.
    */
   const [kind, setKind] = useState("All");
+  const [influencerFilter, setInfluencerFilter] = useState("All");
   const [del, setDel] = useState(null);
 
   /** Status is DERIVED server-side from the dates (§10.2), so it filters there. */
   const refetch = useCallback(
-    () => loadCoupons({ q: q.trim() || undefined, status, limit: 100 }).catch(() => undefined),
-    [loadCoupons, q, status],
+    () =>
+      loadCoupons({
+        q: q.trim() || undefined,
+        status,
+        isInfluencer: influencerFilter === "All" ? undefined : influencerFilter === "Influencer",
+        limit: 100,
+      }).catch(() => undefined),
+    [loadCoupons, q, status, influencerFilter],
   );
 
   // The FIRST load must not wait for the debounce — a 250ms delay on mount is
@@ -133,6 +140,11 @@ export default function CouponsPage() {
               <option key={k} value={k}>{k === "All" ? "All types" : k}</option>
             ))}
           </Select>
+          <Select value={influencerFilter} onChange={(e) => setInfluencerFilter(e.target.value)} className="w-auto">
+            {["All", "Regular", "Influencer"].map((k) => (
+              <option key={k} value={k}>{k === "All" ? "Regular + influencer" : k === "Regular" ? "Regular only" : "Influencer only"}</option>
+            ))}
+          </Select>
         </FilterBar>
 
         {/*
@@ -151,6 +163,7 @@ export default function CouponsPage() {
               <thead>
                 <tr>
                   <Th>Code</Th>
+                  <Th>Type</Th>
                   <Th>Discount</Th>
                   <Th>Eligibility</Th>
                   <Th>Stacking</Th>
@@ -174,6 +187,16 @@ export default function CouponsPage() {
                         <CellSub>
                           <span className="rounded bg-grey-wash px-1.5 py-0.5 text-[10px]">automatic</span>
                         </CellSub>
+                      )}
+                    </Td>
+                    <Td>
+                      {c.isInfluencer ? (
+                        <>
+                          <Pill tone="blue">Influencer</Pill>
+                          {c.influencerName && <CellSub>{c.influencerName}</CellSub>}
+                        </>
+                      ) : (
+                        <Pill tone="grey">Regular</Pill>
                       )}
                     </Td>
                     <Td>

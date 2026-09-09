@@ -52,13 +52,15 @@ export function DateRangePicker({
   from,
   to,
   compare = true,
+  showCompare = true,
   onChange,
   onRefresh,
   onExport,
   loading = false,
   className,
+  defaultPreset = "Last 30 days",
 }) {
-  const [selectedPreset, setSelectedPreset] = useState("Last 30 days");
+  const [selectedPreset, setSelectedPreset] = useState(defaultPreset);
   const [customOpen, setCustomOpen] = useState(false);
 
   const handleSelectPreset = (preset) => {
@@ -126,15 +128,17 @@ export function DateRangePicker({
           </div>
         )}
 
-        <label className="ml-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-muted hover:text-ink select-none">
-          <input
-            type="checkbox"
-            checked={compare}
-            onChange={(e) => onChange({ from, to, compare: e.target.checked })}
-            className="h-3.5 w-3.5 rounded border-line accent-navy"
-          />
-          <span>Compare previous period</span>
-        </label>
+        {showCompare && (
+          <label className="ml-1 flex cursor-pointer items-center gap-1.5 text-[12.5px] text-muted hover:text-ink select-none">
+            <input
+              type="checkbox"
+              checked={compare}
+              onChange={(e) => onChange({ from, to, compare: e.target.checked })}
+              className="h-3.5 w-3.5 rounded border-line accent-navy"
+            />
+            <span>Compare previous period</span>
+          </label>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

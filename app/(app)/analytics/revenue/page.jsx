@@ -13,6 +13,7 @@ export default function RevenueAnalyticsPage() {
   const [dateRange, setDateRange] = useState(() =>
     computePresetDates(DATE_PRESETS.find((p) => p.label === "Last 30 days") || { days: 30 })
   );
+  const [compare, setCompare] = useState(true);
   const [interval, setInterval] = useState("day");
   const [activeMetric, setActiveMetric] = useState("grossRevenuePaise");
   const [data, setData] = useState(null);
@@ -27,6 +28,7 @@ export default function RevenueAnalyticsPage() {
         from: dateRange.from,
         to: dateRange.to,
         interval,
+        compare,
       });
       setData(res);
     } catch (err) {
@@ -34,7 +36,7 @@ export default function RevenueAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange.from, dateRange.to, interval]);
+  }, [dateRange.from, dateRange.to, interval, compare]);
 
   useEffect(() => {
     loadData();
@@ -75,8 +77,11 @@ export default function RevenueAnalyticsPage() {
       <DateRangePicker
         from={dateRange.from}
         to={dateRange.to}
-        compare={false}
-        onChange={(r) => setDateRange({ from: r.from, to: r.to })}
+        compare={compare}
+        onChange={(r) => {
+          setDateRange({ from: r.from, to: r.to });
+          setCompare(r.compare);
+        }}
         onRefresh={loadData}
         onExport={handleExport}
         loading={loading}
@@ -128,31 +133,52 @@ export default function RevenueAnalyticsPage() {
         </div>
       </Card>
 
-      {/* Main Time-Series Trend Chart */}
-      <TimeSeriesChart
-        title={`${currentMetric.label} Trend (${interval.toUpperCase()})`}
-        data={data?.timeSeries || []}
-        metric={currentMetric.key}
-        isCurrency={currentMetric.isCurrency}
-      />
-
-      {/* Breakdown Grids */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <BreakdownBarList
-          title="Revenue by Product Category"
-          isCurrency={true}
-          items={data?.byCategory?.map((c) => ({
-            label: c.category,
-            value: c.grossPaise,
-          })) || []}
+      {/*
+        Once first data has loaded, subsequent fetches (filter/date/compare
+        changes) dim the existing charts rather than blanking them, so the
+        page never looks broken mid-refetch.
+      */}
+      <div className={cn("space-y-4 transition-opacity", loading && data && "opacity-50 pointer-events-none")}>
+        {/* Main Time-Series Trend Chart */}
+        <TimeSeriesChart
+          title={`${currentMetric.label} Trend (${interval.toUpperCase()})`}
+          data={data?.timeSeries || []}
+          previousData={compare ? data?.previousTimeSeries : null}
+          metric={currentMetric.key}
+          isCurrency={currentMetric.isCurrency}
+          loading={loading && !data}
         />
 
+        {/* Breakdown Grids */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <BreakdownBarList
+            title="Revenue by Product Category"
+            isCurrency={true}
+            loading={loading && !data}
+            items={data?.byCategory?.map((c) => ({
+              label: c.category,
+              value: c.grossPaise,
+            })) || []}
+          />
+
+          <BreakdownBarList
+            title="Revenue by Payment Method"
+            isCurrency={true}
+            loading={loading && !data}
+            items={data?.byPaymentMethod?.map((p) => ({
+              label: p.method === "ONLINE" ? "Razorpay Online" : p.method === "COD" ? "Cash on Delivery" : p.method,
+              value: p.grossPaise,
+            })) || []}
+          />
+        </div>
+
         <BreakdownBarList
-          title="Revenue by Payment Method"
+          title="Revenue by SKU"
           isCurrency={true}
-          items={data?.byPaymentMethod?.map((p) => ({
-            label: p.method === "ONLINE" ? "Razorpay Online" : p.method === "COD" ? "Cash on Delivery" : p.method,
-            value: p.grossPaise,
+          loading={loading && !data}
+          items={data?.bySku?.map((s) => ({
+            label: `${s.productName} (${s.sku})`,
+            value: s.grossPaise,
           })) || []}
         />
       </div>
