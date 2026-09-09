@@ -6,7 +6,16 @@ import { Table, TableWrap, Th, Td, Tr } from "@/components/ui/Table";
 import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
-export function CustomerAnalyticsCard({ data, className }) {
+export function CustomerAnalyticsCard({ data, loading = false, className }) {
+  if (loading) {
+    return (
+      <Card className={cn("flex h-40 flex-col items-center justify-center gap-2 p-6 text-center", className)}>
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+        <p className="text-[12.5px] text-muted">Loading customer insights…</p>
+      </Card>
+    );
+  }
+
   if (!data) return null;
 
   const {

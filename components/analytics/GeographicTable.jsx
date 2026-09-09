@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function GeographicTable({ data = [], onExport, className }) {
+export function GeographicTable({ data = [], onExport, loading = false, className }) {
   const maxRevenue = Math.max(...data.map((d) => d.grossRevenuePaise), 1);
 
   return (
@@ -43,7 +43,16 @@ export function GeographicTable({ data = [], onExport, className }) {
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {loading ? (
+              <Tr>
+                <Td colSpan={6} className="py-8 text-center text-muted">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+                    Loading…
+                  </span>
+                </Td>
+              </Tr>
+            ) : data.length === 0 ? (
               <Tr>
                 <Td colSpan={6} className="py-8 text-center text-muted">
                   No state-level order data available for this range.

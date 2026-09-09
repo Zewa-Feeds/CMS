@@ -49,6 +49,9 @@ export default function AnalyticsOverviewPage() {
   };
 
   const kpis = data?.kpis;
+  // Only the first load blanks everything; a later refetch (date/compare
+  // change) keeps showing the current numbers until the new ones land.
+  const showLoading = loading && !data;
 
   return (
     <div className="space-y-4">
@@ -86,31 +89,37 @@ export default function AnalyticsOverviewPage() {
           title="Gross Revenue"
           isCurrency={true}
           delta={kpis?.grossRevenuePaise}
+          loading={showLoading}
         />
         <KpiCard
           title="Net Revenue"
           isCurrency={true}
           delta={kpis?.netRevenuePaise}
+          loading={showLoading}
         />
         <KpiCard
           title="Total Orders"
           isCurrency={false}
           delta={kpis?.totalOrders}
+          loading={showLoading}
         />
         <KpiCard
           title="Avg Order Value"
           isCurrency={true}
           delta={kpis?.aovPaise}
+          loading={showLoading}
         />
         <KpiCard
           title="Items Sold"
           isCurrency={false}
           delta={kpis?.itemsSold}
+          loading={showLoading}
         />
         <KpiCard
           title="Customers"
           isCurrency={false}
           delta={kpis?.uniqueCustomers}
+          loading={showLoading}
         />
       </div>
 
@@ -121,27 +130,32 @@ export default function AnalyticsOverviewPage() {
           isCurrency={true}
           delta={kpis?.discountPaise}
           invertTone={true}
+          loading={showLoading}
         />
         <KpiCard
           title="Shipping Revenue"
           isCurrency={true}
           delta={kpis?.shippingPaise}
+          loading={showLoading}
         />
         <KpiCard
           title="GST Tax Collected"
           isCurrency={true}
           delta={kpis?.taxPaise}
+          loading={showLoading}
         />
         <KpiCard
           title="Refunds"
           isCurrency={true}
           delta={kpis?.refundPaise}
           invertTone={true}
+          loading={showLoading}
         />
         <KpiCard
           title="Coupon Orders"
           isCurrency={false}
           delta={kpis?.couponUsageCount}
+          loading={showLoading}
         />
       </div>
 
@@ -153,12 +167,14 @@ export default function AnalyticsOverviewPage() {
             data={data?.timeSeries || []}
             metric="grossRevenuePaise"
             isCurrency={true}
+            loading={showLoading}
           />
         </div>
         <div>
           <BreakdownBarList
             title="Orders by Status"
             isCurrency={false}
+            loading={showLoading}
             items={[
               { label: "Delivered", value: data?.statusDistribution?.DELIVERED || 0 },
               { label: "Shipped", value: data?.statusDistribution?.SHIPPED || 0 },
@@ -173,7 +189,7 @@ export default function AnalyticsOverviewPage() {
       {/* Customer Insights Section */}
       <div className="space-y-2.5 pt-2">
         <h2 className="text-[14.5px] font-semibold tracking-[-.01em] text-ink">Customer Insights</h2>
-        <CustomerAnalyticsCard data={customerData} />
+        <CustomerAnalyticsCard data={customerData} loading={loading && !customerData} />
       </div>
 
       {/* Regional Distribution Section */}
@@ -181,6 +197,7 @@ export default function AnalyticsOverviewPage() {
         <h2 className="text-[14.5px] font-semibold tracking-[-.01em] text-ink">Regional Distribution</h2>
         <GeographicTable
           data={geoData?.data || []}
+          loading={loading && !geoData}
           onExport={() => analytics.exportCsv("geography", { from: dateRange.from, to: dateRange.to })}
         />
       </div>

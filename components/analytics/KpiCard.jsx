@@ -12,8 +12,21 @@ export function KpiCard({
   delta,
   invertTone = false,
   subtext,
+  loading = false,
   className,
 }) {
+  if (loading) {
+    return (
+      <Card className={cn("p-4 flex flex-col justify-between", className)}>
+        <span className="text-[12.5px] font-medium text-muted leading-tight">{title}</span>
+        <div className="mt-2.5 space-y-2">
+          <div className="h-[23px] w-20 animate-pulse rounded bg-grey-wash" />
+          <div className="h-[13px] w-28 animate-pulse rounded bg-grey-wash" />
+        </div>
+      </Card>
+    );
+  }
+
   const current = delta?.current ?? (typeof value === "number" ? value : 0);
   const previous = delta?.previous;
   const pctChange = delta?.pctChange;

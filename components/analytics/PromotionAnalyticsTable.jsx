@@ -20,7 +20,16 @@ export function PromotionAnalyticsTable({
 }) {
   return (
     <div className={cn("space-y-4", className)}>
-      {summary && (
+      {loading && !summary ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-4">
+              <div className="h-[12.5px] w-24 animate-pulse rounded bg-grey-wash" />
+              <div className="mt-2.5 h-[22px] w-16 animate-pulse rounded bg-grey-wash" />
+            </Card>
+          ))}
+        </div>
+      ) : summary && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Card className="p-4">
             <span className="text-[12.5px] font-medium text-muted">Total Redemptions</span>
@@ -82,7 +91,16 @@ export function PromotionAnalyticsTable({
               </tr>
             </thead>
             <tbody>
-              {data.length === 0 ? (
+              {loading ? (
+                <Tr>
+                  <Td colSpan={7} className="py-8 text-center text-muted">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+                      Loading…
+                    </span>
+                  </Td>
+                </Tr>
+              ) : data.length === 0 ? (
                 <Tr>
                   <Td colSpan={7} className="py-8 text-center text-muted">
                     No coupon redemptions recorded for this date range.

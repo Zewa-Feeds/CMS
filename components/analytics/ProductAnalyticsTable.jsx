@@ -75,7 +75,16 @@ export function ProductAnalyticsTable({
             </tr>
           </thead>
           <tbody>
-            {data.length === 0 ? (
+            {loading ? (
+              <Tr>
+                <Td colSpan={7} className="py-8 text-center text-muted">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-line-soft border-t-navy" />
+                    Loading…
+                  </span>
+                </Td>
+              </Tr>
+            ) : data.length === 0 ? (
               <Tr>
                 <Td colSpan={7} className="py-8 text-center text-muted">
                   No product sales data found for the selected period.
