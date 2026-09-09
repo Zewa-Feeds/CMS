@@ -134,11 +134,11 @@ export default function RevenueAnalyticsPage() {
       </Card>
 
       {/*
-        Once first data has loaded, subsequent fetches (filter/date/compare
-        changes) dim the existing charts rather than blanking them, so the
-        page never looks broken mid-refetch.
+        `loading` reflects a fetch actually in flight (see loadData), so every
+        chart shows its own spinner instead of the empty state while a new
+        range/interval/compare fetch is still resolving.
       */}
-      <div className={cn("space-y-4 transition-opacity", loading && data && "opacity-50 pointer-events-none")}>
+      <div className="space-y-4">
         {/* Main Time-Series Trend Chart */}
         <TimeSeriesChart
           title={`${currentMetric.label} Trend (${interval.toUpperCase()})`}
@@ -146,7 +146,7 @@ export default function RevenueAnalyticsPage() {
           previousData={compare ? data?.previousTimeSeries : null}
           metric={currentMetric.key}
           isCurrency={currentMetric.isCurrency}
-          loading={loading && !data}
+          loading={loading}
         />
 
         {/* Breakdown Grids */}
@@ -154,7 +154,7 @@ export default function RevenueAnalyticsPage() {
           <BreakdownBarList
             title="Revenue by Product Category"
             isCurrency={true}
-            loading={loading && !data}
+            loading={loading}
             items={data?.byCategory?.map((c) => ({
               label: c.category,
               value: c.grossPaise,
@@ -164,7 +164,7 @@ export default function RevenueAnalyticsPage() {
           <BreakdownBarList
             title="Revenue by Payment Method"
             isCurrency={true}
-            loading={loading && !data}
+            loading={loading}
             items={data?.byPaymentMethod?.map((p) => ({
               label: p.method === "ONLINE" ? "Razorpay Online" : p.method === "COD" ? "Cash on Delivery" : p.method,
               value: p.grossPaise,
@@ -175,7 +175,7 @@ export default function RevenueAnalyticsPage() {
         <BreakdownBarList
           title="Revenue by SKU"
           isCurrency={true}
-          loading={loading && !data}
+          loading={loading}
           items={data?.bySku?.map((s) => ({
             label: `${s.productName} (${s.sku})`,
             value: s.grossPaise,
