@@ -14,7 +14,7 @@ import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
-import { DateRangePicker } from "@/components/analytics/DateRangePicker";
+import { DateRangeButton } from "@/components/analytics/DateRangePicker";
 
 const STATUS_TONE = { Active: "green", Inactive: "grey", Expired: "red" };
 const STACKING_TONE = {
@@ -195,11 +195,19 @@ export default function CouponsPage() {
         sub={`${meta?.total ?? rows.length} discount codes`}
         actions={
           <div className="flex items-center gap-2">
-            {selected.size > 0 && (
-              <Button variant="default" onClick={downloadSelectedReport}>
-                <Download size={15} /> Download Report ({selected.size})
-              </Button>
-            )}
+            <Button
+              variant="default"
+              onClick={downloadSelectedReport}
+              disabled={selected.size === 0}
+              title={selected.size === 0 ? "Select coupons in the table to download a report" : undefined}
+            >
+              <Download size={15} /> Download Report{selected.size > 0 ? ` (${selected.size})` : ""}
+            </Button>
+            <DateRangeButton
+              from={dateRange.from}
+              to={dateRange.to}
+              onChange={({ from, to }) => setDateRange({ from, to })}
+            />
             <Link href="/coupons/new" className={button({ variant: "primary" })}><Plus size={15} /> Add Coupon</Link>
           </div>
         }
@@ -216,16 +224,6 @@ export default function CouponsPage() {
           <Stat label="Confirmed orders" value={String(totals.orders)} tone="#60A5FA" />
         </div>
       )}
-
-      <DateRangePicker
-        from={dateRange.from}
-        to={dateRange.to}
-        compare={false}
-        showCompare={false}
-        defaultPreset={null}
-        onChange={({ from, to }) => setDateRange({ from, to })}
-        className="mb-4"
-      />
 
       <Card>
         <FilterBar>

@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, RefreshCw, Download } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar, ChevronDown, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
+
+function useClickOutside(ref, onOutside) {
+  useEffect(() => {
+    const handler = (e) => ref.current && !ref.current.contains(e.target) && onOutside();
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, onOutside]);
+}
 
 export const DATE_PRESETS = [
   { label: "Today", days: 0 },
@@ -167,5 +175,123 @@ export function DateRangePicker({
         )}
       </div>
     </Card>
+  );
+}
+
+/** "01 Aug – 31 Aug 2026", or "All time" when no range is set. */
+function formatRangeLabel(from, to) {
+  if (!from && !to) return "All time";
+  const fmt = (s) => {
+    const d = new Date(`${s}T00:00:00`);
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  };
+  const year = (s) => new Date(`${s}T00:00:00`).getFullYear();
+  if (from && to) return `${fmt(from)} – ${fmt(to)}, ${year(to)}`;
+  if (from) return `From ${fmt(from)}, ${year(from)}`;
+  return `Until ${fmt(to)}, ${year(to)}`;
+}
+
+/**
+ * Compact date-range control: a single button showing the current range that
+ * opens a small popover with the same presets + custom fields as
+ * `DateRangePicker`, instead of a bar that always takes up a full row.
+ */
+export function DateRangeButton({ from, to, onChange, className }) {
+  const [open, setOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(null);
+  const ref = useRef(null);
+
+  useClickOutside(ref, () => setOpen(false));
+
+  const handleSelectPreset = (preset) => {
+    setSelectedPreset(preset.label);
+    const range = computePresetDates(preset);
+    onChange(range);
+    setCustomOpen(false);
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    setSelectedPreset(null);
+    onChange({ from: undefined, to: undefined });
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className={cn("relative", className)}>
+      <Button variant="default" onClick={() => setOpen((v) => !v)} className="flex items-center gap-1.5">
+        <Calendar size={14} />
+        {formatRangeLabel(from, to)}
+        <ChevronDown size={13} className={cn("transition-transform", open && "rotate-180")} />
+      </Button>
+
+      {open && (
+        <Card className="absolute right-0 top-[calc(100%+6px)] z-40 w-[300px] p-3">
+          <div className="flex flex-col gap-1">
+            {DATE_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => handleSelectPreset(p)}
+                className={cn(
+                  "rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors",
+                  selectedPreset === p.label && !customOpen
+                    ? "bg-navy font-semibold text-white"
+                    : "text-ink hover:bg-canvas"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCustomOpen((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors",
+                customOpen ? "bg-navy font-semibold text-white" : "text-ink hover:bg-canvas"
+              )}
+            >
+              <Calendar size={12} />
+              Custom range
+            </button>
+
+            {customOpen && (
+              <div className="mt-1 flex items-center gap-1.5 rounded-md border border-line bg-canvas px-2.5 py-2 text-[12px]">
+                <input
+                  type="date"
+                  value={from ?? ""}
+                  onChange={(e) => {
+                    setSelectedPreset("Custom");
+                    onChange({ from: e.target.value, to });
+                  }}
+                  className="h-6 w-full rounded border border-line-soft bg-card px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
+                />
+                <span className="text-muted-2 text-[11px]">to</span>
+                <input
+                  type="date"
+                  value={to ?? ""}
+                  onChange={(e) => {
+                    setSelectedPreset("Custom");
+                    onChange({ from, to: e.target.value });
+                  }}
+                  className="h-6 w-full rounded border border-line-soft bg-card px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
+                />
+              </div>
+            )}
+
+            {(from || to) && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="mt-1 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-muted hover:bg-canvas hover:text-ink"
+              >
+                Clear range
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
   );
 }
