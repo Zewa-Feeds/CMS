@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Ticket } from "lucide-react";
+import { Plus, Pencil, Trash2, Ticket, Download } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { inr } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
@@ -14,6 +14,7 @@ import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
+import { DateRangePicker } from "@/components/analytics/DateRangePicker";
 
 const STATUS_TONE = { Active: "green", Inactive: "grey", Expired: "red" };
 const STACKING_TONE = {
@@ -45,6 +46,9 @@ export default function CouponsPage() {
    */
   const [kind, setKind] = useState("All");
   const [influencerFilter, setInfluencerFilter] = useState("All");
+  // Undefined until a preset/custom range is picked — no date filter applied.
+  const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
+  const [selected, setSelected] = useState(() => new Set());
   const [del, setDel] = useState(null);
 
   /** Status is DERIVED server-side from the dates (§10.2), so it filters there. */
@@ -54,9 +58,11 @@ export default function CouponsPage() {
         q: q.trim() || undefined,
         status,
         isInfluencer: influencerFilter === "All" ? undefined : influencerFilter === "Influencer",
+        from: dateRange.from || undefined,
+        to: dateRange.to || undefined,
         limit: 100,
       }).catch(() => undefined),
-    [loadCoupons, q, status, influencerFilter],
+    [loadCoupons, q, status, influencerFilter, dateRange.from, dateRange.to],
   );
 
   // The FIRST load must not wait for the debounce — a 250ms delay on mount is
@@ -82,6 +88,79 @@ export default function CouponsPage() {
     if (kind === "Exclusive") return c.stackingMode === "EXCLUSIVE";
     return true;
   });
+
+  // Drop any checked id that fell out of the visible set — a stale selection
+  // pointing at a row the current filters no longer show would silently
+  // export coupons the user can't even see anymore.
+  useEffect(() => {
+    const visibleIds = new Set(rows.map((c) => c.id));
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((id) => visibleIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, kind]);
+
+  const allVisibleSelected = rows.length > 0 && rows.every((c) => selected.has(c.id));
+  const toggleAll = () => {
+    setSelected(allVisibleSelected ? new Set() : new Set(rows.map((c) => c.id)));
+  };
+  const toggleOne = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  /** CSV of the checked coupons, same columns as the table. */
+  const downloadSelectedReport = () => {
+    const selectedRows = rows.filter((c) => selected.has(c.id));
+    const headers = [
+      "Code", "Type", "Discount", "Eligibility", "Stacking", "Priority",
+      "Min. Order", "Valid From", "Valid To", "Used", "Limit", "Applies To",
+      "Revenue Generated", "Discount Given", "Confirmed Orders", "Status",
+    ];
+    const escapeCsv = (v) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      headers.join(","),
+      ...selectedRows.map((c) =>
+        [
+          c.code,
+          c.isInfluencer ? `Influencer${c.influencerName ? ` (${c.influencerName})` : ""}` : "Regular",
+          c.discountLabel ?? (c.type === "Percentage" ? `${c.val}% off` : `${inr(c.val)} off`),
+          c.eligibilityLabel ?? "All customers",
+          c.stackingLabel ?? c.stackingMode ?? "Cannot be combined",
+          c.priority ?? 0,
+          c.min ?? "",
+          fmtDate(c.startsAt),
+          fmtDate(c.endsAt),
+          c.used ?? 0,
+          c.limit ?? "",
+          c.scope === "SPECIFIC_PRODUCTS" ? c.products.map((p) => p.name).join("; ") : "All products",
+          c.revenue ?? 0,
+          c.discounted ?? 0,
+          c.confirmedOrders ?? 0,
+          c.status,
+        ]
+          .map(escapeCsv)
+          .join(","),
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `zewa-coupons-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   /** Totals across the loaded set, so a manager sees the headline immediately. */
   /*
@@ -114,7 +193,16 @@ export default function CouponsPage() {
       <PageHeader
         title="Coupons"
         sub={`${meta?.total ?? rows.length} discount codes`}
-        actions={<Link href="/coupons/new" className={button({ variant: "primary" })}><Plus size={15} /> Add Coupon</Link>}
+        actions={
+          <div className="flex items-center gap-2">
+            {selected.size > 0 && (
+              <Button variant="default" onClick={downloadSelectedReport}>
+                <Download size={15} /> Download Report ({selected.size})
+              </Button>
+            )}
+            <Link href="/coupons/new" className={button({ variant: "primary" })}><Plus size={15} /> Add Coupon</Link>
+          </div>
+        }
       />
 
       {/*
@@ -128,6 +216,16 @@ export default function CouponsPage() {
           <Stat label="Confirmed orders" value={String(totals.orders)} tone="#60A5FA" />
         </div>
       )}
+
+      <DateRangePicker
+        from={dateRange.from}
+        to={dateRange.to}
+        compare={false}
+        showCompare={false}
+        defaultPreset={null}
+        onChange={({ from, to }) => setDateRange({ from, to })}
+        className="mb-4"
+      />
 
       <Card>
         <FilterBar>
@@ -162,6 +260,15 @@ export default function CouponsPage() {
             <Table>
               <thead>
                 <tr>
+                  <Th className="w-10">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-teal-deep"
+                      checked={allVisibleSelected}
+                      onChange={toggleAll}
+                      aria-label="Select all visible coupons"
+                    />
+                  </Th>
                   <Th>Code</Th>
                   <Th>Type</Th>
                   <Th>Discount</Th>
@@ -180,6 +287,15 @@ export default function CouponsPage() {
               <tbody>
                 {rows.map((c) => (
                   <Tr key={c.id}>
+                    <Td>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-teal-deep"
+                        checked={selected.has(c.id)}
+                        onChange={() => toggleOne(c.id)}
+                        aria-label={`Select coupon ${c.code}`}
+                      />
+                    </Td>
                     <Td>
                       <span className="mono font-semibold">{c.code}</span>
                       {c.name && <CellSub>{c.name}</CellSub>}
