@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown, RefreshCw, Download } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/style.css";
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -191,29 +193,51 @@ function formatRangeLabel(from, to) {
   return `Until ${fmt(to)}, ${year(to)}`;
 }
 
+/** "YYYY-MM-DD" -> local Date at midnight, so the calendar highlights the right day regardless of timezone. */
+function parseDateStr(s) {
+  if (!s) return undefined;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Date -> "YYYY-MM-DD", the format every filter/API call in this app expects. */
+function toDateStr(d) {
+  if (!d) return undefined;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * Compact date-range control: a single button showing the current range that
- * opens a small popover with the same presets + custom fields as
- * `DateRangePicker`, instead of a bar that always takes up a full row.
+ * opens a popover with quick presets and a real click-to-select calendar
+ * (start date, then end date, with the range highlighted as you hover) —
+ * rather than a preset list plus separate native date inputs.
  */
 export function DateRangeButton({ from, to, onChange, className }) {
   const [open, setOpen] = useState(false);
-  const [customOpen, setCustomOpen] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState(null);
   const ref = useRef(null);
 
   useClickOutside(ref, () => setOpen(false));
 
+  const selectedRange = { from: parseDateStr(from), to: parseDateStr(to) };
+
   const handleSelectPreset = (preset) => {
-    setSelectedPreset(preset.label);
     const range = computePresetDates(preset);
     onChange(range);
-    setCustomOpen(false);
     setOpen(false);
   };
 
+  const handleSelectCalendar = (range) => {
+    // react-day-picker keeps building the range across clicks (start, then
+    // end); only close once both ends are picked, so a single click doesn't
+    // dismiss the popover before the end date is chosen.
+    onChange({ from: toDateStr(range?.from), to: toDateStr(range?.to) });
+    if (range?.from && range?.to) setOpen(false);
+  };
+
   const handleClear = () => {
-    setSelectedPreset(null);
     onChange({ from: undefined, to: undefined });
     setOpen(false);
   };
@@ -227,69 +251,42 @@ export function DateRangeButton({ from, to, onChange, className }) {
       </Button>
 
       {open && (
-        <Card className="absolute right-0 top-[calc(100%+6px)] z-40 w-[300px] p-3">
-          <div className="flex flex-col gap-1">
+        <Card className="absolute right-0 top-[calc(100%+6px)] z-40 w-[560px] max-w-[calc(100vw-32px)] p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-line-soft pb-2">
             {DATE_PRESETS.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => handleSelectPreset(p)}
-                className={cn(
-                  "rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors",
-                  selectedPreset === p.label && !customOpen
-                    ? "bg-navy font-semibold text-white"
-                    : "text-ink hover:bg-canvas"
-                )}
+                className="rounded-md px-2.5 py-1 text-[12px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
               >
                 {p.label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setCustomOpen((v) => !v)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors",
-                customOpen ? "bg-navy font-semibold text-white" : "text-ink hover:bg-canvas"
-              )}
-            >
-              <Calendar size={12} />
-              Custom range
-            </button>
-
-            {customOpen && (
-              <div className="mt-1 flex items-center gap-1.5 rounded-md border border-line bg-canvas px-2.5 py-2 text-[12px]">
-                <input
-                  type="date"
-                  value={from ?? ""}
-                  onChange={(e) => {
-                    setSelectedPreset("Custom");
-                    onChange({ from: e.target.value, to });
-                  }}
-                  className="h-6 w-full rounded border border-line-soft bg-card px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
-                />
-                <span className="text-muted-2 text-[11px]">to</span>
-                <input
-                  type="date"
-                  value={to ?? ""}
-                  onChange={(e) => {
-                    setSelectedPreset("Custom");
-                    onChange({ from, to: e.target.value });
-                  }}
-                  className="h-6 w-full rounded border border-line-soft bg-card px-1.5 font-mono text-[11.5px] text-ink focus:border-navy focus:outline-none"
-                />
-              </div>
-            )}
-
             {(from || to) && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="mt-1 rounded-md px-2.5 py-1.5 text-left text-[12px] font-medium text-muted hover:bg-canvas hover:text-ink"
+                className="ml-auto rounded-md px-2.5 py-1 text-[12px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
               >
-                Clear range
+                Clear
               </button>
             )}
           </div>
+
+          <DayPicker
+            mode="range"
+            numberOfMonths={2}
+            selected={selectedRange}
+            onSelect={handleSelectCalendar}
+            defaultMonth={selectedRange.to ?? selectedRange.from ?? new Date()}
+            showOutsideDays
+            components={{
+              Chevron: ({ orientation, ...props }) =>
+                orientation === "left" ? <ChevronLeft size={16} {...props} /> : <ChevronRight size={16} {...props} />,
+            }}
+            className="!m-0 [--rdp-accent-color:#080C18] [--rdp-accent-background-color:#E2FBF5] [--rdp-today-color:#0A7A64]"
+          />
         </Card>
       )}
     </div>
