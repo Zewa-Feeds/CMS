@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Eye, Users } from "lucide-react";
+import { Eye, Users, BadgeCheck } from "lucide-react";
 import { useData } from "@/lib/store";
 import { inr, initials } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
@@ -108,7 +108,14 @@ export default function CustomersPage() {
                         </span>
                         <div>
                           <div className="font-medium">{c.name}</div>
-                          <CellSub>{c.email}</CellSub>
+                          <CellSub>
+                            <span className="inline-flex items-center gap-1">
+                              {c.email}
+                              {c.emailVerified && (
+                                <BadgeCheck size={13} className="shrink-0 text-teal-deep" title="Email verified" />
+                              )}
+                            </span>
+                          </CellSub>
                         </div>
                       </div>
                     </Td>
