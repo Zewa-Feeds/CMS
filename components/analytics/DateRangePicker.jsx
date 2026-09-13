@@ -253,12 +253,14 @@ export function DateRangeButton({ from, to, onChange, className }) {
     onChange({ from: toDateStr(range.from), to: toDateStr(range.to) });
     setRangeStart(null);
     setHoverDate(null);
+    setOpen(false);
   };
 
   const handleDayDoubleClick = (day) => {
     onChange({ from: toDateStr(day), to: toDateStr(day) });
     setRangeStart(null);
     setHoverDate(null);
+    setOpen(false);
   };
 
   const handleClear = () => {
@@ -319,7 +321,7 @@ export function DateRangeButton({ from, to, onChange, className }) {
                 orientation === "left" ? <ChevronLeft size={16} {...props} /> : <ChevronRight size={16} {...props} />,
               DayButton: DayButtonWithHandlers,
             }}
-            className="!m-0 !text-[13px] [--rdp-day-width:32px] [--rdp-day-height:32px] [--rdp-day_button-width:28px] [--rdp-day_button-height:28px] [--rdp-accent-color:#080C18] [--rdp-accent-background-color:#E2FBF5] [--rdp-today-color:#0A7A64]"
+            className="!m-0 !text-[12px] [--rdp-day-width:30px] [--rdp-day-height:30px] [--rdp-day_button-width:26px] [--rdp-day_button-height:26px] [--rdp-accent-color:#080C18] [--rdp-accent-background-color:#E2FBF5] [--rdp-today-color:#0A7A64] [&_.rdp-selected]:!text-[12px] [&_.rdp-month_caption]:!text-[12px]"
           />
         </Card>
       )}
