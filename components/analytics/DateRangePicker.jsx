@@ -211,36 +211,76 @@ function toDateStr(d) {
 
 /**
  * Compact date-range control: a single button showing the current range that
- * opens a popover with quick presets and a real click-to-select calendar
- * (start date, then end date, with the range highlighted as you hover) —
- * rather than a preset list plus separate native date inputs.
+ * opens a popover with just a calendar — no presets.
+ *
+ * Interaction (deliberately not react-day-picker's default range mode):
+ *   - Click a date: arms it as the range start, and the range preview follows
+ *     the cursor to whatever day is hovered next.
+ *   - Click a second date: locks in the range from the first to the second
+ *     (whichever order) — the popover stays open so the result is visible.
+ *   - Double-click a date: selects that single day as both start and end.
+ * The popover only closes on an outside click; there is no auto-close on
+ * selection, so the chosen range/preview is always visible to check.
  */
 export function DateRangeButton({ from, to, onChange, className }) {
   const [open, setOpen] = useState(false);
+  const [rangeStart, setRangeStart] = useState(null);
+  const [hoverDate, setHoverDate] = useState(null);
   const ref = useRef(null);
 
-  useClickOutside(ref, () => setOpen(false));
-
-  const selectedRange = { from: parseDateStr(from), to: parseDateStr(to) };
-
-  const handleSelectPreset = (preset) => {
-    const range = computePresetDates(preset);
-    onChange(range);
+  useClickOutside(ref, () => {
     setOpen(false);
+    setRangeStart(null);
+    setHoverDate(null);
+  });
+
+  const orderRange = (a, b) => (a.getTime() <= b.getTime() ? { from: a, to: b } : { from: b, to: a });
+
+  const committedRange = { from: parseDateStr(from), to: parseDateStr(to) };
+
+  // While a start is armed, preview the range out to the hovered day;
+  // otherwise just show whatever range is already committed.
+  const displayRange = rangeStart
+    ? orderRange(rangeStart, hoverDate ?? rangeStart)
+    : committedRange;
+
+  const handleDayClick = (day) => {
+    if (!rangeStart) {
+      setRangeStart(day);
+      return;
+    }
+    const range = orderRange(rangeStart, day);
+    onChange({ from: toDateStr(range.from), to: toDateStr(range.to) });
+    setRangeStart(null);
+    setHoverDate(null);
   };
 
-  const handleSelectCalendar = (range) => {
-    // react-day-picker keeps building the range across clicks (start, then
-    // end); only close once both ends are picked, so a single click doesn't
-    // dismiss the popover before the end date is chosen.
-    onChange({ from: toDateStr(range?.from), to: toDateStr(range?.to) });
-    if (range?.from && range?.to) setOpen(false);
+  const handleDayDoubleClick = (day) => {
+    onChange({ from: toDateStr(day), to: toDateStr(day) });
+    setRangeStart(null);
+    setHoverDate(null);
   };
 
   const handleClear = () => {
     onChange({ from: undefined, to: undefined });
-    setOpen(false);
+    setRangeStart(null);
+    setHoverDate(null);
   };
+
+  const DayButtonWithHandlers = ({ day, modifiers, ...buttonProps }) => (
+    <button
+      {...buttonProps}
+      onClick={(e) => {
+        buttonProps.onClick?.(e);
+        handleDayClick(day.date);
+      }}
+      onDoubleClick={() => handleDayDoubleClick(day.date)}
+      onMouseEnter={(e) => {
+        buttonProps.onMouseEnter?.(e);
+        if (rangeStart) setHoverDate(day.date);
+      }}
+    />
+  );
 
   return (
     <div ref={ref} className={cn("relative", className)}>
@@ -251,23 +291,16 @@ export function DateRangeButton({ from, to, onChange, className }) {
       </Button>
 
       {open && (
-        <Card className="absolute right-0 top-[calc(100%+6px)] z-40 w-[560px] max-w-[calc(100vw-32px)] p-3">
-          <div className="mb-2 flex flex-wrap items-center gap-1 border-b border-line-soft pb-2">
-            {DATE_PRESETS.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => handleSelectPreset(p)}
-                className="rounded-md px-2.5 py-1 text-[12px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
-              >
-                {p.label}
-              </button>
-            ))}
+        <Card className="absolute right-0 top-[calc(100%+6px)] z-40 w-[300px] p-3">
+          <div className="mb-2 flex items-center justify-between border-b border-line-soft pb-2">
+            <span className="text-[11.5px] font-medium text-muted">
+              {rangeStart ? "Pick an end date, or double-click for one day" : "Click a start date"}
+            </span>
             {(from || to) && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="ml-auto rounded-md px-2.5 py-1 text-[12px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
+                className="rounded-md px-2 py-1 text-[11.5px] font-medium text-muted transition-colors hover:bg-canvas hover:text-ink"
               >
                 Clear
               </button>
@@ -276,16 +309,17 @@ export function DateRangeButton({ from, to, onChange, className }) {
 
           <DayPicker
             mode="range"
-            numberOfMonths={2}
-            selected={selectedRange}
-            onSelect={handleSelectCalendar}
-            defaultMonth={selectedRange.to ?? selectedRange.from ?? new Date()}
+            numberOfMonths={1}
+            selected={displayRange}
+            onSelect={() => {}}
+            defaultMonth={committedRange.to ?? committedRange.from ?? new Date()}
             showOutsideDays
             components={{
               Chevron: ({ orientation, ...props }) =>
                 orientation === "left" ? <ChevronLeft size={16} {...props} /> : <ChevronRight size={16} {...props} />,
+              DayButton: DayButtonWithHandlers,
             }}
-            className="!m-0 [--rdp-accent-color:#080C18] [--rdp-accent-background-color:#E2FBF5] [--rdp-today-color:#0A7A64]"
+            className="!m-0 !text-[13px] [--rdp-day-width:32px] [--rdp-day-height:32px] [--rdp-day_button-width:28px] [--rdp-day_button-height:28px] [--rdp-accent-color:#080C18] [--rdp-accent-background-color:#E2FBF5] [--rdp-today-color:#0A7A64]"
           />
         </Card>
       )}
