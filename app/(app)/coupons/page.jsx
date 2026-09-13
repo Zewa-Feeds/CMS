@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Ticket, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Ticket, Download, RefreshCw } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { inr } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
@@ -254,6 +254,15 @@ export default function CouponsPage() {
         ) : rows.length === 0 ? (
           <EmptyState icon={Ticket} title="No coupons match">Adjust the filters or create a new coupon.</EmptyState>
         ) : (
+          <div className="relative">
+            {loading && (
+              <div className="absolute inset-0 bg-card/40 backdrop-blur-[0.5px] z-10 flex items-center justify-center transition-opacity">
+                <div className="flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-[12.5px] font-medium text-ink shadow-sm">
+                  <RefreshCw size={14} className="animate-spin text-teal-deep" />
+                  <span>Loading…</span>
+                </div>
+              </div>
+            )}
           <TableWrap>
             <Table>
               <thead>
@@ -376,6 +385,7 @@ export default function CouponsPage() {
               </tbody>
             </Table>
           </TableWrap>
+          </div>
         )}
       </Card>
 

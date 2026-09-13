@@ -274,12 +274,14 @@ export function DateRangeButton({ from, to, onChange, className }) {
       {...buttonProps}
       onClick={(e) => {
         buttonProps.onClick?.(e);
-        handleDayClick(day.date);
+        if (!modifiers.disabled) handleDayClick(day.date);
       }}
-      onDoubleClick={() => handleDayDoubleClick(day.date)}
+      onDoubleClick={() => {
+        if (!modifiers.disabled) handleDayDoubleClick(day.date);
+      }}
       onMouseEnter={(e) => {
         buttonProps.onMouseEnter?.(e);
-        if (rangeStart) setHoverDate(day.date);
+        if (rangeStart && !modifiers.disabled) setHoverDate(day.date);
       }}
     />
   );
@@ -315,6 +317,7 @@ export function DateRangeButton({ from, to, onChange, className }) {
             selected={displayRange}
             onSelect={() => {}}
             defaultMonth={committedRange.to ?? committedRange.from ?? new Date()}
+            disabled={{ after: new Date() }}
             showOutsideDays
             components={{
               Chevron: ({ orientation, ...props }) =>
