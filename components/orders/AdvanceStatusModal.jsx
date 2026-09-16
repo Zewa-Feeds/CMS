@@ -40,7 +40,7 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
   const [busy, setBusy] = useState(false);
 
   const fieldsList = transitionSpec?.fields || [];
-  const emailInfo = transitionSpec?.email || { subject: "Order status update" };
+  const emailInfo = transitionSpec?.email || null;
 
   useEffect(() => {
     const init = {};
@@ -79,11 +79,12 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
         to: targetCode,
         fields: vals,
         internalNote: note.trim() || undefined,
-        notifyCustomer: notify,
+        notifyCustomer: Boolean(emailInfo) && notify,
       });
 
+      const emailed = Boolean(emailInfo) && notify;
       toast.push(
-        notify ? `Order moved to ${transitionSpec.label || targetCode}. Customer emailed.` : `Order moved to ${transitionSpec.label || targetCode}.`
+        emailed ? `Order moved to ${transitionSpec.label || targetCode}. Customer emailed.` : `Order moved to ${transitionSpec.label || targetCode}.`
       );
       if (onFinished) await onFinished();
       onClose();
@@ -188,7 +189,8 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
 
-        {/* email preview — spec §15 */}
+        {/* email preview — spec §15. Omitted when the step sends nothing. */}
+        {emailInfo && (
         <div className="rounded-md border border-line-soft bg-canvas p-3">
           <Checkbox
             checked={notify}
@@ -214,6 +216,7 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
             </div>
           )}
         </div>
+        )}
       </div>
     </Modal>
   );
