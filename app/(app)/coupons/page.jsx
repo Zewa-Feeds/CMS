@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Ticket, Download, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Ban, Undo2, Ticket, Download, RefreshCw } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { inr } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
@@ -35,7 +35,7 @@ export default function CouponsPage() {
   const permissions = useAuth((s) => s.permissions);
   const { data, meta, loading, error } = useData((s) => s.coupons);
   const loadCoupons = useData((s) => s.loadCoupons);
-  const deleteCoupon = useData((s) => s.deleteCoupon);
+  const setCouponActive = useData((s) => s.setCouponActive);
   const toast = useToast();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
@@ -49,7 +49,7 @@ export default function CouponsPage() {
   // Undefined until a preset/custom range is picked — no date filter applied.
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
   const [selected, setSelected] = useState(() => new Set());
-  const [del, setDel] = useState(null);
+  const [toggling, setToggling] = useState(null);
 
   /** Status is DERIVED server-side from the dates (§10.2), so it filters there. */
   const refetch = useCallback(
@@ -373,9 +373,18 @@ export default function CouponsPage() {
                         <Link href={`/coupons/${c.id}/edit`} className={button({ variant: "ghost", size: "icon-sm" })} title="Edit">
                           <Pencil size={14} />
                         </Link>
-                        {permissions.includes("coupons.delete") && (
-                          <Button variant="ghost" size="icon-sm" title="Delete" onClick={() => setDel(c)}>
-                            <Trash2 size={14} className="text-muted" />
+                        {permissions.includes("coupons.delete") && c.status !== "Expired" && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            title={c.isActive ? "Disable" : "Enable"}
+                            onClick={() => setToggling(c)}
+                          >
+                            {c.isActive ? (
+                              <Ban size={14} className="text-muted" />
+                            ) : (
+                              <Undo2 size={14} className="text-muted" />
+                            )}
                           </Button>
                         )}
                       </div>
@@ -390,21 +399,35 @@ export default function CouponsPage() {
       </Card>
 
       <ConfirmModal
-        open={!!del}
-        onClose={() => setDel(null)}
+        open={!!toggling}
+        onClose={() => setToggling(null)}
         onConfirm={async () => {
+          const next = !toggling.isActive;
           try {
-            await deleteCoupon(del.id);
-            toast.push("Coupon deleted.");
-            setDel(null);
+            await setCouponActive(toggling.id, next);
+            toast.push(next ? "Coupon enabled." : "Coupon disabled.");
+            setToggling(null);
             await refetch();
           } catch (err) {
             toast.push(err.message, { bad: true });
           }
         }}
-        title="Delete this coupon?"
-        confirmLabel="Delete coupon"
-        message={del && <>This removes <b className="mono">{del.code}</b> permanently. Customers can no longer redeem it.</>}
+        title={toggling?.isActive ? "Disable this coupon?" : "Enable this coupon?"}
+        confirmLabel={toggling?.isActive ? "Disable coupon" : "Enable coupon"}
+        message={
+          toggling &&
+          (toggling.isActive ? (
+            <>
+              Customers can no longer redeem <b className="mono">{toggling.code}</b>. Its past
+              redemptions and revenue are kept, and you can enable it again at any time.
+            </>
+          ) : (
+            <>
+              <b className="mono">{toggling.code}</b> becomes redeemable again, subject to its
+              dates and usage limits.
+            </>
+          ))
+        }
       />
     </RoleGate>
   );
