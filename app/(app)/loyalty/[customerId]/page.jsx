@@ -293,7 +293,6 @@ export default function LoyaltyCustomerPage() {
               {account.mismatchStreak >= 2 && (
                 <Pill tone="red">Redemption blocked — reconciliation mismatch</Pill>
               )}
-              {account.holdout && <Pill tone="grey">Holdout group</Pill>}
             </div>
             {account.flaggedDeficit > 0 && (
               <p className="mt-2 text-[13px] text-[var(--text-2)]">

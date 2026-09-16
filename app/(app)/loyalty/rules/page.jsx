@@ -99,7 +99,6 @@ export default function LoyaltyRulesPage() {
       for (const f of NUMERIC_FIELDS) payload[f.key] = Number(form[f.key]);
       payload.earningEnabled = form.earningEnabled;
       payload.redemptionEnabled = form.redemptionEnabled;
-      payload.rolloutPct = Number(form.rolloutPct);
 
       await loyaltyApi.updateRules(payload);
       setSaved(true);
@@ -161,17 +160,6 @@ export default function LoyaltyRulesPage() {
                 </p>
               </div>
 
-              <Field label="Rollout %" hint="The 5% holdout is always excluded, at any percentage.">
-                <input
-                  id="rolloutPct"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.rolloutPct}
-                  onChange={(e) => set("rolloutPct", e.target.value)}
-                  className="w-32 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[14px] outline-none focus:border-[var(--accent)]"
-                />
-              </Field>
             </CardBody>
           </Card>
 
@@ -281,7 +269,6 @@ export default function LoyaltyRulesPage() {
                           month: "short",
                           year: "numeric",
                         })}
-                        <CellSub>{v.rolloutPct}% rollout</CellSub>
                       </Td>
                     </Tr>
                   ))}

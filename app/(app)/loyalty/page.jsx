@@ -170,10 +170,9 @@ export default function LoyaltyBalancesPage() {
                           {row.flaggedDeficit > 0 && (
                             <Pill tone="amber">Deficit {row.flaggedDeficit}</Pill>
                           )}
-                          {row.holdout && <Pill tone="grey">Holdout</Pill>}
-                          {row.status === "ACTIVE" &&
-                            row.flaggedDeficit === 0 &&
-                            !row.holdout && <Pill tone="green">Active</Pill>}
+                          {row.status === "ACTIVE" && row.flaggedDeficit === 0 && (
+                            <Pill tone="green">Active</Pill>
+                          )}
                         </div>
                       </Td>
 
