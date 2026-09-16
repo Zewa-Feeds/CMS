@@ -175,7 +175,7 @@ function LoginForm() {
             <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
               <KeyRound size={22} />
             </div>
-            <h1 className="text-[18px] font-semibold text-white">Save your backup codes</h1>
+            <h1 className="text-[18px] font-semibold text-ink">Save your backup codes</h1>
             <p className="mb-5 mt-1 text-[13px] text-muted">
               Each code works once if you lose access to your Authenticator app. This is the only time they are shown.
             </p>
@@ -229,7 +229,7 @@ function LoginForm() {
         <div className="w-full max-w-[400px]">
           <Brand />
           <div className="rounded-xl border border-line bg-card p-8 text-center shadow-pop">
-            <div className="text-[14px] font-medium text-white">Checking session…</div>
+            <div className="text-[14px] font-medium text-ink">Checking session…</div>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ function LoginForm() {
         <div className="w-full max-w-[400px]">
           <Brand />
           <div className="rounded-xl border border-line bg-card p-8 text-center shadow-pop">
-            <div className="text-[14px] font-medium text-white">Signing in…</div>
+            <div className="text-[14px] font-medium text-ink">Signing in…</div>
           </div>
         </div>
       </div>
@@ -259,7 +259,7 @@ function LoginForm() {
         <div className="rounded-xl border border-line bg-card p-6 shadow-pop">
           {step === "password" && (
             <>
-              <h1 className="text-[18px] font-semibold text-white">Sign in</h1>
+              <h1 className="text-[18px] font-semibold text-ink">Sign in</h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
                 Use your CMS credentials. A verification code will be sent to your email.
               </p>
@@ -290,7 +290,7 @@ function LoginForm() {
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition-colors focus:outline-none"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors focus:outline-none"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       tabIndex={-1}
                     >
@@ -318,10 +318,10 @@ function LoginForm() {
               <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
                 <Mail size={22} />
               </div>
-              <h1 className="text-[18px] font-semibold text-white">Check your email</h1>
+              <h1 className="text-[18px] font-semibold text-ink">Check your email</h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
                 We sent a 6-digit verification code to{" "}
-                <strong className="font-mono text-white">{maskedEmail || "your email"}</strong>.
+                <strong className="font-mono text-ink">{maskedEmail || "your email"}</strong>.
                 Enter it below to sign in.
               </p>
 
@@ -382,7 +382,7 @@ function LoginForm() {
                       setErr("");
                       setResendNotice("");
                     }}
-                    className="mt-1 text-[12.5px] font-medium text-muted hover:text-white hover:underline transition-colors"
+                    className="mt-1 text-[12.5px] font-medium text-muted hover:text-ink hover:underline transition-colors"
                   >
                     Use Authenticator App instead
                   </button>
@@ -396,7 +396,7 @@ function LoginForm() {
               <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
                 {useBackup ? <KeyRound size={22} /> : <ShieldCheck size={22} />}
               </div>
-              <h1 className="text-[18px] font-semibold text-white">
+              <h1 className="text-[18px] font-semibold text-ink">
                 {useBackup ? "Use a backup code" : "Authenticator App"}
               </h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
@@ -457,7 +457,7 @@ function LoginForm() {
                     setErr("");
                     setResendNotice("");
                   }}
-                  className="text-[12.5px] font-medium text-muted hover:text-white hover:underline transition-colors"
+                  className="text-[12.5px] font-medium text-muted hover:text-ink hover:underline transition-colors"
                 >
                   Use Email verification code instead
                 </button>
@@ -470,7 +470,7 @@ function LoginForm() {
               <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-teal-wash text-teal-deep">
                 <ShieldCheck size={22} />
               </div>
-              <h1 className="text-[18px] font-semibold text-white">Set up Authenticator App</h1>
+              <h1 className="text-[18px] font-semibold text-ink">Set up Authenticator App</h1>
               <p className="mb-5 mt-1 text-[13px] text-muted">
                 Add this setup key to your authenticator app, then enter the 6-digit confirmation code.
               </p>
