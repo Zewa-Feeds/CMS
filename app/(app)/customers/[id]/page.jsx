@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Ban, ShieldCheck, MapPin, Star } from "lucide-react";
+import { Ban, ShieldCheck, MapPin, Star, Coins } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL, REVIEW_STATE_PILL } from "@/lib/constants";
 import { formatPaise } from "@/lib/api";
@@ -65,6 +65,8 @@ export default function CustomerProfilePage() {
 
   const banned = cust.status === "BANNED" || cust.status === "Banned";
   const canBan = permissions.includes("customers.ban");
+  // Hiding the button is a courtesy; the endpoint enforces loyalty.adjust itself.
+  const canGiveCoins = permissions.includes("loyalty.adjust");
 
   const toggleBan = async () => {
     const nextStatus = banned ? "ACTIVE" : "BANNED";
@@ -98,16 +100,32 @@ export default function CustomerProfilePage() {
         title={cust.name}
         sub={cust.email}
         actions={
-          canBan &&
-          (banned ? (
-            <Button variant="primary" onClick={() => setConfirm(true)}>
-              <ShieldCheck size={15} /> Unban customer
-            </Button>
-          ) : (
-            <Button variant="danger" onClick={() => setConfirm(true)}>
-              <Ban size={15} /> Ban customer
-            </Button>
-          ))
+          <>
+            {/*
+              Giving coins starts here because this is where the operator already
+              has the customer in front of them. It navigates to the Give Coins
+              workflow with the customer preselected rather than reimplementing
+              the credit — there is one audited path for moving coins.
+            */}
+            {canGiveCoins && (
+              <Link
+                href={`/loyalty/give?customerId=${encodeURIComponent(id)}`}
+                className={button({ variant: "dark" })}
+              >
+                <Coins size={15} /> Give coins
+              </Link>
+            )}
+            {canBan &&
+              (banned ? (
+                <Button variant="primary" onClick={() => setConfirm(true)}>
+                  <ShieldCheck size={15} /> Unban customer
+                </Button>
+              ) : (
+                <Button variant="danger" onClick={() => setConfirm(true)}>
+                  <Ban size={15} /> Ban customer
+                </Button>
+              ))}
+          </>
         }
       />
 

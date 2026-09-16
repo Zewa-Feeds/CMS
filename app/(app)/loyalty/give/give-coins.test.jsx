@@ -12,11 +12,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
  */
 
 const list = vi.fn();
+const get = vi.fn();
 const customer = vi.fn();
 const adjust = vi.fn();
 const push = vi.fn();
 
 let permissions = ["loyalty.adjust"];
+/** Query string the page reads; "" is the ordinary search workflow. */
+let searchParams = new URLSearchParams("");
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => searchParams,
+}));
 
 vi.mock("@/lib/store", () => ({
   useAuth: (sel) => sel({ permissions }),
@@ -27,7 +34,7 @@ vi.mock("@/components/ui/Toast", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  customers: { list: (...a) => list(...a) },
+  customers: { list: (...a) => list(...a), get: (...a) => get(...a) },
   loyalty: { customer: (...a) => customer(...a), adjust: (...a) => adjust(...a) },
 }));
 
@@ -43,7 +50,9 @@ const CUSTOMER = {
 
 beforeEach(() => {
   permissions = ["loyalty.adjust"];
+  searchParams = new URLSearchParams("");
   list.mockResolvedValue({ data: [CUSTOMER] });
+  get.mockResolvedValue(CUSTOMER);
   customer.mockResolvedValue({ availableCoins: 250 });
   adjust.mockResolvedValue({ coins: 500, lotId: "lot-1" });
 });
@@ -200,6 +209,50 @@ describe("validation happens before anything is sent", () => {
 
     expect(screen.getByRole("button", { name: /give 100 zewa coins/i }).disabled).toBe(true);
     expect(adjust).not.toHaveBeenCalled();
+  });
+});
+
+describe("arriving from a customer page with ?customerId=", () => {
+  it("preselects that customer without making the admin search", async () => {
+    searchParams = new URLSearchParams("customerId=c-1");
+    render(<GiveCoinsPage />);
+
+    // The selected panel, not the search box.
+    expect(await screen.findByText("Parth Tandalwade")).toBeTruthy();
+    expect(get).toHaveBeenCalledWith("c-1");
+    expect(screen.queryByLabelText(/find the customer/i)).toBeNull();
+  });
+
+  it("loads that customer's balance", async () => {
+    searchParams = new URLSearchParams("customerId=c-1");
+    render(<GiveCoinsPage />);
+
+    await waitFor(() => expect(customer).toHaveBeenCalledWith("c-1"));
+    expect(await screen.findByText(/250 Zewa Coins/i)).toBeTruthy();
+  });
+
+  it("still lets the admin change who was preselected", async () => {
+    searchParams = new URLSearchParams("customerId=c-1");
+    render(<GiveCoinsPage />);
+    await screen.findByText("Parth Tandalwade");
+
+    fireEvent.click(screen.getByLabelText(/choose a different customer/i));
+    expect(await screen.findByLabelText(/find the customer/i)).toBeTruthy();
+  });
+
+  it("falls back to searching when the id cannot be resolved", async () => {
+    searchParams = new URLSearchParams("customerId=gone");
+    get.mockRejectedValueOnce(new Error("not found"));
+    render(<GiveCoinsPage />);
+
+    expect(await screen.findByText(/could not be loaded/i)).toBeTruthy();
+    expect(screen.getByLabelText(/find the customer/i)).toBeTruthy();
+  });
+
+  it("does not resolve anything when there is no query parameter", async () => {
+    render(<GiveCoinsPage />);
+    await screen.findByLabelText(/find the customer/i);
+    expect(get).not.toHaveBeenCalled();
   });
 });
 

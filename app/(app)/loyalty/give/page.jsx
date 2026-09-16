@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Coins, Search, X } from "lucide-react";
 import { customers as customersApi, loyalty as loyaltyApi } from "@/lib/api";
 import { Breadcrumbs, PageHeader, SearchInput } from "@/components/ui/Page";
@@ -89,8 +90,10 @@ function useCustomerSearch(term) {
   return { rows, loading };
 }
 
-export default function GiveCoinsPage() {
+function GiveCoinsInner() {
   const toast = useToast();
+  const searchParams = useSearchParams();
+  const presetCustomerId = searchParams.get("customerId");
 
   const [term, setTerm] = useState("");
   const { rows, loading: searching } = useCustomerSearch(term);
@@ -143,6 +146,39 @@ export default function GiveCoinsPage() {
     setResult(null);
     setFormError("");
   }
+
+  /*
+   * Arriving from a customer's page with `?customerId=` preselects them.
+   *
+   * Resolved through the same `pick()` the search results use, so the selected
+   * panel, the balance fetch and the reset semantics are identical however the
+   * customer got here — there is no second selection path to keep in step.
+   *
+   * Runs once. The admin can still clear the selection and search for someone
+   * else; re-running on every render would fight that. With no query parameter
+   * nothing here fires and the search workflow is untouched.
+   */
+  const preselected = useRef(false);
+  useEffect(() => {
+    if (!presetCustomerId || preselected.current) return;
+    preselected.current = true;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const customer = await customersApi.get(presetCustomerId);
+        if (!cancelled && customer) pick(customer);
+      } catch {
+        // A stale or mistyped id is not an error worth blocking on — the admin
+        // simply falls back to searching, which is the ordinary workflow.
+        if (!cancelled) setFormError("That customer could not be loaded. Search for them below.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetCustomerId]);
 
   const amount = Number.parseInt(coins, 10);
   const amountValid = Number.isInteger(amount) && amount > 0;
@@ -478,6 +514,18 @@ export default function GiveCoinsPage() {
         }
       />
     </RoleGate>
+  );
+}
+
+/*
+ * `useSearchParams` requires a Suspense boundary in a client page, or the
+ * production build fails to prerender. Same shape as products/page.jsx.
+ */
+export default function GiveCoinsPage() {
+  return (
+    <Suspense fallback={null}>
+      <GiveCoinsInner />
+    </Suspense>
   );
 }
 
