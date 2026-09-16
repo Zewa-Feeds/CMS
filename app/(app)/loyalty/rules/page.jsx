@@ -40,6 +40,11 @@ const NUMERIC_FIELDS = [
   { key: "returnWindowDays", label: "Return window (days)" },
   { key: "largeOrderThresholdPaise", label: "Large-order threshold (paise)" },
   { key: "largeOrderHoldDays", label: "Extra hold on large orders (days)" },
+  {
+    key: "monthlyEarnCapCoins",
+    label: "Monthly earning cap (coins)",
+    hint: "1000 per customer per calendar month. 0 disables the cap. Individual customers can be given their own cap on their Zewa Coins page.",
+  },
 ];
 
 export default function LoyaltyRulesPage() {
