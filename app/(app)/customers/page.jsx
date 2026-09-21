@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
-import { Eye, Users, BadgeCheck } from "lucide-react";
+import { Eye, Users, BadgeCheck, Mail } from "lucide-react";
 import { useData } from "@/lib/store";
 import { inr, initials } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
-import { button } from "@/components/ui/Button";
+import { Button, button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
+import { SendCustomerEmailModal } from "@/components/customers/SendCustomerEmailModal";
 import {
   TableWrap,
   Table,
@@ -28,6 +29,7 @@ export default function CustomersPage() {
   const [status, setStatus] = useState("All");
   const [sortKey, setSortKey] = useState("spend");
   const [sortDir, setSortDir] = useState("desc");
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
 
   /** Search and sort run server-side (§7.1) — name, email, phone, spend, and alphabetical. */
   const refetch = useCallback(
@@ -112,7 +114,20 @@ export default function CustomersPage() {
   return (
     <RoleGate perm="customers.view">
       <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Customers" }]} />
-      <PageHeader title="Customers" sub={`${meta?.total ?? rows.length} customers`} />
+      <PageHeader
+        title="Customers"
+        sub={`${meta?.total ?? rows.length} customers`}
+        actions={
+          <Button
+            variant="default"
+            onClick={() => setBroadcastModalOpen(true)}
+            className="flex items-center gap-1.5"
+          >
+            <Mail size={14} />
+            Send Broadcast / Email
+          </Button>
+        }
+      />
 
       <Card>
         <FilterBar>
@@ -218,6 +233,15 @@ export default function CustomersPage() {
           </TableWrap>
         )}
       </Card>
+
+      {broadcastModalOpen && (
+        <SendCustomerEmailModal
+          open={broadcastModalOpen}
+          onClose={() => setBroadcastModalOpen(false)}
+          initialAudience="all"
+          onSent={() => void refetch()}
+        />
+      )}
     </RoleGate>
   );
 }

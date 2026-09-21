@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Ban, ShieldCheck, MapPin, Star, Coins } from "lucide-react";
+import { Ban, ShieldCheck, MapPin, Star, Coins, Mail } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL, REVIEW_STATE_PILL } from "@/lib/constants";
 import { formatPaise } from "@/lib/api";
@@ -16,6 +16,7 @@ import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
+import { SendCustomerEmailModal } from "@/components/customers/SendCustomerEmailModal";
 
 export default function CustomerProfilePage() {
   const { id } = useParams();
@@ -28,6 +29,7 @@ export default function CustomerProfilePage() {
   const [pageState, setPageState] = useState("loading"); // loading | ready | missing
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   const fetchCustomer = useCallback(async () => {
     try {
@@ -118,6 +120,13 @@ export default function CustomerProfilePage() {
         sub={cust.email}
         actions={
           <>
+            <Button
+              variant="default"
+              onClick={() => setEmailModalOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Mail size={15} /> Send Email
+            </Button>
             {/*
               Giving coins starts here because this is where the operator already
               has the customer in front of them. It navigates to the Give Coins
@@ -370,6 +379,14 @@ export default function CustomerProfilePage() {
             : `${cust.name} will be blocked from placing orders and signing in. Order history is preserved.`
         }
       />
+
+      {emailModalOpen && (
+        <SendCustomerEmailModal
+          open={emailModalOpen}
+          onClose={() => setEmailModalOpen(false)}
+          initialCustomer={cust}
+        />
+      )}
     </RoleGate>
   );
 }

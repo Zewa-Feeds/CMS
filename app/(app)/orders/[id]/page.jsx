@@ -17,10 +17,11 @@ import {
   Download,
   Loader2,
   AlertTriangle,
+  Send,
 } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL } from "@/lib/constants";
-import { formatPaise } from "@/lib/api";
+import { formatPaise, orders as ordersApi } from "@/lib/api";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { Button, button } from "@/components/ui/Button";
@@ -65,6 +66,14 @@ export default function OrderDetailPage() {
    * the rules of hooks.
    */
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [resendingId, setResendingId] = useState(null);
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [sendTemplate, setSendTemplate] = useState("order-placed");
+  const [sendSubject, setSendSubject] = useState("");
+  const [sendHeading, setSendHeading] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
+  const [sendAttachInvoice, setSendAttachInvoice] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -193,6 +202,46 @@ export default function OrderDetailPage() {
       toast.push(err.message || "Failed to reconcile payment with Razorpay.", { bad: true });
     } finally {
       setReconciling(false);
+    }
+  };
+
+  const handleResendEmail = async (emailId) => {
+    if (resendingId) return;
+    setResendingId(emailId);
+    try {
+      await ordersApi.resendEmail(orderNo, emailId);
+      toast.push("Email resent successfully.");
+      await fetchOrder();
+    } catch (err) {
+      toast.push(err.message || "Failed to resend email.", { bad: true });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const handleSendOrderEmail = async (e) => {
+    e?.preventDefault?.();
+    if (sendingEmail) return;
+    setSendingEmail(true);
+    try {
+      await ordersApi.sendEmail(orderNo, {
+        template: sendTemplate,
+        subject: sendSubject.trim() || undefined,
+        heading: sendHeading.trim() || undefined,
+        message: sendMessage.trim() || undefined,
+        attachInvoice: sendAttachInvoice,
+      });
+      toast.push("Email dispatched successfully.");
+      setSendModalOpen(false);
+      setSendSubject("");
+      setSendHeading("");
+      setSendMessage("");
+      setSendAttachInvoice(false);
+      await fetchOrder();
+    } catch (err) {
+      toast.push(err.message || "Failed to send email.", { bad: true });
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -391,11 +440,22 @@ export default function OrderDetailPage() {
 
           {/* Customer Emails card (spec §6.3, §15) */}
           <Card>
-            <CardHead>
-              <CardTitle>Customer Emails</CardTitle>
-              <span className="ml-auto font-mono text-[11px] text-muted-2">
-                {emails.length} record{emails.length === 1 ? "" : "s"}
-              </span>
+            <CardHead className="flex items-center justify-between">
+              <div>
+                <CardTitle>Customer Emails</CardTitle>
+                <span className="mono text-[11px] text-muted-2">
+                  {emails.length} record{emails.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSendModalOpen(true)}
+                className="ml-auto h-7 px-2.5 text-[12px]"
+              >
+                <Send size={12} className="mr-1.5" />
+                Send Email
+              </Button>
             </CardHead>
             {emails.length === 0 ? (
               <CardBody>
@@ -416,12 +476,40 @@ export default function OrderDetailPage() {
                       <div className="mono truncate text-[11.5px] text-muted-2">
                         to {e.toEmail || e.to} · {e.sentAt || e.queuedAt ? new Date(e.sentAt || e.queuedAt).toLocaleString("en-IN") : "Queued"}
                       </div>
+                      {e.error && (
+                        <div className="mt-1 flex items-center gap-1 text-[11.5px] text-red-600">
+                          <AlertTriangle size={12} className="shrink-0 text-amber-500" />
+                          <span className="break-all">{e.error}</span>
+                        </div>
+                      )}
                     </div>
-                    {e.status && (
-                      <Pill tone={e.status === "SENT" || e.status === "DELIVERED" ? "green" : "grey"}>
-                        {e.status}
-                      </Pill>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {e.status && (
+                        <Pill
+                          tone={
+                            e.status === "SENT" || e.status === "DELIVERED"
+                              ? "green"
+                              : e.status === "FAILED"
+                              ? "red"
+                              : "amber"
+                          }
+                        >
+                          {e.status}
+                        </Pill>
+                      )}
+                      {e.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleResendEmail(e.id)}
+                          disabled={resendingId === e.id}
+                          className="flex items-center gap-1 rounded border border-line-soft bg-card px-2 py-1 text-[11.5px] font-medium text-ink hover:bg-grey-wash disabled:opacity-50 transition"
+                          title="Resend this email to customer"
+                        >
+                          <RotateCcw size={12} className={resendingId === e.id ? "animate-spin" : ""} />
+                          {resendingId === e.id ? "Sending…" : "Resend"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </CardBody>
@@ -685,6 +773,96 @@ export default function OrderDetailPage() {
             />
           </Field>
         </div>
+      </Modal>
+
+      {/* Send Email Modal */}
+      <Modal
+        open={sendModalOpen}
+        onClose={() => !sendingEmail && setSendModalOpen(false)}
+        title={`Send Customer Email — Order #${order?.orderNo}`}
+        sub={`Recipient: ${order?.email}`}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setSendModalOpen(false)} disabled={sendingEmail}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSendOrderEmail} disabled={sendingEmail}>
+              {sendingEmail ? (
+                <>
+                  <Loader2 size={13} className="mr-1.5 animate-spin" />
+                  Sending…
+                </>
+              ) : (
+                <>
+                  <Send size={13} className="mr-1.5" />
+                  Send Email
+                </>
+              )}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSendOrderEmail} className="space-y-3.5 py-1">
+          <Field label="Email Template / Type">
+            <select
+              value={sendTemplate}
+              onChange={(e) => {
+                setSendTemplate(e.target.value);
+                if (e.target.value === "order-shipped") {
+                  setSendAttachInvoice(true);
+                }
+              }}
+              className="w-full rounded-md border border-line-soft bg-card px-3 py-2 text-[13px] outline-none focus:border-teal-deep"
+            >
+              <option value="order-placed">Order Placed / Confirmation</option>
+              <option value="order-confirmed">Order Accepted & Packing</option>
+              <option value="order-shipped">Order Shipped & Dispatched</option>
+              <option value="order-delivered">Order Delivered</option>
+              <option value="order-cancelled">Order Cancelled</option>
+              <option value="custom">Custom Order Note / Message</option>
+            </select>
+          </Field>
+
+          {sendTemplate === "custom" && (
+            <>
+              <Field label="Subject Line">
+                <Input
+                  value={sendSubject}
+                  onChange={(e) => setSendSubject(e.target.value)}
+                  placeholder={`Update regarding your order ${order?.orderNo}`}
+                />
+              </Field>
+              <Field label="Heading / Title">
+                <Input
+                  value={sendHeading}
+                  onChange={(e) => setSendHeading(e.target.value)}
+                  placeholder={`Order ${order?.orderNo} Update`}
+                />
+              </Field>
+              <Field label="Message">
+                <Textarea
+                  rows={4}
+                  value={sendMessage}
+                  onChange={(e) => setSendMessage(e.target.value)}
+                  placeholder="Write your message to the customer here…"
+                  required
+                />
+              </Field>
+            </>
+          )}
+
+          <div className="pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+              <input
+                type="checkbox"
+                checked={sendAttachInvoice}
+                onChange={(e) => setSendAttachInvoice(e.target.checked)}
+                className="rounded border-line-soft text-teal-deep focus:ring-teal-deep"
+              />
+              <span>Attach official tax invoice PDF</span>
+            </label>
+          </div>
+        </form>
       </Modal>
     </RoleGate>
   );

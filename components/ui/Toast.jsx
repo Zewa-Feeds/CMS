@@ -9,7 +9,7 @@ const ToastCtx = createContext(null);
 /** useToast().push("Saved") for success, .push("Error", { bad:true }) for error. Spec §17.1 */
 export function useToast() {
   const ctx = useContext(ToastCtx);
-  if (!ctx) throw new Error("useToast must be used within <ToastProvider>");
+  if (!ctx) return { push: () => {} };
   return ctx;
 }
 
