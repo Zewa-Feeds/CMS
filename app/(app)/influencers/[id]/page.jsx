@@ -13,7 +13,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { ConfirmModal, InfoBox } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { mapServerFieldErrors } from "@/lib/form-errors";
 
@@ -75,6 +75,25 @@ export default function InfluencerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [confirming, setConfirming] = useState(false);
+
+  const {
+    items: sortedOrders,
+    requestSort: requestOrderSort,
+    getSortDirection: getOrderSortDirection,
+  } = useSortableTable(
+    orders,
+    { key: "date", direction: "desc" },
+    {
+      order: (o) => o.orderNo || "",
+      customer: (o) => o.customerName || o.email || "",
+      date: (o) => (o.placedAt ? new Date(o.placedAt).getTime() : 0),
+      status: (o) => o.status || "",
+      payment: (o) => o.paymentStatus || "",
+      subtotal: (o) => o.subtotal ?? 0,
+      discount: (o) => o.discount ?? 0,
+      total: (o) => o.total ?? 0,
+    }
+  );
 
   const [editing, setEditing] = useState(searchParams.get("edit") === "1");
   const [form, setForm] = useState(null);
@@ -165,7 +184,7 @@ export default function InfluencerDetailPage() {
         maxDiscount: !isFlat && form.maxDiscount !== "" ? Number(form.maxDiscount) : null,
         totalUsageLimit: form.totalUsageLimit !== "" ? Number(form.totalUsageLimit) : null,
         perCustomerLimit:
-          form.perCustomerLimit !== "" ? Number(form.perCustomerLimit) : undefined,
+          form.perCustomerLimit !== "" ? Number(form.perCustomerLimit) : null,
         stackingMode: form.stackingMode,
         startsAt: form.startsAt,
         endsAt: form.endsAt,
@@ -442,18 +461,69 @@ export default function InfluencerDetailPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Order</Th>
-                  <Th>Customer</Th>
-                  <Th>Date</Th>
-                  <Th>Status</Th>
-                  <Th>Payment</Th>
-                  <Th className="text-right">Subtotal</Th>
-                  <Th className="text-right">Discount</Th>
-                  <Th className="text-right">Total</Th>
+                  <Th
+                    sortable
+                    sortDirection={getOrderSortDirection("order")}
+                    onSort={() => requestOrderSort("order", "asc")}
+                  >
+                    Order
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getOrderSortDirection("customer")}
+                    onSort={() => requestOrderSort("customer", "asc")}
+                  >
+                    Customer
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getOrderSortDirection("date")}
+                    onSort={() => requestOrderSort("date", "desc")}
+                  >
+                    Date
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getOrderSortDirection("status")}
+                    onSort={() => requestOrderSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getOrderSortDirection("payment")}
+                    onSort={() => requestOrderSort("payment", "asc")}
+                  >
+                    Payment
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    sortDirection={getOrderSortDirection("subtotal")}
+                    onSort={() => requestOrderSort("subtotal", "desc")}
+                  >
+                    Subtotal
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    sortDirection={getOrderSortDirection("discount")}
+                    onSort={() => requestOrderSort("discount", "desc")}
+                  >
+                    Discount
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    sortDirection={getOrderSortDirection("total")}
+                    onSort={() => requestOrderSort("total", "desc")}
+                  >
+                    Total
+                  </Th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((o) => (
+                {sortedOrders.map((o) => (
                   <Tr key={o.id}>
                     <Td>
                       <Link href={`/orders/${o.id}`} className="mono font-semibold hover:underline">

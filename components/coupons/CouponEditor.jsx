@@ -58,7 +58,9 @@ const FIELD_TAB = {
   to: "limits",
   endsAt: "limits",
   limit: "limits",
+  totalUsageLimit: "limits",
   perCust: "limits",
+  perCustomerLimit: "limits",
   priority: "stacking",
 };
 
@@ -121,7 +123,7 @@ const EMPTY = {
   from: "",
   to: "",
   limit: "",
-  perCust: "1",
+  perCust: "",
   isActive: true,
   scope: "ALL_PRODUCTS",
   products: [],
@@ -164,8 +166,8 @@ function toForm(api) {
     min: api.min ? String(api.min) : "",
     from: api.startsAt ? String(api.startsAt).slice(0, 10) : "",
     to: api.endsAt ? String(api.endsAt).slice(0, 10) : "",
-    limit: api.limit == null ? "" : String(api.limit),
-    perCust: api.perCust == null ? "" : String(api.perCust),
+    limit: (api.totalUsageLimit ?? api.limit) == null ? "" : String(api.totalUsageLimit ?? api.limit),
+    perCust: (api.perCustomerLimit ?? api.perCust) == null ? "" : String(api.perCustomerLimit ?? api.perCust),
     isActive: api.isActive ?? true,
     scope: api.scope ?? "ALL_PRODUCTS",
     products: api.products ?? [],
@@ -370,6 +372,8 @@ export function CouponEditor({ initial }) {
           ...err.fields,
           val: err.fields.discountValue ?? err.fields.val,
           to: err.fields.endsAt ?? err.fields.to,
+          perCust: err.fields.perCustomerLimit ?? err.fields.perCust,
+          limit: err.fields.totalUsageLimit ?? err.fields.limit,
         };
         setErrors(mapped);
         const first = Object.keys(mapped).find((k) => mapped[k]);
@@ -455,8 +459,9 @@ export function CouponEditor({ initial }) {
             {/* ---- 1. Basics -------------------------------------------- */}
             {tab === "basics" && (
               <div className="grid gap-x-[18px] md:grid-cols-2">
-                <Field label="Coupon code" required error={errors.code} hint="Uppercase, alphanumeric + hyphens.">
+                <Field htmlFor="coupon-code" label="Coupon code" required error={errors.code} hint="Uppercase, alphanumeric + hyphens.">
                   <Input
+                    id="coupon-code"
                     value={form.code}
                     bad={!!errors.code}
                     onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") })}
@@ -515,8 +520,8 @@ export function CouponEditor({ initial }) {
                 </Field>
 
                 {!isFreeShipping && !isBxgy && (
-                  <Field label={`Discount value (${isPercentage ? "%" : "₹"})`} required error={errors.val}>
-                    <Input type="number" value={form.val} bad={!!errors.val} onChange={(e) => set({ val: e.target.value })} />
+                  <Field htmlFor="coupon-val" label={`Discount value (${isPercentage ? "%" : "₹"})`} required error={errors.val}>
+                    <Input id="coupon-val" type="number" value={form.val} bad={!!errors.val} onChange={(e) => set({ val: e.target.value })} />
                   </Field>
                 )}
 
@@ -716,17 +721,33 @@ export function CouponEditor({ initial }) {
                 <Field label="Maximum quantity" error={errors.maxQty}>
                   <Input type="number" value={form.maxQty} bad={!!errors.maxQty} onChange={(e) => set({ maxQty: e.target.value })} />
                 </Field>
-                <Field label="Total usage limit" hint="Blank means unlimited.">
-                  <Input type="number" value={form.limit} onChange={(e) => set({ limit: e.target.value })} />
+                <Field htmlFor="coupon-limit" label="Total usage limit" error={errors.limit || errors.totalUsageLimit} hint="Blank means unlimited.">
+                  <Input
+                    id="coupon-limit"
+                    type="number"
+                    min="1"
+                    placeholder="Unlimited"
+                    value={form.limit}
+                    bad={!!(errors.limit || errors.totalUsageLimit)}
+                    onChange={(e) => set({ limit: e.target.value })}
+                  />
                 </Field>
-                <Field label="Per-customer limit" hint="Blank means unlimited.">
-                  <Input type="number" value={form.perCust} onChange={(e) => set({ perCust: e.target.value })} />
+                <Field htmlFor="coupon-per-cust" label="Per-customer limit" error={errors.perCust || errors.perCustomerLimit} hint="Blank means unlimited.">
+                  <Input
+                    id="coupon-per-cust"
+                    type="number"
+                    min="1"
+                    placeholder="Unlimited"
+                    value={form.perCust}
+                    bad={!!(errors.perCust || errors.perCustomerLimit)}
+                    onChange={(e) => set({ perCust: e.target.value })}
+                  />
                 </Field>
-                <Field label="Start date" required error={errors.from}>
-                  <Input type="date" value={form.from} bad={!!errors.from} onChange={(e) => set({ from: e.target.value })} />
+                <Field htmlFor="coupon-start-date" label="Start date" required error={errors.from}>
+                  <Input id="coupon-start-date" type="date" value={form.from} bad={!!errors.from} onChange={(e) => set({ from: e.target.value })} />
                 </Field>
-                <Field label="End date" required error={errors.to}>
-                  <Input type="date" value={form.to} bad={!!errors.to} onChange={(e) => set({ to: e.target.value })} />
+                <Field htmlFor="coupon-end-date" label="End date" required error={errors.to}>
+                  <Input id="coupon-end-date" type="date" value={form.to} bad={!!errors.to} onChange={(e) => set({ to: e.target.value })} />
                 </Field>
                 <div className="md:col-span-2">
                   <InfoBox>

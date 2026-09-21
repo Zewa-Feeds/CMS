@@ -103,7 +103,7 @@ export default function NewInfluencerPage() {
         maxDiscount: !isFlat && form.maxDiscount !== "" ? Number(form.maxDiscount) : null,
         totalUsageLimit: form.totalUsageLimit !== "" ? Number(form.totalUsageLimit) : null,
         perCustomerLimit:
-          form.perCustomerLimit !== "" ? Number(form.perCustomerLimit) : undefined,
+          form.perCustomerLimit !== "" ? Number(form.perCustomerLimit) : null,
         stackingMode: form.stackingMode,
         startsAt: form.startsAt,
         endsAt: form.endsAt,

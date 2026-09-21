@@ -327,4 +327,89 @@ describe("CouponEditor Preview Tab - Interactive Dry-Run", () => {
     expect(screen.getByText("COUPON_MIN_ORDER")).toBeDefined();
     expect(screen.getByText(/cart subtotal \(₹378\) is below the required ₹999 minimum/i)).toBeDefined();
   });
+
+  it("defaults per-customer limit to empty (unlimited) and submits null", async () => {
+    render(<CouponEditor />);
+
+    // Switch to Limits & schedule tab
+    fireEvent.click(screen.getByRole("button", { name: /^limits & schedule/i }));
+
+    const perCustInput = screen.getByLabelText(/per-customer limit/i);
+    // Left blank by default
+    expect(perCustInput.value).toBe("");
+
+    // Fill minimum required fields in Basics tab
+    fireEvent.click(screen.getByRole("button", { name: /^basics/i }));
+    fireEvent.change(screen.getByLabelText(/^coupon code/i), { target: { value: "UNLIMITED10" } });
+
+    // Switch to Discount tab
+    fireEvent.click(screen.getByRole("button", { name: /^discount$/i }));
+    fireEvent.change(screen.getByLabelText(/discount value/i), { target: { value: "10" } });
+
+    // Fill dates in Limits tab
+    fireEvent.click(screen.getByRole("button", { name: /^limits & schedule/i }));
+    fireEvent.change(screen.getByLabelText(/start date/i), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText(/end date/i), { target: { value: "2026-09-30" } });
+
+    // Save
+    fireEvent.click(screen.getByRole("button", { name: /create promotion/i }));
+
+    await waitFor(() => {
+      expect(createCoupon).toHaveBeenCalledTimes(1);
+    });
+
+    const callPayload = createCoupon.mock.calls[0][0];
+    expect(callPayload.perCustomerLimit).toBeNull();
+  });
+
+  it("allows setting per-customer limit to 1000 and submits 1000", async () => {
+    render(<CouponEditor />);
+
+    // Fill Basics
+    fireEvent.change(screen.getByLabelText(/^coupon code/i), { target: { value: "LIMIT1000" } });
+
+    // Switch to Discount tab
+    fireEvent.click(screen.getByRole("button", { name: /^discount$/i }));
+    fireEvent.change(screen.getByLabelText(/discount value/i), { target: { value: "10" } });
+
+    // Switch to Limits & schedule tab
+    fireEvent.click(screen.getByRole("button", { name: /^limits & schedule/i }));
+    fireEvent.change(screen.getByLabelText(/start date/i), { target: { value: "2026-09-01" } });
+    fireEvent.change(screen.getByLabelText(/end date/i), { target: { value: "2026-09-30" } });
+
+    const perCustInput = screen.getByLabelText(/per-customer limit/i);
+    fireEvent.change(perCustInput, { target: { value: "1000" } });
+    expect(perCustInput.value).toBe("1000");
+
+    // Save
+    fireEvent.click(screen.getByRole("button", { name: /create promotion/i }));
+
+    await waitFor(() => {
+      expect(createCoupon).toHaveBeenCalledTimes(1);
+    });
+
+    const callPayload = createCoupon.mock.calls[0][0];
+    expect(callPayload.perCustomerLimit).toBe(1000);
+  });
+
+  it("loads existing coupon with perCustomerLimit: null as empty string", async () => {
+    render(
+      <CouponEditor
+        initial={{
+          ...INITIAL_ALL_PRODUCTS_COUPON,
+          perCustomerLimit: null,
+          totalUsageLimit: null,
+        }}
+      />
+    );
+
+    // Switch to Limits & schedule tab
+    fireEvent.click(screen.getByRole("button", { name: /^limits & schedule/i }));
+
+    const perCustInput = screen.getByLabelText(/per-customer limit/i);
+    expect(perCustInput.value).toBe("");
+
+    const totalLimitInput = screen.getByLabelText(/total usage limit/i);
+    expect(totalLimitInput.value).toBe("");
+  });
 });
