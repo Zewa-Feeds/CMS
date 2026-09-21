@@ -56,7 +56,7 @@ describe("Th component sort button", () => {
 
     const th = screen.getByRole("button", { name: /orders/i });
     expect(th.getAttribute("aria-sort")).toBe("descending");
-    expect(th.getAttribute("title")).toBe("Sorted descending. Click to sort ascending.");
+    expect(th.getAttribute("title")).toBe("Sorted descending. Click to reset to normal.");
   });
 
   it("triggers onSort via click and keyboard (Enter/Space)", () => {
@@ -132,10 +132,11 @@ describe("useSortableTable hook", () => {
     { id: 3, name: "Algae Wafers", price: 150 },
   ];
 
-  it("sorts strings ascending and descending on toggle", () => {
+  it("sorts strings ascending and descending on toggle, then resets to normal on 3rd click", () => {
     render(<SortableTableTestComponent items={sample} />);
 
     const nameTh = screen.getByRole("button", { name: /name/i });
+    // Click 1: asc
     fireEvent.click(nameTh);
 
     let cells = screen.getAllByRole("cell");
@@ -143,17 +144,26 @@ describe("useSortableTable hook", () => {
     expect(cells[2].textContent).toBe("Betta Bites");
     expect(cells[4].textContent).toBe("Goldfish Pellets");
 
+    // Click 2: desc
     fireEvent.click(nameTh);
     cells = screen.getAllByRole("cell");
     expect(cells[0].textContent).toBe("Goldfish Pellets");
     expect(cells[2].textContent).toBe("Betta Bites");
     expect(cells[4].textContent).toBe("Algae Wafers");
+
+    // Click 3: resets back to normal (original unsorted order)
+    fireEvent.click(nameTh);
+    cells = screen.getAllByRole("cell");
+    expect(cells[0].textContent).toBe("Betta Bites");
+    expect(cells[2].textContent).toBe("Goldfish Pellets");
+    expect(cells[4].textContent).toBe("Algae Wafers");
   });
 
-  it("sorts numbers with custom default direction (desc)", () => {
+  it("sorts numbers with custom default direction (desc), flips to asc, then resets to normal", () => {
     render(<SortableTableTestComponent items={sample} />);
 
     const priceTh = screen.getByRole("button", { name: /price/i });
+    // Click 1: desc
     fireEvent.click(priceTh);
 
     let cells = screen.getAllByRole("cell");
@@ -161,11 +171,18 @@ describe("useSortableTable hook", () => {
     expect(cells[0].textContent).toBe("Goldfish Pellets");
     expect(cells[1].textContent).toBe("499");
 
+    // Click 2: asc
     fireEvent.click(priceTh);
     cells = screen.getAllByRole("cell");
     // Flipped to ascending: Algae Wafers (150)
     expect(cells[0].textContent).toBe("Algae Wafers");
     expect(cells[1].textContent).toBe("150");
+
+    // Click 3: resets back to normal
+    fireEvent.click(priceTh);
+    cells = screen.getAllByRole("cell");
+    expect(cells[0].textContent).toBe("Betta Bites");
+    expect(cells[1].textContent).toBe("299");
   });
 
   it("handles null / undefined values and custom extractors", () => {

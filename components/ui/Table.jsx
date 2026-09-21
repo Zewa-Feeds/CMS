@@ -24,6 +24,7 @@ export function Th({
   active,
   dir = "asc",
   sortDirection,
+  defaultDir,
   onSort,
   right,
   align,
@@ -33,6 +34,23 @@ export function Th({
   const isActive = active !== undefined ? active : Boolean(sortDirection);
   const effectiveDir = sortDirection || dir || "asc";
   const isSortable = sortable || Boolean(onSort) || Boolean(sortDirection);
+  const colDefaultDir = defaultDir || "asc";
+
+  let sortTitle = "Click to sort";
+  if (isActive) {
+    const isFirstStep = effectiveDir === colDefaultDir;
+    if (isFirstStep) {
+      sortTitle =
+        effectiveDir === "asc"
+          ? "Sorted ascending. Click to sort descending."
+          : "Sorted descending. Click to sort ascending.";
+    } else {
+      sortTitle =
+        effectiveDir === "asc"
+          ? "Sorted ascending. Click to reset to normal."
+          : "Sorted descending. Click to reset to normal.";
+    }
+  }
 
   return (
     <th
@@ -58,15 +76,7 @@ export function Th({
             : "none"
           : undefined
       }
-      title={
-        isSortable
-          ? isActive
-            ? effectiveDir === "asc"
-              ? "Sorted ascending. Click to sort descending."
-              : "Sorted descending. Click to sort ascending."
-            : "Click to sort"
-          : undefined
-      }
+      title={isSortable ? props.title || sortTitle : props.title}
       className={cn(
         "group whitespace-nowrap border-b border-line-soft bg-card px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] text-muted-2 transition-colors",
         isRight ? "text-right" : "text-left",
@@ -199,20 +209,45 @@ export function useSortableTable(
   initialConfig = { key: null, dir: "asc" },
   customExtractors = {}
 ) {
-  const [sortKey, setSortKey] = useState(initialConfig?.key ?? null);
-  const [sortDir, setSortDir] = useState(
-    initialConfig?.direction ?? initialConfig?.dir ?? "asc"
+  const initialKey = initialConfig?.key ?? null;
+  const initialDir = initialConfig?.direction ?? initialConfig?.dir ?? "asc";
+
+  const [sortKey, setSortKey] = useState(initialKey);
+  const [sortDir, setSortDir] = useState(initialDir);
+
+  const toggleSort = useCallback(
+    (key, defaultDir = "asc") => {
+      setSortKey((prevKey) => {
+        // If clicking a different column: start at defaultDir
+        if (prevKey !== key) {
+          setSortDir(defaultDir);
+          return key;
+        }
+
+        // If clicking the same column that is already active:
+        // 1st click was defaultDir -> 2nd click flips to opposite
+        const oppDir = defaultDir === "asc" ? "desc" : "asc";
+        if (sortDir === defaultDir) {
+          setSortDir(oppDir);
+          return key;
+        }
+
+        // 3rd click: reset back to normal (initial order)
+        setSortDir(initialDir);
+        return initialKey;
+      });
+    },
+    [sortDir, initialKey, initialDir]
   );
 
-  const toggleSort = useCallback((key, defaultDir = "asc") => {
-    setSortKey((prevKey) => {
-      if (prevKey === key) {
-        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
-        return key;
-      }
-      setSortDir(defaultDir);
-      return key;
-    });
+  const resetSort = useCallback(() => {
+    setSortKey(initialKey);
+    setSortDir(initialDir);
+  }, [initialKey, initialDir]);
+
+  const clearSort = useCallback(() => {
+    setSortKey(null);
+    setSortDir("asc");
   }, []);
 
   const getSortDirection = useCallback(
@@ -257,11 +292,14 @@ export function useSortableTable(
     sortKey,
     sortDir,
     sortConfig: { key: sortKey, direction: sortDir },
+    isSorted: sortKey !== null && (sortKey !== initialKey || sortDir !== initialDir),
     toggleSort,
     requestSort: toggleSort,
     getSortDirection,
     setSortKey,
     setSortDir,
+    resetSort,
+    clearSort,
   };
 }
 
