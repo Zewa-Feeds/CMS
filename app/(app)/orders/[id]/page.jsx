@@ -116,6 +116,7 @@ export default function OrderDetailPage() {
   const orderNo = order.orderNo || id;
   const totals = order.totals || {};
   const emails = order.emails || [];
+  const coupons = order.appliedCoupons || [];
   const refunds = order.refunds || [];
   const fulfilment = order.fulfilment || {};
   const availableTransitions = order.availableTransitions || [];
@@ -427,13 +428,29 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Coupon Used */}
-          {order.couponCode && (
+          {(coupons.length > 0 || order.couponCode) && (
             <Card>
-              <CardBody className="flex items-center gap-2.5 text-[13px]">
-                <Tag size={16} className="text-teal-deep shrink-0" />
-                <span>
-                  Coupon applied: <strong className="mono">{order.couponCode}</strong>
-                </span>
+              <CardBody className="flex items-start gap-2.5 text-[13px]">
+                <Tag size={16} className="text-teal-deep shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <span>
+                    {coupons.length > 1 ? "Coupons applied" : "Coupon applied"}:{" "}
+                    <strong className="mono">
+                      {coupons.length > 0
+                        ? coupons.map((c) => c.code).join(", ")
+                        : order.couponCode}
+                    </strong>
+                  </span>
+                  {coupons.length > 1 &&
+                    coupons.map((c) => (
+                      <span key={c.code} className="text-[12px] text-muted-2">
+                        <span className="mono">{c.code}</span>
+                        {c.scope === "shipping"
+                          ? " — free shipping"
+                          : ` — ${formatPaise(c.amountPaise)} off`}
+                      </span>
+                    ))}
+                </div>
               </CardBody>
             </Card>
           )}
