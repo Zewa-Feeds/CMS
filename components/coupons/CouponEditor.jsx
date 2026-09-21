@@ -121,7 +121,7 @@ const EMPTY = {
   from: "",
   to: "",
   limit: "",
-  perCust: 1,
+  perCust: "1",
   isActive: true,
   scope: "ALL_PRODUCTS",
   products: [],
@@ -165,7 +165,7 @@ function toForm(api) {
     from: api.startsAt ? String(api.startsAt).slice(0, 10) : "",
     to: api.endsAt ? String(api.endsAt).slice(0, 10) : "",
     limit: api.limit == null ? "" : String(api.limit),
-    perCust: api.perCust ?? 1,
+    perCust: api.perCust == null ? "" : String(api.perCust),
     isActive: api.isActive ?? true,
     scope: api.scope ?? "ALL_PRODUCTS",
     products: api.products ?? [],
@@ -241,7 +241,8 @@ export function CouponEditor({ initial }) {
       startsAt: form.from ? new Date(`${form.from}T00:00:00`).toISOString() : undefined,
       endsAt: form.to ? new Date(`${form.to}T23:59:59`).toISOString() : undefined,
       totalUsageLimit: form.limit === "" ? null : Number(form.limit),
-      perCustomerLimit: Number(form.perCust) || 1,
+      // Blank means unlimited, exactly as it does for Total usage limit.
+      perCustomerLimit: form.perCust === "" ? null : Number(form.perCust),
       isActive: Boolean(form.isActive),
       scope: form.scope,
       productIds: specific ? form.products.map((p) => p.id) : [],
@@ -718,7 +719,7 @@ export function CouponEditor({ initial }) {
                 <Field label="Total usage limit" hint="Blank means unlimited.">
                   <Input type="number" value={form.limit} onChange={(e) => set({ limit: e.target.value })} />
                 </Field>
-                <Field label="Per-customer limit">
+                <Field label="Per-customer limit" hint="Blank means unlimited.">
                   <Input type="number" value={form.perCust} onChange={(e) => set({ perCust: e.target.value })} />
                 </Field>
                 <Field label="Start date" required error={errors.from}>
