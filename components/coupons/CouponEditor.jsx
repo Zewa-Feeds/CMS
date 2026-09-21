@@ -504,6 +504,26 @@ export function CouponEditor({ initial }) {
                 <div className="md:col-span-2">
                   <Switch checked={form.isActive} onChange={(v) => set({ isActive: v })} label={form.isActive ? "Active" : "Inactive"} />
                 </div>
+
+                {/* Sits beside Active because the two are constantly mistaken
+                    for each other: Active decides whether the code WORKS, this
+                    decides whether it is ADVERTISED. It lived under Stacking,
+                    where nobody thought to look for it.
+
+                    Publishing a code is still a deliberate act — a private
+                    referral or an influencer's personal code must never be
+                    advertised by accident — so it stays off unless turned on. */}
+                <div className="md:col-span-2">
+                  <Switch
+                    checked={form.showAtCheckout}
+                    onChange={(v) => set({ showAtCheckout: v })}
+                    label="Show this code to shoppers at checkout"
+                  />
+                  <p className="mt-1 text-[12px] text-muted">
+                    Lists the code in the storefront&rsquo;s &ldquo;available offers&rdquo; panel.
+                    Leave off for private, referral or influencer codes.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -821,21 +841,6 @@ export function CouponEditor({ initial }) {
                     />
                   </div>
                 )}
-
-                {/* Publishing a code is a deliberate act: a private referral or
-                    an influencer's personal code must never be advertised by
-                    accident, so this is off unless someone turns it on. */}
-                <div className="md:col-span-2">
-                  <Switch
-                    checked={form.showAtCheckout}
-                    onChange={(v) => set({ showAtCheckout: v })}
-                    label="Show this code to shoppers at checkout"
-                  />
-                  <p className="mt-1 text-[12px] text-muted">
-                    Lists the code in the storefront&rsquo;s &ldquo;available offers&rdquo; panel.
-                    Leave off for private, referral or influencer codes.
-                  </p>
-                </div>
               </div>
             )}
 
