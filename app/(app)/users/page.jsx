@@ -25,7 +25,7 @@ import { Pill } from "@/components/ui/Pill";
 import { ConfirmModal, Modal } from "@/components/ui/Modal";
 import { Input, Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { RoleChangeModal } from "@/components/users/RoleChangeModal";
 
@@ -89,6 +89,26 @@ export default function UsersPage() {
     if (statusFilter === "DEACTIVATED" && u.status !== "DEACTIVATED") return false;
     return true;
   });
+
+  const {
+    sortedItems: sortedUsers,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    users,
+    { key: null, dir: "asc" },
+    {
+      name: (u) => u.name || u.email || "",
+      role: (u) => u.role || "",
+      status: (u) => u.status || "",
+      twofa: (u) => (u.twofaEnabled || u.hasTotp ? 1 : 0),
+      lastLogin: (u) => {
+        const d = u.lastLoginAt || u.invitedAt;
+        return d ? new Date(d).getTime() : 0;
+      },
+    }
+  );
 
   const handleRoleChangeConfirm = async (userId, newRole) => {
     setRoleUpdating(true);
@@ -217,23 +237,58 @@ export default function UsersPage() {
           <Table>
             <thead>
               <tr>
-                <Th>Name — Email</Th>
-                <Th>Role</Th>
-                <Th>Status</Th>
-                <Th>2FA Security</Th>
-                <Th>Last Login / Invited</Th>
+                <Th
+                  sortable
+                  active={sortKey === "name"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("name", "asc")}
+                >
+                  Name — Email
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "role"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("role", "asc")}
+                >
+                  Role
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "status"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("status", "asc")}
+                >
+                  Status
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "twofa"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("twofa", "desc")}
+                >
+                  2FA Security
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "lastLogin"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("lastLogin", "desc")}
+                >
+                  Last Login / Invited
+                </Th>
                 <Th right>Actions</Th>
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {sortedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-[13px] text-muted">
                     No users match the selected filters.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => {
+                sortedUsers.map((u) => {
                   const isInvited = u.status === "INVITED";
                   const isDeactivated = u.status === "DEACTIVATED";
                   const isSelf = u.id === me?.id;

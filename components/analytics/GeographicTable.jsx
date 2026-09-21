@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPaise } from "@/lib/api";
-import { Table, TableWrap, Th, Td, Tr } from "@/components/ui/Table";
+import { Table, TableWrap, Th, Td, Tr, useSortableTable } from "@/components/ui/Table";
 import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Download } from "lucide-react";
@@ -9,6 +9,24 @@ import { cn } from "@/lib/utils";
 
 export function GeographicTable({ data = [], onExport, loading = false, className }) {
   const maxRevenue = Math.max(...data.map((d) => d.grossRevenuePaise), 1);
+
+  const {
+    sortedItems: sortedData,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    data,
+    { key: null, dir: "desc" },
+    {
+      state: (d) => d.state || "",
+      orders: (d) => d.orderCount ?? 0,
+      revenue: (d) => d.grossRevenuePaise ?? 0,
+      shipping: (d) => d.shippingRevenuePaise ?? 0,
+      aov: (d) => d.aovPaise ?? 0,
+      share: (d) => d.grossRevenuePaise ?? 0,
+    }
+  );
 
   return (
     <Card className={cn("overflow-hidden", className)}>
@@ -34,12 +52,58 @@ export function GeographicTable({ data = [], onExport, loading = false, classNam
         <Table>
           <thead>
             <tr>
-              <Th>State</Th>
-              <Th right>Orders</Th>
-              <Th right>Gross Revenue</Th>
-              <Th right>Shipping Revenue</Th>
-              <Th right>AOV</Th>
-              <Th>Revenue Share</Th>
+              <Th
+                sortable
+                active={sortKey === "state"}
+                dir={sortDir}
+                onSort={() => toggleSort("state", "asc")}
+              >
+                State
+              </Th>
+              <Th
+                right
+                sortable
+                active={sortKey === "orders"}
+                dir={sortDir}
+                onSort={() => toggleSort("orders", "desc")}
+              >
+                Orders
+              </Th>
+              <Th
+                right
+                sortable
+                active={sortKey === "revenue"}
+                dir={sortDir}
+                onSort={() => toggleSort("revenue", "desc")}
+              >
+                Gross Revenue
+              </Th>
+              <Th
+                right
+                sortable
+                active={sortKey === "shipping"}
+                dir={sortDir}
+                onSort={() => toggleSort("shipping", "desc")}
+              >
+                Shipping Revenue
+              </Th>
+              <Th
+                right
+                sortable
+                active={sortKey === "aov"}
+                dir={sortDir}
+                onSort={() => toggleSort("aov", "desc")}
+              >
+                AOV
+              </Th>
+              <Th
+                sortable
+                active={sortKey === "share"}
+                dir={sortDir}
+                onSort={() => toggleSort("share", "desc")}
+              >
+                Revenue Share
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +123,7 @@ export function GeographicTable({ data = [], onExport, loading = false, classNam
                 </Td>
               </Tr>
             ) : (
-              data.map((s) => {
+              sortedData.map((s) => {
                 const shareWidth = Math.max(4, Math.round((s.grossRevenuePaise / maxRevenue) * 100));
                 return (
                   <Tr key={s.state} className="hover:bg-canvas">

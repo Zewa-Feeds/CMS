@@ -28,6 +28,7 @@ import {
   Tr,
   CellSub,
   EmptyState,
+  useSortableTable,
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { StockModal } from "@/components/products/StockModal";
@@ -159,6 +160,22 @@ function ProductsInner() {
   }, [refetch]);
 
   const rows = data ?? [];
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "asc" },
+    {
+      name: (p) => p.name,
+      cat: (p) => p.cat,
+      stock: (p) => p.stock ?? 0,
+      status: (p) => p.status,
+      updatedAt: (p) => (p.updatedAt ? new Date(p.updatedAt).getTime() : 0),
+    }
+  );
 
   return (
     <RoleGate perm="products.view">
@@ -242,16 +259,51 @@ function ProductsInner() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Product</Th>
-                  <Th>Category</Th>
-                  <Th>Stock</Th>
-                  <Th>Status</Th>
-                  <Th>Last Updated</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "name"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("name", "asc")}
+                  >
+                    Product
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "cat"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("cat", "asc")}
+                  >
+                    Category
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "stock"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("stock", "desc")}
+                  >
+                    Stock
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "status"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "updatedAt"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("updatedAt", "desc")}
+                  >
+                    Last Updated
+                  </Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((p) => (
+                {sortedRows.map((p) => (
                   <Tr key={p.id}>
                     <Td>
                       <div className="flex items-center gap-3">

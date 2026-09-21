@@ -10,7 +10,7 @@ import { Pill, Stars } from "@/components/ui/Pill";
 import { Tabs } from "@/components/ui/Tabs";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /** Tab label -> the enum the API filters on. */
@@ -46,6 +46,22 @@ export default function ReviewsPage() {
   };
 
   const rows = data ?? [];
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "asc" },
+    {
+      prod: (r) => r.prod || "",
+      cust: (r) => r.cust || r.email || "",
+      rating: (r) => r.rating ?? 0,
+      excerpt: (r) => r.body || "",
+      verified: (r) => (r.vp ? 1 : 0),
+    }
+  );
 
   /** The server writes the audit entry, so no client-side logging here. */
   const setState = async (r, state, verb) => {
@@ -113,16 +129,51 @@ export default function ReviewsPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Product</Th>
-                  <Th>Customer</Th>
-                  <Th>Rating</Th>
-                  <Th>Excerpt</Th>
-                  <Th>Verified</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "prod"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("prod", "asc")}
+                  >
+                    Product
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "cust"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("cust", "asc")}
+                  >
+                    Customer
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "rating"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("rating", "desc")}
+                  >
+                    Rating
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "excerpt"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("excerpt", "asc")}
+                  >
+                    Excerpt
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "verified"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("verified", "desc")}
+                  >
+                    Verified
+                  </Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <Tr key={r.id}>
                     <Td className="font-medium">{r.prod}</Td>
                     <Td>

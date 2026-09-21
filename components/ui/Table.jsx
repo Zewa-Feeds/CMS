@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronUp, ChevronDown, Inbox } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { ArrowUpDown, ArrowUp, ArrowDown, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./Button";
 
@@ -12,32 +13,110 @@ export function Table({ children }) {
   return <table className="w-full border-collapse">{children}</table>;
 }
 
-export function Th({ children, className, sortable, active, dir, onSort, right }) {
+/**
+ * Platform-standard table header cell.
+ * If sortable or onSort is provided, renders an accessible sort button indicator.
+ */
+export function Th({
+  children,
+  className,
+  sortable,
+  active,
+  dir = "asc",
+  sortDirection,
+  onSort,
+  right,
+  align,
+  ...props
+}) {
+  const isRight = right || align === "right";
+  const isActive = active !== undefined ? active : Boolean(sortDirection);
+  const effectiveDir = sortDirection || dir || "asc";
+  const isSortable = sortable || Boolean(onSort) || Boolean(sortDirection);
+
   return (
     <th
-      onClick={sortable ? onSort : undefined}
+      onClick={isSortable ? onSort : undefined}
+      onKeyDown={
+        isSortable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSort?.(e);
+              }
+            }
+          : undefined
+      }
+      tabIndex={isSortable ? 0 : undefined}
+      role={isSortable ? "button" : undefined}
+      aria-sort={
+        isSortable
+          ? isActive
+            ? effectiveDir === "asc"
+              ? "ascending"
+              : "descending"
+            : "none"
+          : undefined
+      }
+      title={
+        isSortable
+          ? isActive
+            ? effectiveDir === "asc"
+              ? "Sorted ascending. Click to sort descending."
+              : "Sorted descending. Click to sort ascending."
+            : "Click to sort"
+          : undefined
+      }
       className={cn(
-        "whitespace-nowrap border-b border-line-soft bg-card px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] text-muted-2",
-        right ? "text-right" : "text-left",
-        sortable && "cursor-pointer select-none hover:text-muted",
-        active && "text-muted",
+        "group whitespace-nowrap border-b border-line-soft bg-card px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-[.12em] text-muted-2 transition-colors",
+        isRight ? "text-right" : "text-left",
+        isSortable &&
+          "cursor-pointer select-none hover:bg-canvas/60 hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-line",
+        isActive && "text-ink font-semibold",
         className
       )}
+      {...props}
     >
-      <span className={cn("inline-flex items-center gap-1", right && "flex-row-reverse")}>
-        {children}
-        {sortable && active && (dir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5",
+          isRight && "flex-row-reverse"
+        )}
+      >
+        <span>{children}</span>
+        {isSortable && (
+          <span
+            className={cn(
+              "inline-flex h-4 w-4 items-center justify-center rounded transition-colors shrink-0",
+              isActive
+                ? "text-ink bg-black/[0.05]"
+                : "text-muted-2/40 group-hover:text-muted-2"
+            )}
+            aria-hidden="true"
+          >
+            {isActive ? (
+              effectiveDir === "asc" ? (
+                <ArrowUp size={11} strokeWidth={2.2} />
+              ) : (
+                <ArrowDown size={11} strokeWidth={2.2} />
+              )
+            ) : (
+              <ArrowUpDown size={11} strokeWidth={1.75} />
+            )}
+          </span>
+        )}
       </span>
     </th>
   );
 }
 
-export function Td({ children, className, right, ...props }) {
+export function Td({ children, className, right, align, ...props }) {
+  const isRight = right || align === "right";
   return (
     <td
       className={cn(
         "border-b border-line-soft px-4 py-[11px] align-middle",
-        right && "text-right",
+        isRight && "text-right",
         className
       )}
       {...props}
@@ -110,3 +189,79 @@ export function EmptyState({ icon: Icon = Inbox, title, children, action }) {
     </div>
   );
 }
+
+/**
+ * Hook to manage sort state and sort an array of data objects.
+ * Supports strings (natural comparison), numbers, dates, and custom extractor functions per key.
+ */
+export function useSortableTable(
+  items = [],
+  initialConfig = { key: null, dir: "asc" },
+  customExtractors = {}
+) {
+  const [sortKey, setSortKey] = useState(initialConfig?.key ?? null);
+  const [sortDir, setSortDir] = useState(
+    initialConfig?.direction ?? initialConfig?.dir ?? "asc"
+  );
+
+  const toggleSort = useCallback((key, defaultDir = "asc") => {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return key;
+      }
+      setSortDir(defaultDir);
+      return key;
+    });
+  }, []);
+
+  const getSortDirection = useCallback(
+    (key) => (sortKey === key ? sortDir : null),
+    [sortKey, sortDir]
+  );
+
+  const sortedItems = useMemo(() => {
+    if (!items || !items.length || !sortKey) return items || [];
+    const list = [...items];
+    const extractor = customExtractors[sortKey] || ((item) => item?.[sortKey]);
+
+    list.sort((a, b) => {
+      const valA = extractor(a);
+      const valB = extractor(b);
+
+      if (valA === valB) return 0;
+      if (valA === null || valA === undefined || valA === "") return 1;
+      if (valB === null || valB === undefined || valB === "") return -1;
+
+      let comparison = 0;
+      if (typeof valA === "number" && typeof valB === "number") {
+        comparison = valA - valB;
+      } else if (valA instanceof Date && valB instanceof Date) {
+        comparison = valA.getTime() - valB.getTime();
+      } else {
+        comparison = String(valA).localeCompare(String(valB), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+      }
+
+      return sortDir === "desc" ? -comparison : comparison;
+    });
+
+    return list;
+  }, [items, sortKey, sortDir, customExtractors]);
+
+  return {
+    sortedItems,
+    items: sortedItems,
+    sortKey,
+    sortDir,
+    sortConfig: { key: sortKey, direction: sortDir },
+    toggleSort,
+    requestSort: toggleSort,
+    getSortDirection,
+    setSortKey,
+    setSortDir,
+  };
+}
+

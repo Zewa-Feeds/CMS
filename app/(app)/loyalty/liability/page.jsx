@@ -9,7 +9,7 @@ import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /**
@@ -32,6 +32,26 @@ export default function LoyaltyLiabilityPage() {
   const [error, setError] = useState(null);
   const [reconciling, setReconciling] = useState(false);
   const [reconcileResult, setReconcileResult] = useState(null);
+
+  const exceptions = data?.exceptions ?? [];
+  const {
+    sortedItems: sortedExceptions,
+    sortKey: excSortKey,
+    sortDir: excSortDir,
+    toggleSort: toggleExcSort,
+  } = useSortableTable(
+    exceptions,
+    { key: null, dir: "asc" },
+    {
+      customer: (r) =>
+        `${r.customer?.firstName ?? ""} ${r.customer?.lastName ?? ""}`.trim() ||
+        r.customer?.email ||
+        "",
+      available: (r) => r.availableCoins ?? 0,
+      deficit: (r) => r.flaggedDeficit ?? 0,
+      issue: (r) => (r.availableCoins < 0 ? "Negative" : r.flaggedDeficit > 0 ? "Deficit" : ""),
+    }
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -234,14 +254,44 @@ export default function LoyaltyLiabilityPage() {
                 <Table>
                   <thead>
                     <Tr>
-                      <Th>Customer</Th>
-                      <Th align="right">Available</Th>
-                      <Th align="right">Flagged deficit</Th>
-                      <Th>Issue</Th>
+                      <Th
+                        sortable
+                        active={excSortKey === "customer"}
+                        dir={excSortDir}
+                        onSort={() => toggleExcSort("customer", "asc")}
+                      >
+                        Customer
+                      </Th>
+                      <Th
+                        align="right"
+                        sortable
+                        active={excSortKey === "available"}
+                        dir={excSortDir}
+                        onSort={() => toggleExcSort("available", "desc")}
+                      >
+                        Available
+                      </Th>
+                      <Th
+                        align="right"
+                        sortable
+                        active={excSortKey === "deficit"}
+                        dir={excSortDir}
+                        onSort={() => toggleExcSort("deficit", "desc")}
+                      >
+                        Flagged deficit
+                      </Th>
+                      <Th
+                        sortable
+                        active={excSortKey === "issue"}
+                        dir={excSortDir}
+                        onSort={() => toggleExcSort("issue", "asc")}
+                      >
+                        Issue
+                      </Th>
                     </Tr>
                   </thead>
                   <tbody>
-                    {data.exceptions.map((row) => (
+                    {sortedExceptions.map((row) => (
                       <Tr key={row.id}>
                         <Td>
                           <Link

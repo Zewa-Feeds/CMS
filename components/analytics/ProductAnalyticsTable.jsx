@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowUpDown, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { formatPaise } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Table, TableWrap, Th, Td, Tr, Pager } from "@/components/ui/Table";
@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 export function ProductAnalyticsTable({
   data = [],
   meta,
+  sort: externalSort,
+  dir: externalDir,
   onSortChange,
   onSearchChange,
   onPageChange,
@@ -21,6 +23,48 @@ export function ProductAnalyticsTable({
   className,
 }) {
   const [searchInput, setSearchInput] = useState("");
+  const [internalSortKey, setInternalSortKey] = useState("revenue");
+  const [internalSortDir, setInternalSortDir] = useState("desc");
+
+  const currentSortKey = externalSort !== undefined ? externalSort : internalSortKey;
+  const currentSortDir = externalDir !== undefined ? externalDir : internalSortDir;
+
+  const handleSort = (key) => {
+    if (onSortChange) {
+      onSortChange(key);
+    } else {
+      if (internalSortKey === key) {
+        setInternalSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      } else {
+        setInternalSortKey(key);
+        setInternalSortDir(key === "product" || key === "sku" || key === "category" ? "asc" : "desc");
+      }
+    }
+  };
+
+  const sortedList = useMemo(() => {
+    const list = [...data];
+    list.sort((a, b) => {
+      let diff = 0;
+      if (currentSortKey === "product") {
+        diff = (a.productName || "").localeCompare(b.productName || "");
+      } else if (currentSortKey === "sku") {
+        diff = (a.sku || "").localeCompare(b.sku || "", undefined, { numeric: true });
+      } else if (currentSortKey === "category") {
+        diff = (a.category || "").localeCompare(b.category || "");
+      } else if (currentSortKey === "units") {
+        diff = (a.unitsSold ?? 0) - (b.unitsSold ?? 0);
+      } else if (currentSortKey === "orders") {
+        diff = (a.ordersCount ?? 0) - (b.ordersCount ?? 0);
+      } else if (currentSortKey === "revenue") {
+        diff = (a.grossSalesPaise ?? 0) - (b.grossSalesPaise ?? 0);
+      } else if (currentSortKey === "avgPrice") {
+        diff = (a.avgPricePaise ?? 0) - (b.avgPricePaise ?? 0);
+      }
+      return currentSortDir === "desc" ? -diff : diff;
+    });
+    return list;
+  }, [data, currentSortKey, currentSortDir]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -59,19 +103,66 @@ export function ProductAnalyticsTable({
         <Table>
           <thead>
             <tr>
-              <Th>Product</Th>
-              <Th>SKU / Pack</Th>
-              <Th>Category</Th>
-              <Th right sortable onSort={() => onSortChange?.("units")}>
+              <Th
+                sortable
+                active={currentSortKey === "product"}
+                dir={currentSortDir}
+                onSort={() => handleSort("product")}
+              >
+                Product
+              </Th>
+              <Th
+                sortable
+                active={currentSortKey === "sku"}
+                dir={currentSortDir}
+                onSort={() => handleSort("sku")}
+              >
+                SKU / Pack
+              </Th>
+              <Th
+                sortable
+                active={currentSortKey === "category"}
+                dir={currentSortDir}
+                onSort={() => handleSort("category")}
+              >
+                Category
+              </Th>
+              <Th
+                right
+                sortable
+                active={currentSortKey === "units"}
+                dir={currentSortDir}
+                onSort={() => handleSort("units")}
+              >
                 Units Sold
               </Th>
-              <Th right sortable onSort={() => onSortChange?.("orders")}>
+              <Th
+                right
+                sortable
+                active={currentSortKey === "orders"}
+                dir={currentSortDir}
+                onSort={() => handleSort("orders")}
+              >
                 Orders
               </Th>
-              <Th right sortable onSort={() => onSortChange?.("revenue")}>
+              <Th
+                right
+                sortable
+                active={currentSortKey === "revenue"}
+                dir={currentSortDir}
+                onSort={() => handleSort("revenue")}
+              >
                 Gross Catalogue Sales
               </Th>
-              <Th right>Avg Price</Th>
+              <Th
+                right
+                sortable
+                active={currentSortKey === "avgPrice"}
+                dir={currentSortDir}
+                onSort={() => handleSort("avgPrice")}
+              >
+                Avg Price
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -91,7 +182,7 @@ export function ProductAnalyticsTable({
                 </Td>
               </Tr>
             ) : (
-              data.map((p) => (
+              sortedList.map((p) => (
                 <Tr key={p.sku} className="hover:bg-canvas">
                   <Td className="font-semibold text-ink">
                     {p.familySlug ? (

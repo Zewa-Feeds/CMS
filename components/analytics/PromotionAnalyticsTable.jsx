@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatPaise } from "@/lib/api";
-import { Table, TableWrap, Th, Td, Tr, Pager } from "@/components/ui/Table";
+import { Table, TableWrap, Th, Td, Tr, Pager, useSortableTable } from "@/components/ui/Table";
 import { Pill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHead, CardTitle } from "@/components/ui/Card";
@@ -18,6 +18,24 @@ export function PromotionAnalyticsTable({
   loading = false,
   className,
 }) {
+  const {
+    sortedItems: sortedData,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    data,
+    { key: null, dir: "desc" },
+    {
+      code: (c) => c.code || "",
+      type: (c) => c.discountType || "",
+      redemptions: (c) => c.redemptionCount ?? 0,
+      revenue: (c) => c.attributedRevenuePaise ?? 0,
+      discount: (c) => c.totalDiscountGivenPaise ?? 0,
+      aov: (c) => c.aovPaise ?? 0,
+      status: (c) => (c.isActive ? "Active" : "Inactive"),
+    }
+  );
   return (
     <div className={cn("space-y-4", className)}>
       {loading && !summary ? (
@@ -81,13 +99,66 @@ export function PromotionAnalyticsTable({
           <Table>
             <thead>
               <tr>
-                <Th>Coupon Code</Th>
-                <Th>Type & Trigger</Th>
-                <Th right>Redemptions</Th>
-                <Th right>Attributed Revenue</Th>
-                <Th right>Discount Given</Th>
-                <Th right>AOV</Th>
-                <Th>Status</Th>
+                <Th
+                  sortable
+                  active={sortKey === "code"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("code", "asc")}
+                >
+                  Coupon Code
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "type"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("type", "asc")}
+                >
+                  Type & Trigger
+                </Th>
+                <Th
+                  right
+                  sortable
+                  active={sortKey === "redemptions"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("redemptions", "desc")}
+                >
+                  Redemptions
+                </Th>
+                <Th
+                  right
+                  sortable
+                  active={sortKey === "revenue"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("revenue", "desc")}
+                >
+                  Attributed Revenue
+                </Th>
+                <Th
+                  right
+                  sortable
+                  active={sortKey === "discount"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("discount", "desc")}
+                >
+                  Discount Given
+                </Th>
+                <Th
+                  right
+                  sortable
+                  active={sortKey === "aov"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("aov", "desc")}
+                >
+                  AOV
+                </Th>
+                <Th
+                  sortable
+                  active={sortKey === "status"}
+                  dir={sortDir}
+                  onSort={() => toggleSort("status", "asc")}
+                >
+                  Status
+                </Th>
               </tr>
             </thead>
             <tbody>
@@ -107,7 +178,7 @@ export function PromotionAnalyticsTable({
                   </Td>
                 </Tr>
               ) : (
-                data.map((c) => (
+                sortedData.map((c) => (
                   <Tr key={c.couponId || c.code} className="hover:bg-canvas">
                     <Td className="font-semibold text-ink font-mono text-[13px]">
                       <Link

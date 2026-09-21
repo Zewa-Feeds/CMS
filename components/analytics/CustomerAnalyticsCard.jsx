@@ -2,7 +2,7 @@
 
 import { formatPaise } from "@/lib/api";
 import { Users, UserCheck, Repeat, ShoppingBag } from "lucide-react";
-import { Table, TableWrap, Th, Td, Tr } from "@/components/ui/Table";
+import { Table, TableWrap, Th, Td, Tr, useSortableTable } from "@/components/ui/Table";
 import { Card, CardHead, CardTitle } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,21 @@ export function CustomerAnalyticsCard({ data, loading = false, className }) {
     customerSpendTiers,
     topCustomers = [],
   } = data;
+
+  const {
+    sortedItems: sortedTopCustomers,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    topCustomers,
+    { key: null, dir: "desc" },
+    {
+      customer: (c) => c.emailMasked || "",
+      orders: (c) => c.orderCount ?? 0,
+      spend: (c) => c.totalSpendPaise ?? 0,
+    }
+  );
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -118,20 +133,43 @@ export function CustomerAnalyticsCard({ data, loading = false, className }) {
             <Table>
               <thead>
                 <tr>
-                  <Th>Customer</Th>
-                  <Th right>Orders</Th>
-                  <Th right>Total Spend</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "customer"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("customer", "asc")}
+                  >
+                    Customer
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "orders"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("orders", "desc")}
+                  >
+                    Orders
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "spend"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("spend", "desc")}
+                  >
+                    Total Spend
+                  </Th>
                 </tr>
               </thead>
               <tbody>
-                {topCustomers.length === 0 ? (
+                {sortedTopCustomers.length === 0 ? (
                   <Tr>
                     <Td colSpan={3} className="py-6 text-center text-muted">
                       No customer orders recorded yet.
                     </Td>
                   </Tr>
                 ) : (
-                  topCustomers.map((c, i) => (
+                  sortedTopCustomers.map((c, i) => (
                     <Tr key={i} className="hover:bg-canvas">
                       <Td className="font-mono text-[12px] text-ink">{c.emailMasked}</Td>
                       <Td right className="font-mono font-semibold text-ink">{c.orderCount}</Td>

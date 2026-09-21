@@ -8,7 +8,7 @@ import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Field, Switch } from "@/components/ui/Field";
-import { TableWrap, Table, Th, Td, Tr, CellSub } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /**
@@ -55,6 +55,23 @@ export default function LoyaltyRulesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
+
+  const {
+    items: sortedVersions,
+    requestSort: requestVersionSort,
+    getSortDirection: getVersionSortDirection,
+  } = useSortableTable(
+    versions,
+    { key: "created", direction: "desc" },
+    {
+      version: (v) => v.label || "",
+      earnStep: (v) => v.earnGranularityPaise ?? 0,
+      coinValue: (v) => v.coinValuePaise ?? 0,
+      expiry: (v) => v.expiryDays ?? 0,
+      switches: (v) => (v.earningEnabled ? 1 : 0) + (v.redemptionEnabled ? 1 : 0),
+      created: (v) => (v.createdAt ? new Date(v.createdAt).getTime() : 0),
+    }
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -229,16 +246,55 @@ export default function LoyaltyRulesPage() {
               <Table>
                 <thead>
                   <Tr>
-                    <Th>Version</Th>
-                    <Th align="right">Earn step</Th>
-                    <Th align="right">Coin value</Th>
-                    <Th align="right">Expiry</Th>
-                    <Th>Switches</Th>
-                    <Th>Created</Th>
+                    <Th
+                      sortable
+                      sortDirection={getVersionSortDirection("version")}
+                      onSort={() => requestVersionSort("version", "asc")}
+                    >
+                      Version
+                    </Th>
+                    <Th
+                      align="right"
+                      sortable
+                      sortDirection={getVersionSortDirection("earnStep")}
+                      onSort={() => requestVersionSort("earnStep", "desc")}
+                    >
+                      Earn step
+                    </Th>
+                    <Th
+                      align="right"
+                      sortable
+                      sortDirection={getVersionSortDirection("coinValue")}
+                      onSort={() => requestVersionSort("coinValue", "desc")}
+                    >
+                      Coin value
+                    </Th>
+                    <Th
+                      align="right"
+                      sortable
+                      sortDirection={getVersionSortDirection("expiry")}
+                      onSort={() => requestVersionSort("expiry", "desc")}
+                    >
+                      Expiry
+                    </Th>
+                    <Th
+                      sortable
+                      sortDirection={getVersionSortDirection("switches")}
+                      onSort={() => requestVersionSort("switches", "desc")}
+                    >
+                      Switches
+                    </Th>
+                    <Th
+                      sortable
+                      sortDirection={getVersionSortDirection("created")}
+                      onSort={() => requestVersionSort("created", "desc")}
+                    >
+                      Created
+                    </Th>
                   </Tr>
                 </thead>
                 <tbody>
-                  {versions.map((v) => (
+                  {sortedVersions.map((v) => (
                     <Tr key={v.id}>
                       <Td>
                         <span className="font-medium">{v.label}</span>

@@ -67,7 +67,7 @@ export default function CustomersPage() {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      setSortDir(key === "name" ? "asc" : "desc");
+      setSortDir(key === "name" || key === "phone" || key === "status" ? "asc" : "desc");
     }
   };
 
@@ -79,6 +79,14 @@ export default function CustomersPage() {
     list.sort((a, b) => {
       if (sortKey === "name") {
         const diff = (a.name || a.email || "").localeCompare(b.name || b.email || "", undefined, { sensitivity: "base" });
+        return sortDir === "desc" ? -diff : diff;
+      }
+      if (sortKey === "phone") {
+        const diff = (a.phone || "").localeCompare(b.phone || "", undefined, { numeric: true });
+        return sortDir === "desc" ? -diff : diff;
+      }
+      if (sortKey === "status") {
+        const diff = (a.status || "").localeCompare(b.status || "");
         return sortDir === "desc" ? -diff : diff;
       }
       if (sortKey === "orders") {
@@ -154,7 +162,9 @@ export default function CustomersPage() {
                   <Th sortable active={sortKey === "name"} dir={sortDir} onSort={() => toggleSort("name")}>
                     Customer
                   </Th>
-                  <Th>Phone</Th>
+                  <Th sortable active={sortKey === "phone"} dir={sortDir} onSort={() => toggleSort("phone")}>
+                    Phone
+                  </Th>
                   <Th sortable active={sortKey === "registered"} dir={sortDir} onSort={() => toggleSort("registered")}>
                     Registered
                   </Th>
@@ -164,7 +174,9 @@ export default function CustomersPage() {
                   <Th right sortable active={sortKey === "spend"} dir={sortDir} onSort={() => toggleSort("spend")}>
                     Lifetime Spend
                   </Th>
-                  <Th>Status</Th>
+                  <Th sortable active={sortKey === "status"} dir={sortDir} onSort={() => toggleSort("status")}>
+                    Status
+                  </Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>

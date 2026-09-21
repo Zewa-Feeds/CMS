@@ -28,7 +28,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Modal, InfoBox, WarnBox } from "@/components/ui/Modal";
 import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { AdvanceStatusModal } from "@/components/orders/AdvanceStatusModal";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
@@ -85,6 +85,24 @@ export default function OrderDetailPage() {
     void fetchOrder();
   }, [fetchOrder]);
 
+  const items = order?.items || [];
+
+  const {
+    items: sortedItems,
+    requestSort: requestItemSort,
+    getSortDirection: getItemSortDirection,
+  } = useSortableTable(
+    items,
+    { key: "product", direction: "asc" },
+    {
+      product: (l) => l.productName || "",
+      sku: (l) => l.sku || "",
+      qty: (l) => l.qty ?? 0,
+      price: (l) => l.unitPricePaise ?? (l.unitPrice ? l.unitPrice * 100 : 0),
+      total: (l) => l.lineTotalPaise ?? (l.lineTotal ? l.lineTotal * 100 : 0),
+    }
+  );
+
   if (pageState === "loading") {
     return <div className="py-20 text-center text-[13px] text-muted">Loading order…</div>;
   }
@@ -102,7 +120,6 @@ export default function OrderDetailPage() {
   }
 
   const orderNo = order.orderNo || id;
-  const items = order.items || [];
   const totals = order.totals || {};
   const emails = order.emails || [];
   const refunds = order.refunds || [];
@@ -316,15 +333,48 @@ export default function OrderDetailPage() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Product</Th>
-                    <Th>SKU</Th>
-                    <Th right>Qty</Th>
-                    <Th right>Price</Th>
-                    <Th right>Line Total</Th>
+                    <Th
+                      sortable
+                      sortDirection={getItemSortDirection("product")}
+                      onSort={() => requestItemSort("product", "asc")}
+                    >
+                      Product
+                    </Th>
+                    <Th
+                      sortable
+                      sortDirection={getItemSortDirection("sku")}
+                      onSort={() => requestItemSort("sku", "asc")}
+                    >
+                      SKU
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      sortDirection={getItemSortDirection("qty")}
+                      onSort={() => requestItemSort("qty", "desc")}
+                    >
+                      Qty
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      sortDirection={getItemSortDirection("price")}
+                      onSort={() => requestItemSort("price", "desc")}
+                    >
+                      Price
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      sortDirection={getItemSortDirection("total")}
+                      onSort={() => requestItemSort("total", "desc")}
+                    >
+                      Line Total
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((l, i) => (
+                  {sortedItems.map((l, i) => (
                     <Tr key={l.id || i}>
                       <Td className="font-medium">
                         {l.productName}

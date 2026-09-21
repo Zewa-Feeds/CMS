@@ -23,6 +23,7 @@ import {
   CellSub,
   EmptyState,
   Pager,
+  useSortableTable,
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
@@ -141,6 +142,23 @@ function OrdersInner() {
   }, [refetch]);
 
   const rows = data ?? [];
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "desc" },
+    {
+      order: (o) => (o.placedAt ? new Date(o.placedAt).getTime() : 0),
+      customer: (o) => o.customerName || o.email || "",
+      items: (o) => o.itemCount ?? 0,
+      total: (o) => o.total ?? 0,
+      payment: (o) => o.paymentStatus || "",
+      status: (o) => o.status || "",
+    }
+  );
   const pages = meta?.pages ?? 1;
 
   return (
@@ -245,17 +263,60 @@ function OrdersInner() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Order</Th>
-                    <Th>Customer</Th>
-                    <Th>Items</Th>
-                    <Th right>Total</Th>
-                    <Th>Payment</Th>
-                    <Th>Status</Th>
+                    <Th
+                      sortable
+                      active={sortKey === "order"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("order", "desc")}
+                    >
+                      Order
+                    </Th>
+                    <Th
+                      sortable
+                      active={sortKey === "customer"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("customer", "asc")}
+                    >
+                      Customer
+                    </Th>
+                    <Th
+                      sortable
+                      active={sortKey === "items"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("items", "desc")}
+                    >
+                      Items
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      active={sortKey === "total"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("total", "desc")}
+                    >
+                      Total
+                    </Th>
+                    <Th
+                      sortable
+                      active={sortKey === "payment"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("payment", "asc")}
+                    >
+                      Payment
+                    </Th>
+                    <Th
+                      sortable
+                      active={sortKey === "status"}
+                      dir={sortDir}
+                      onSort={() => toggleSort("status", "asc")}
+                    >
+                      Status
+                    </Th>
                     <Th right>Actions</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((o) => (
+                  {sortedRows.map((o) => (
                     <Tr key={o.orderNo} clickable>
                       <Td>
                         <Link

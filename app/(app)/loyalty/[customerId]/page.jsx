@@ -10,7 +10,7 @@ import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Field } from "@/components/ui/Field";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { useAuth } from "@/lib/store";
 
@@ -207,6 +207,65 @@ export default function LoyaltyCustomerPage() {
     }
   }
 
+  const lots = account?.lots || [];
+  const ledger = account?.ledger || [];
+  const overrides = earnCap?.overrides || [];
+
+  const {
+    items: sortedLots,
+    requestSort: requestLotSort,
+    getSortDirection: getLotSortDirection,
+  } = useSortableTable(
+    lots,
+    { key: "earned", direction: "desc" },
+    {
+      source: (l) => l.sourceType || "",
+      granted: (l) => l.coinsGranted ?? 0,
+      remaining: (l) => l.coinsRemaining ?? 0,
+      state: (l) => l.state || "",
+      earned: (l) => (l.earnedAt ? new Date(l.earnedAt).getTime() : 0),
+      unlocks: (l) => (l.maturesAt ? new Date(l.maturesAt).getTime() : 0),
+      expires: (l) => (l.expiresAt ? new Date(l.expiresAt).getTime() : 0),
+    }
+  );
+
+  const {
+    items: sortedLedger,
+    requestSort: requestLedgerSort,
+    getSortDirection: getLedgerSortDirection,
+  } = useSortableTable(
+    ledger,
+    { key: "when", direction: "desc" },
+    {
+      reason: (r) => REASON_COPY[r.reason] ?? r.reason ?? "",
+      coins: (r) => r.coinsDelta ?? 0,
+      balanceAfter: (r) => r.balanceAfter ?? 0,
+      order: (r) => r.orderNo || "",
+      when: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : 0),
+    }
+  );
+
+  const {
+    items: sortedOverrides,
+    requestSort: requestOverrideSort,
+    getSortDirection: getOverrideSortDirection,
+  } = useSortableTable(
+    overrides,
+    { key: "when", direction: "desc" },
+    {
+      cap: (o) => o.monthlyCapCoins ?? 0,
+      reason: (o) => o.reason || "",
+      setBy: (o) => o.createdBy?.name ?? o.createdBy?.email ?? "",
+      status: (o) =>
+        o.revokedAt
+          ? "Revoked"
+          : o.expiresAt && new Date(o.expiresAt) <= new Date()
+          ? "Expired"
+          : "Active",
+      when: (o) => (o.createdAt ? new Date(o.createdAt).getTime() : 0),
+    }
+  );
+
   if (loading) {
     return (
       <RoleGate perm="loyalty.view">
@@ -317,17 +376,61 @@ export default function LoyaltyCustomerPage() {
             <Table>
               <thead>
                 <Tr>
-                  <Th>Source</Th>
-                  <Th align="right">Granted</Th>
-                  <Th align="right">Remaining</Th>
-                  <Th>State</Th>
-                  <Th>Earned</Th>
-                  <Th>Unlocks</Th>
-                  <Th>Expires</Th>
+                  <Th
+                    sortable
+                    sortDirection={getLotSortDirection("source")}
+                    onSort={() => requestLotSort("source", "asc")}
+                  >
+                    Source
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    sortDirection={getLotSortDirection("granted")}
+                    onSort={() => requestLotSort("granted", "desc")}
+                  >
+                    Granted
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    sortDirection={getLotSortDirection("remaining")}
+                    onSort={() => requestLotSort("remaining", "desc")}
+                  >
+                    Remaining
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLotSortDirection("state")}
+                    onSort={() => requestLotSort("state", "asc")}
+                  >
+                    State
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLotSortDirection("earned")}
+                    onSort={() => requestLotSort("earned", "desc")}
+                  >
+                    Earned
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLotSortDirection("unlocks")}
+                    onSort={() => requestLotSort("unlocks", "desc")}
+                  >
+                    Unlocks
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLotSortDirection("expires")}
+                    onSort={() => requestLotSort("expires", "desc")}
+                  >
+                    Expires
+                  </Th>
                 </Tr>
               </thead>
               <tbody>
-                {account.lots.map((lot) => (
+                {sortedLots.map((lot) => (
                   <Tr key={lot.id}>
                     <Td>
                       {lot.sourceType.replace(/_/g, " ").toLowerCase()}
@@ -361,15 +464,47 @@ export default function LoyaltyCustomerPage() {
             <Table>
               <thead>
                 <Tr>
-                  <Th>What happened</Th>
-                  <Th align="right">Coins</Th>
-                  <Th align="right">Balance after</Th>
-                  <Th>Order</Th>
-                  <Th>When</Th>
+                  <Th
+                    sortable
+                    sortDirection={getLedgerSortDirection("reason")}
+                    onSort={() => requestLedgerSort("reason", "asc")}
+                  >
+                    What happened
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    sortDirection={getLedgerSortDirection("coins")}
+                    onSort={() => requestLedgerSort("coins", "desc")}
+                  >
+                    Coins
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    sortDirection={getLedgerSortDirection("balanceAfter")}
+                    onSort={() => requestLedgerSort("balanceAfter", "desc")}
+                  >
+                    Balance after
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLedgerSortDirection("order")}
+                    onSort={() => requestLedgerSort("order", "asc")}
+                  >
+                    Order
+                  </Th>
+                  <Th
+                    sortable
+                    sortDirection={getLedgerSortDirection("when")}
+                    onSort={() => requestLedgerSort("when", "desc")}
+                  >
+                    When
+                  </Th>
                 </Tr>
               </thead>
               <tbody>
-                {account.ledger.map((row) => (
+                {sortedLedger.map((row) => (
                   <Tr key={row.id}>
                     <Td>
                       {REASON_COPY[row.reason] ?? row.reason}
@@ -507,15 +642,46 @@ export default function LoyaltyCustomerPage() {
                 <Table>
                   <thead>
                     <Tr>
-                      <Th align="right">Cap</Th>
-                      <Th>Reason</Th>
-                      <Th>Set by</Th>
-                      <Th>Status</Th>
-                      <Th>When</Th>
+                      <Th
+                        align="right"
+                        sortable
+                        sortDirection={getOverrideSortDirection("cap")}
+                        onSort={() => requestOverrideSort("cap", "desc")}
+                      >
+                        Cap
+                      </Th>
+                      <Th
+                        sortable
+                        sortDirection={getOverrideSortDirection("reason")}
+                        onSort={() => requestOverrideSort("reason", "asc")}
+                      >
+                        Reason
+                      </Th>
+                      <Th
+                        sortable
+                        sortDirection={getOverrideSortDirection("setBy")}
+                        onSort={() => requestOverrideSort("setBy", "asc")}
+                      >
+                        Set by
+                      </Th>
+                      <Th
+                        sortable
+                        sortDirection={getOverrideSortDirection("status")}
+                        onSort={() => requestOverrideSort("status", "asc")}
+                      >
+                        Status
+                      </Th>
+                      <Th
+                        sortable
+                        sortDirection={getOverrideSortDirection("when")}
+                        onSort={() => requestOverrideSort("when", "desc")}
+                      >
+                        When
+                      </Th>
                     </Tr>
                   </thead>
                   <tbody>
-                    {earnCap.overrides.map((o) => {
+                    {sortedOverrides.map((o) => {
                       const expired = o.expiresAt && new Date(o.expiresAt) <= new Date();
                       return (
                         <Tr key={o.id}>

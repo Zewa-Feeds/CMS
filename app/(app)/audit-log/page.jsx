@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Pill, Chip } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
 import { InfoBox } from "@/components/ui/Modal";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /** The API's AuditModule enum values, with display labels. */
@@ -61,6 +61,23 @@ export default function AuditLogPage() {
   }, [refetch]);
 
   const rows = data ?? [];
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "desc" },
+    {
+      ts: (a) => (a.ts ? new Date(a.ts).getTime() : 0),
+      user: (a) => a.user || "",
+      act: (a) => a.act || "",
+      mod: (a) => MOD_LABEL[a.mod] || a.mod || "",
+      rec: (a) => a.rec || "",
+      ip: (a) => a.ip || "",
+    }
+  );
 
   return (
     <RoleGate perm="audit.own">
@@ -97,16 +114,58 @@ export default function AuditLogPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Timestamp</Th>
-                  <Th>User</Th>
-                  <Th>Action</Th>
-                  <Th>Module</Th>
-                  <Th>Record</Th>
-                  <Th>IP</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "ts"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("ts", "desc")}
+                  >
+                    Timestamp
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "user"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("user", "asc")}
+                  >
+                    User
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "act"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("act", "asc")}
+                  >
+                    Action
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "mod"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("mod", "asc")}
+                  >
+                    Module
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "rec"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("rec", "asc")}
+                  >
+                    Record
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "ip"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("ip", "asc")}
+                  >
+                    IP
+                  </Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((a, i) => (
+                {sortedRows.map((a, i) => (
                   <Tr key={i}>
                     <Td><span className="mono text-[12px]">{new Date(a.ts).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span></Td>
                     <Td>

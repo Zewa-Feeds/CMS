@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /**
@@ -44,6 +44,27 @@ export default function LoyaltyBalancesPage() {
   const [sort, setSort] = useState("balance");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "desc" },
+    {
+      customer: (row) =>
+        `${row.customer?.firstName ?? ""} ${row.customer?.lastName ?? ""}`.trim() ||
+        row.customer?.email ||
+        "",
+      available: (row) => row.availableCoins ?? 0,
+      pending: (row) => row.pendingCoins ?? 0,
+      earned: (row) => row.lifetimeEarned ?? 0,
+      used: (row) => row.lifetimeRedeemed ?? 0,
+      status: (row) => row.status || "",
+    }
+  );
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -113,17 +134,63 @@ export default function LoyaltyBalancesPage() {
             <Table>
               <thead>
                 <Tr>
-                  <Th>Customer</Th>
-                  <Th align="right">Available</Th>
-                  <Th align="right">Pending</Th>
-                  <Th align="right">Lifetime earned</Th>
-                  <Th align="right">Lifetime used</Th>
-                  <Th>Status</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "customer"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("customer", "asc")}
+                  >
+                    Customer
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    active={sortKey === "available"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("available", "desc")}
+                  >
+                    Available
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    active={sortKey === "pending"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("pending", "desc")}
+                  >
+                    Pending
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    active={sortKey === "earned"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("earned", "desc")}
+                  >
+                    Lifetime earned
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
+                    active={sortKey === "used"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("used", "desc")}
+                  >
+                    Lifetime used
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "status"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
                   <Th />
                 </Tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {sortedRows.map((row) => {
                   const name =
                     `${row.customer.firstName ?? ""} ${row.customer.lastName ?? ""}`.trim() ||
                     row.customer.email;

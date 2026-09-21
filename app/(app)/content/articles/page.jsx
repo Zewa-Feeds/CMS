@@ -19,6 +19,7 @@ import {
   Tr,
   CellSub,
   EmptyState,
+  useSortableTable,
 } from "@/components/ui/Table";
 
 /** CMS label -> the ContentStatus enum. */
@@ -60,6 +61,22 @@ export default function ArticlesPage() {
   }, [refetch]);
 
   const rows = data ?? [];
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "asc" },
+    {
+      title: (a) => a.title || "",
+      tag: (a) => a.tag || "",
+      read: (a) => a.read ?? 0,
+      status: (a) => a.statusLabel || a.status || "",
+      updatedAt: (a) => (a.updatedAt ? new Date(a.updatedAt).getTime() : 0),
+    }
+  );
 
   return (
     <>
@@ -101,16 +118,51 @@ export default function ArticlesPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Title</Th>
-                  <Th>Tag</Th>
-                  <Th>Read</Th>
-                  <Th>Status</Th>
-                  <Th>Last Updated</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "title"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("title", "asc")}
+                  >
+                    Title
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "tag"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("tag", "asc")}
+                  >
+                    Tag
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "read"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("read", "desc")}
+                  >
+                    Read
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "status"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "updatedAt"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("updatedAt", "desc")}
+                  >
+                    Last Updated
+                  </Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((a) => (
+                {sortedRows.map((a) => (
                   <Tr key={a.slug}>
                     <Td>
                       <div className="font-medium">{a.title}</div>

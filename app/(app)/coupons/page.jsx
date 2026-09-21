@@ -12,7 +12,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { DateRangeButton } from "@/components/analytics/DateRangePicker";
 
@@ -88,6 +88,30 @@ export default function CouponsPage() {
     if (kind === "Exclusive") return c.stackingMode === "EXCLUSIVE";
     return true;
   });
+
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "asc" },
+    {
+      code: (c) => c.code,
+      type: (c) => (c.automatic ? "Automatic" : "Code-based"),
+      discount: (c) => c.discountValue ?? 0,
+      eligibility: (c) => (c.firstOrderOnly ? "First order" : c.customerSegment || "All"),
+      stacking: (c) => c.stackingMode || "",
+      priority: (c) => c.priority ?? 0,
+      minOrder: (c) => c.minOrderValue ?? 0,
+      valid: (c) => (c.startAt ? new Date(c.startAt).getTime() : 0),
+      usage: (c) => c.used ?? 0,
+      appliesTo: (c) => c.appliesTo || "",
+      revenue: (c) => c.revenuePaise ?? (c.revenue ? c.revenue * 100 : 0),
+      status: (c) => c.statusLabel || c.status || "",
+    }
+  );
 
   // Drop any checked id that fell out of the visible set — a stale selection
   // pointing at a row the current filters no longer show would silently
@@ -276,23 +300,110 @@ export default function CouponsPage() {
                       aria-label="Select all visible coupons"
                     />
                   </Th>
-                  <Th>Code</Th>
-                  <Th>Type</Th>
-                  <Th>Discount</Th>
-                  <Th>Eligibility</Th>
-                  <Th>Stacking</Th>
-                  <Th right>Priority</Th>
-                  <Th right>Min. Order</Th>
-                  <Th>Valid</Th>
-                  <Th>Usage</Th>
-                  <Th>Applies to</Th>
-                  <Th right>Revenue generated</Th>
-                  <Th>Status</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "code"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("code", "asc")}
+                  >
+                    Code
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "type"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("type", "asc")}
+                  >
+                    Type
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "discount"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("discount", "desc")}
+                  >
+                    Discount
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "eligibility"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("eligibility", "asc")}
+                  >
+                    Eligibility
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "stacking"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("stacking", "asc")}
+                  >
+                    Stacking
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "priority"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("priority", "desc")}
+                  >
+                    Priority
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "minOrder"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("minOrder", "desc")}
+                  >
+                    Min. Order
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "valid"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("valid", "desc")}
+                  >
+                    Valid
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "usage"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("usage", "desc")}
+                  >
+                    Usage
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "appliesTo"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("appliesTo", "asc")}
+                  >
+                    Applies to
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "revenue"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("revenue", "desc")}
+                  >
+                    Revenue generated
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "status"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((c) => (
+                {sortedRows.map((c) => (
                   <Tr key={c.id}>
                     <Td>
                       <input

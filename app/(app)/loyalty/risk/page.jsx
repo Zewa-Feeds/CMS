@@ -8,7 +8,7 @@ import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 /**
@@ -59,6 +59,21 @@ export default function LoyaltyRiskPage() {
   }, [load]);
 
   const volume = data?.volume;
+  const highReturnAccounts = data?.highReturnAccounts ?? [];
+  const {
+    sortedItems: sortedHighReturnAccounts,
+    sortKey: hraSortKey,
+    sortDir: hraSortDir,
+    toggleSort: toggleHraSort,
+  } = useSortableTable(
+    highReturnAccounts,
+    { key: null, dir: "desc" },
+    {
+      customer: (r) => r.email || "",
+      coins: (r) => r.availableCoins ?? 0,
+      rtos: (r) => r.rtoCount90d ?? 0,
+    }
+  );
 
   return (
     <RoleGate perm="loyalty.view">
@@ -247,13 +262,36 @@ export default function LoyaltyRiskPage() {
                   <Table>
                     <thead>
                       <Tr>
-                        <Th>Customer</Th>
-                        <Th align="right">Coins held</Th>
-                        <Th align="right">RTOs (90d)</Th>
+                        <Th
+                          sortable
+                          active={hraSortKey === "customer"}
+                          dir={hraSortDir}
+                          onSort={() => toggleHraSort("customer", "asc")}
+                        >
+                          Customer
+                        </Th>
+                        <Th
+                          align="right"
+                          sortable
+                          active={hraSortKey === "coins"}
+                          dir={hraSortDir}
+                          onSort={() => toggleHraSort("coins", "desc")}
+                        >
+                          Coins held
+                        </Th>
+                        <Th
+                          align="right"
+                          sortable
+                          active={hraSortKey === "rtos"}
+                          dir={hraSortDir}
+                          onSort={() => toggleHraSort("rtos", "desc")}
+                        >
+                          RTOs (90d)
+                        </Th>
                       </Tr>
                     </thead>
                     <tbody>
-                      {data.highReturnAccounts.map((row) => (
+                      {sortedHighReturnAccounts.map((row) => (
                         <Tr key={row.customerId}>
                           <Td>
                             <Link

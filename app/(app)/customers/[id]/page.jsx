@@ -14,7 +14,7 @@ import { Button, button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 export default function CustomerProfilePage() {
@@ -46,6 +46,24 @@ export default function CustomerProfilePage() {
   useEffect(() => {
     void fetchCustomer();
   }, [fetchCustomer]);
+
+  const orderHistory = cust?.orderHistory || [];
+
+  const {
+    items: sortedOrders,
+    requestSort: requestOrderSort,
+    getSortDirection: getOrderSortDirection,
+  } = useSortableTable(
+    orderHistory,
+    { key: "order", direction: "desc" },
+    {
+      order: (o) => (o.placedAt ? new Date(o.placedAt).getTime() : 0),
+      items: (o) => o.itemCount ?? 0,
+      total: (o) => o.totalPaise ?? (o.total ? o.total * 100 : 0),
+      payment: (o) => o.paymentLabel || o.paymentStatus || "",
+      status: (o) => o.statusLabel || o.status || "",
+    }
+  );
 
   if (pageState === "loading") {
     return <div className="py-20 text-center text-[13px] text-muted">Loading customer profile…</div>;
@@ -83,7 +101,6 @@ export default function CustomerProfilePage() {
     }
   };
 
-  const orderHistory = cust.orderHistory || [];
   const addresses = cust.addresses || [];
   const reviews = cust.reviews || [];
 
@@ -254,15 +271,47 @@ export default function CustomerProfilePage() {
               <Table>
                 <thead>
                   <tr>
-                    <Th>Order</Th>
-                    <Th right>Items</Th>
-                    <Th right>Total</Th>
-                    <Th>Payment</Th>
-                    <Th>Status</Th>
+                    <Th
+                      sortable
+                      sortDirection={getOrderSortDirection("order")}
+                      onSort={() => requestOrderSort("order", "desc")}
+                    >
+                      Order
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      sortDirection={getOrderSortDirection("items")}
+                      onSort={() => requestOrderSort("items", "desc")}
+                    >
+                      Items
+                    </Th>
+                    <Th
+                      right
+                      sortable
+                      sortDirection={getOrderSortDirection("total")}
+                      onSort={() => requestOrderSort("total", "desc")}
+                    >
+                      Total
+                    </Th>
+                    <Th
+                      sortable
+                      sortDirection={getOrderSortDirection("payment")}
+                      onSort={() => requestOrderSort("payment", "asc")}
+                    >
+                      Payment
+                    </Th>
+                    <Th
+                      sortable
+                      sortDirection={getOrderSortDirection("status")}
+                      onSort={() => requestOrderSort("status", "asc")}
+                    >
+                      Status
+                    </Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orderHistory.map((o) => (
+                  {sortedOrders.map((o) => (
                     <Tr key={o.orderNo} clickable>
                       <Td>
                         <Link

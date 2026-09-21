@@ -12,7 +12,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Select } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState } from "@/components/ui/Table";
+import { TableWrap, Table, Th, Td, Tr, CellSub, EmptyState, useSortableTable } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
 const fmtDate = (iso) =>
@@ -27,6 +27,26 @@ export default function InfluencersPage() {
   const [error, setError] = useState(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
+
+  const {
+    sortedItems: sortedRows,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    rows,
+    { key: null, dir: "asc" },
+    {
+      influencer: (r) => r.name || "",
+      code: (r) => r.coupon?.code || "",
+      discount: (r) => r.coupon?.discountValue ?? 0,
+      status: (r) => r.status || "",
+      orders: (r) => r.totalOrders ?? 0,
+      successful: (r) => r.successfulOrders ?? 0,
+      netRevenue: (r) => r.netRevenue ?? 0,
+      created: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : 0),
+    }
+  );
   /** The influencer whose activation is being confirmed. */
   const [pending, setPending] = useState(null);
 
@@ -114,19 +134,78 @@ export default function InfluencersPage() {
             <Table>
               <thead>
                 <tr>
-                  <Th>Influencer</Th>
-                  <Th>Code</Th>
-                  <Th>Discount</Th>
-                  <Th>Status</Th>
-                  <Th className="text-right">Orders</Th>
-                  <Th className="text-right">Successful</Th>
-                  <Th className="text-right">Net revenue</Th>
-                  <Th>Created</Th>
-                  <Th className="text-right">Actions</Th>
+                  <Th
+                    sortable
+                    active={sortKey === "influencer"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("influencer", "asc")}
+                  >
+                    Influencer
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "code"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("code", "asc")}
+                  >
+                    Code
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "discount"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("discount", "desc")}
+                  >
+                    Discount
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "status"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("status", "asc")}
+                  >
+                    Status
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "orders"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("orders", "desc")}
+                  >
+                    Orders
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "successful"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("successful", "desc")}
+                  >
+                    Successful
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "netRevenue"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("netRevenue", "desc")}
+                  >
+                    Net revenue
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "created"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("created", "desc")}
+                  >
+                    Created
+                  </Th>
+                  <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {sortedRows.map((r) => (
                   <Tr key={r.id}>
                     <Td>
                       <Link href={`/influencers/${r.id}`} className="font-semibold hover:underline">

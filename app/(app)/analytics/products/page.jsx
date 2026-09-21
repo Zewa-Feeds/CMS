@@ -150,6 +150,8 @@ export default function ProductAnalyticsPage() {
       <ProductAnalyticsTable
         data={productsList}
         meta={data?.meta}
+        sort={sort}
+        dir={dir}
         onSortChange={handleSortChange}
         onSearchChange={handleSearchChange}
         onPageChange={setPage}
