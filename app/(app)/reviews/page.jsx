@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, X, Eye, CheckCheck, Star } from "lucide-react";
+import { Check, X, Eye, CheckCheck, Star, RefreshCw } from "lucide-react";
 import { useData } from "@/lib/store";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
@@ -81,23 +81,39 @@ export default function ReviewsPage() {
         title="Reviews Moderation"
         sub="All reviews wait in the queue before appearing on the site."
         actions={
-          tab === "Pending" &&
-          counts.Pending > 0 && (
+          <div className="flex items-center gap-2">
+            {/*
+              Always available, including when the list failed to load — a
+              transient API error left the page showing only "Database error"
+              with no way to try again short of a full reload.
+            */}
             <Button
-              variant="primary"
+              variant="ghost"
+              disabled={loading}
               onClick={async () => {
-                try {
-                  const result = await approveAllPending();
-                  toast.push(`Approved ${result.approved} review${result.approved === 1 ? "" : "s"}.`);
-                  await refetch();
-                } catch (err) {
-                  toast.push(err.message, { bad: true });
-                }
+                await refetch();
               }}
             >
-              <CheckCheck size={15} /> Approve All Visible
+              <RefreshCw size={15} className={loading ? "animate-spin" : undefined} />
+              {loading ? "Refreshing…" : "Refresh"}
             </Button>
-          )
+            {tab === "Pending" && counts.Pending > 0 && (
+              <Button
+                variant="primary"
+                onClick={async () => {
+                  try {
+                    const result = await approveAllPending();
+                    toast.push(`Approved ${result.approved} review${result.approved === 1 ? "" : "s"}.`);
+                    await refetch();
+                  } catch (err) {
+                    toast.push(err.message, { bad: true });
+                  }
+                }}
+              >
+                <CheckCheck size={15} /> Approve All Visible
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -117,7 +133,18 @@ export default function ReviewsPage() {
           state then would read as "nothing here" when rows are still in flight.
         */}
         {error ? (
-          <div className="px-4 py-12 text-center text-[13px] text-red-deep">{error}</div>
+          /*
+            A failed load used to be a dead end: the message alone, with no way
+            to retry short of reloading the page. The commonest cause is a
+            transient API blip, which a second attempt clears.
+          */
+          <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
+            <p className="text-[13px] text-red-deep">{error}</p>
+            <Button variant="ghost" disabled={loading} onClick={() => void refetch()}>
+              <RefreshCw size={15} className={loading ? "animate-spin" : undefined} />
+              {loading ? "Retrying…" : "Try again"}
+            </Button>
+          </div>
         ) : data === null ? (
           <div className="px-4 py-12 text-center text-[13px] text-muted">Loading…</div>
         ) : rows.length === 0 ? (
