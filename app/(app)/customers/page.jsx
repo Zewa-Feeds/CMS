@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { Eye, Users, BadgeCheck } from "lucide-react";
 import { useData } from "@/lib/store";
@@ -26,16 +26,20 @@ export default function CustomersPage() {
   const loadCustomers = useData((s) => s.loadCustomers);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All");
+  const [sortKey, setSortKey] = useState("spend");
+  const [sortDir, setSortDir] = useState("desc");
 
-  /** Search runs server-side (§7.1) — name, email and phone. */
+  /** Search and sort run server-side (§7.1) — name, email, phone, spend, and alphabetical. */
   const refetch = useCallback(
     () =>
       loadCustomers({
         q: q.trim() || undefined,
         status: status === "All" ? undefined : status.toUpperCase(),
+        sort: sortKey,
+        dir: sortDir,
         limit: 100,
       }).catch(() => undefined),
-    [loadCustomers, q, status],
+    [loadCustomers, q, status, sortKey, sortDir],
   );
 
   // The FIRST load must not wait for the debounce — a 250ms delay on mount is
@@ -52,7 +56,50 @@ export default function CustomersPage() {
     return () => clearTimeout(timer);
   }, [refetch]);
 
+  const handleSortSelect = (val) => {
+    const [key, dir] = val.split("_");
+    setSortKey(key);
+    setSortDir(dir);
+  };
+
+  const toggleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  };
+
   const rows = data ?? [];
+
+  // Instant client-side sorting gives snappy feedback while refetch keeps pagination in sync
+  const sortedRows = useMemo(() => {
+    const list = [...rows];
+    list.sort((a, b) => {
+      if (sortKey === "name") {
+        const diff = (a.name || a.email || "").localeCompare(b.name || b.email || "", undefined, { sensitivity: "base" });
+        return sortDir === "desc" ? -diff : diff;
+      }
+      if (sortKey === "orders") {
+        const diff = sortDir === "asc" ? (a.orders ?? 0) - (b.orders ?? 0) : (b.orders ?? 0) - (a.orders ?? 0);
+        if (diff !== 0) return diff;
+        return (a.name || a.email || "").localeCompare(b.name || b.email || "", undefined, { sensitivity: "base" });
+      }
+      if (sortKey === "registered") {
+        const aTime = new Date(a.registeredAt).getTime();
+        const bTime = new Date(b.registeredAt).getTime();
+        return sortDir === "asc" ? aTime - bTime : bTime - aTime;
+      }
+      // "spend" — Total ordered value
+      const aSpend = a.spentPaise ?? (a.spent ? Math.round(a.spent * 100) : 0);
+      const bSpend = b.spentPaise ?? (b.spent ? Math.round(b.spent * 100) : 0);
+      const diff = sortDir === "asc" ? aSpend - bSpend : bSpend - aSpend;
+      if (diff !== 0) return diff;
+      return (a.name || a.email || "").localeCompare(b.name || b.email || "", undefined, { sensitivity: "base" });
+    });
+    return list;
+  }, [rows, sortKey, sortDir]);
 
   return (
     <RoleGate perm="customers.view">
@@ -72,6 +119,21 @@ export default function CustomersPage() {
               <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>
             ))}
           </Select>
+          <Select
+            value={`${sortKey}_${sortDir}`}
+            onChange={(e) => handleSortSelect(e.target.value)}
+            className="w-auto"
+            aria-label="Sort by"
+          >
+            <option value="spend_desc">Total ordered value (High to Low)</option>
+            <option value="spend_asc">Total ordered value (Low to High)</option>
+            <option value="name_asc">Alphabetical (A–Z)</option>
+            <option value="name_desc">Alphabetical (Z–A)</option>
+            <option value="orders_desc">Orders (Most to Least)</option>
+            <option value="orders_asc">Orders (Least to Most)</option>
+            <option value="registered_desc">Newest registered</option>
+            <option value="registered_asc">Oldest registered</option>
+          </Select>
         </FilterBar>
 
         {/*
@@ -82,24 +144,32 @@ export default function CustomersPage() {
           <div className="px-4 py-12 text-center text-[13px] text-red-deep">{error}</div>
         ) : data === null ? (
           <div className="px-4 py-12 text-center text-[13px] text-muted">Loading…</div>
-        ) : rows.length === 0 ? (
+        ) : sortedRows.length === 0 ? (
           <EmptyState icon={Users} title="No customers match">Try a different search.</EmptyState>
         ) : (
           <TableWrap>
             <Table>
               <thead>
                 <tr>
-                  <Th>Customer</Th>
+                  <Th sortable active={sortKey === "name"} dir={sortDir} onSort={() => toggleSort("name")}>
+                    Customer
+                  </Th>
                   <Th>Phone</Th>
-                  <Th>Registered</Th>
-                  <Th right>Orders</Th>
-                  <Th right>Lifetime Spend</Th>
+                  <Th sortable active={sortKey === "registered"} dir={sortDir} onSort={() => toggleSort("registered")}>
+                    Registered
+                  </Th>
+                  <Th right sortable active={sortKey === "orders"} dir={sortDir} onSort={() => toggleSort("orders")}>
+                    Orders
+                  </Th>
+                  <Th right sortable active={sortKey === "spend"} dir={sortDir} onSort={() => toggleSort("spend")}>
+                    Lifetime Spend
+                  </Th>
                   <Th>Status</Th>
                   <Th right>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((c) => (
+                {sortedRows.map((c) => (
                   <Tr key={c.email}>
                     <Td>
                       <div className="flex items-center gap-3">
