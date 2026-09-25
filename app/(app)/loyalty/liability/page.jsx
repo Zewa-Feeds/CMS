@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, RefreshCw } from "lucide-react";
-import { loyalty as loyaltyApi, API_BASE } from "@/lib/api";
+import { loyalty as loyaltyApi } from "@/lib/api";
 import { inr } from "@/lib/utils";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
@@ -31,6 +31,7 @@ export default function LoyaltyLiabilityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reconciling, setReconciling] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [reconcileResult, setReconcileResult] = useState(null);
 
   const exceptions = data?.exceptions ?? [];
@@ -83,6 +84,17 @@ export default function LoyaltyLiabilityPage() {
     }
   }
 
+  async function runExport() {
+    setExporting(true);
+    try {
+      await loyaltyApi.exportCsv();
+    } catch (err) {
+      setError(err?.message ?? "Could not export the liability CSV.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <RoleGate perm="loyalty.view">
       <Breadcrumbs
@@ -107,17 +119,21 @@ export default function LoyaltyLiabilityPage() {
               {reconciling ? "Reconciling…" : "Reconcile now"}
             </button>
             {/*
-              A plain link: the export endpoint streams CSV and the browser
-              handles the download. It needs the session cookie, which a fetch
-              would also carry, but a link avoids buffering the whole file in JS.
+              A button, not a link. The admin API authenticates on the
+              Authorization header, so a browser navigation to the endpoint
+              arrives unauthenticated and answers 401 — the fetch in
+              `loyalty.exportCsv()` carries the Bearer token and hands the blob
+              to the same `downloadBlob` helper every other CSV export uses.
             */}
-            <a
-              href={`${API_BASE}/loyalty/export`}
+            <button
+              type="button"
+              onClick={runExport}
+              disabled={exporting}
               className={button({ variant: "secondary" })}
             >
               <Download size={15} />
-              Export CSV
-            </a>
+              {exporting ? "Exporting…" : "Export CSV"}
+            </button>
           </div>
         }
       />
