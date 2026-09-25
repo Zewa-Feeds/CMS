@@ -122,6 +122,13 @@ export default function OrderDetailPage() {
   const availableTransitions = order.availableTransitions || [];
 
   const canRefund = permissions.includes("orders.refund") && order.canRefund;
+  /*
+   * Resending is ADMIN-only, matching the `/emails` page and the endpoint behind
+   * both. This button used to be ungated while the route checked `orders.status`
+   * (OPS + ADMIN), which let an operator without `emails.resend` send customer
+   * mail from here.
+   */
+  const canResendEmail = permissions.includes("emails.resend");
   const maxRefundRupees = (order.refundableePaise ?? (order.totalPaise || 0)) / 100;
 
   const openRefundModal = () => {
@@ -514,7 +521,7 @@ export default function OrderDetailPage() {
                           {e.status}
                         </Pill>
                       )}
-                      {e.id && (
+                      {e.id && canResendEmail && (
                         <button
                           type="button"
                           onClick={() => handleResendEmail(e.id)}
