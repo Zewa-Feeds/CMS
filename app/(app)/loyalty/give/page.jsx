@@ -105,7 +105,6 @@ function GiveCoinsInner() {
   const [coins, setCoins] = useState("");
   const [reason, setReason] = useState("GOODWILL");
   const [note, setNote] = useState("");
-  const [approvedById, setApprovedById] = useState("");
 
   const [formError, setFormError] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -215,7 +214,6 @@ function GiveCoinsInner() {
           coins: amount,
           note: note.trim(),
           reason,
-          approvedById: approvedById.trim() || undefined,
         },
         { idempotencyKey: idempotencyKey.current },
       );
@@ -232,11 +230,10 @@ function GiveCoinsInner() {
       idempotencyKey.current = null;
       setCoins("");
       setNote("");
-      setApprovedById("");
     } catch (err) {
       setConfirming(false);
-      // Surface exactly what the server said, including the approval-threshold
-      // message — the threshold itself is never duplicated in this client.
+      // Surface exactly what the server said; no validation rule is duplicated
+      // in this client.
       setFormError(err?.message ?? "The coins could not be given.");
       toast.push(err?.message ?? "The coins could not be given.", { bad: true });
     } finally {
@@ -397,19 +394,6 @@ function GiveCoinsInner() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Promotional reward for customer"
-              />
-            </Field>
-
-            <Field
-              label="Second approver (admin user id)"
-              hint="Only needed above the approval threshold. Leave blank otherwise — the server decides and will tell you if one is required."
-              htmlFor="give-approver"
-            >
-              <Input
-                id="give-approver"
-                value={approvedById}
-                onChange={(e) => setApprovedById(e.target.value)}
-                placeholder="Leave blank for ordinary grants"
               />
             </Field>
 

@@ -25,9 +25,11 @@ import { useAuth } from "@/lib/store";
  * they expire or unlock, and what moved it. The ledger is shown in full with
  * plain-language reasons, each row linking to its order.
  *
- * Adjustments require a reason and — above the rule version's threshold — a
- * second approver (§9.2). Both are enforced server-side; the form mirrors them
- * so the failure is explained before the request rather than after it.
+ * Adjustments require a reason, enforced server-side; the form mirrors it so the
+ * failure is explained before the request rather than after it. The §9.2
+ * second-approver threshold was removed by product decision — `loyalty.adjust`
+ * is ADMIN-only, so there is no less-trusted operator a co-signature would
+ * guard against, and the audit trail is the control.
  */
 
 const REASON_COPY = {
@@ -88,7 +90,6 @@ export default function LoyaltyCustomerPage() {
   // Adjustment form
   const [coins, setCoins] = useState("");
   const [note, setNote] = useState("");
-  const [approverId, setApproverId] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -136,15 +137,12 @@ export default function LoyaltyCustomerPage() {
         coins: value,
         note: note.trim(),
         reason: value > 0 ? "GOODWILL" : "ADJUSTMENT",
-        ...(approverId.trim() ? { approvedById: approverId.trim() } : {}),
       });
       setCoins("");
       setNote("");
-      setApproverId("");
       await load();
     } catch (err) {
-      // The server carries the threshold rule, so its message is the accurate
-      // one — show it rather than guessing at the limit client-side.
+      // Show the server's message rather than guessing at a rule client-side.
       setFormError(err?.message ?? "The adjustment was not applied.");
     } finally {
       setSaving(false);
@@ -724,30 +722,16 @@ export default function LoyaltyCustomerPage() {
           </CardHead>
           <CardBody>
             <form onSubmit={submitAdjustment} className="flex flex-col gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Coins" hint="Positive to credit, negative to debit." required>
-                  <input
-                    id="adjust-coins"
-                    value={coins}
-                    onChange={(e) => setCoins(e.target.value.replace(/[^0-9-]/g, ""))}
-                    inputMode="numeric"
-                    placeholder="e.g. 50 or -25"
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[14px] outline-none focus:border-[var(--accent)]"
-                  />
-                </Field>
-                <Field
-                  label="Second approver (admin ID)"
-                  hint="Required above the approval threshold."
-                >
-                  <input
-                    id="adjust-approver"
-                    value={approverId}
-                    onChange={(e) => setApproverId(e.target.value)}
-                    placeholder="Leave blank for small adjustments"
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[14px] outline-none focus:border-[var(--accent)]"
-                  />
-                </Field>
-              </div>
+              <Field label="Coins" hint="Positive to credit, negative to debit." required>
+                <input
+                  id="adjust-coins"
+                  value={coins}
+                  onChange={(e) => setCoins(e.target.value.replace(/[^0-9-]/g, ""))}
+                  inputMode="numeric"
+                  placeholder="e.g. 50 or -25"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[14px] outline-none focus:border-[var(--accent)]"
+                />
+              </Field>
 
               <Field label="Reason" hint="Recorded in the ledger and shown to the customer." required>
                 <input

@@ -158,6 +158,26 @@ describe("confirmation gates the credit", () => {
     expect(body.reason).toBe("GOODWILL");
   });
 
+  /*
+   * The §9.2 second-approver control was removed: `loyalty.adjust` is ADMIN-only,
+   * so every operator who can reach this form is already trusted to move coins.
+   * Pinned because a reintroduced field would silently start sending a key the
+   * server no longer requires, and an approver input on an admin-only form is
+   * the exact friction that was taken out.
+   */
+  it("asks for no approver, and sends none", async () => {
+    await fillValidGrant();
+
+    expect(screen.queryByLabelText(/approver/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
+
+    await waitFor(() => expect(adjust).toHaveBeenCalledTimes(1));
+    const [, body] = adjust.mock.calls[0];
+    expect(body.approvedById).toBeUndefined();
+  });
+
   it("sends an Idempotency-Key — one per submission", async () => {
     await fillValidGrant();
     fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
