@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { Ban, ShieldCheck, MapPin, Star, Coins, Mail } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL, REVIEW_STATE_PILL } from "@/lib/constants";
-import { formatPaise } from "@/lib/api";
+import { formatPaise, customers as customersApi } from "@/lib/api";
 import { initials } from "@/lib/utils";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
@@ -30,6 +30,13 @@ export default function CustomerProfilePage() {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+  /*
+   * Declared with the other hooks, ABOVE the loading/missing early returns.
+   * Sitting below them changed the hook count between renders — "Rendered more
+   * hooks than during the previous render" — which broke the whole page, not just
+   * this button.
+   */
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   const fetchCustomer = useCallback(async () => {
     try {
@@ -87,6 +94,11 @@ export default function CustomerProfilePage() {
   const canBan = permissions.includes("customers.ban");
   // Hiding the button is a courtesy; the endpoint enforces loyalty.adjust itself.
   const canGiveCoins = permissions.includes("loyalty.adjust");
+  /*
+   * Re-issuing a verification link emails the customer, so it rides the ADMIN-only
+   * customer permission rather than plain view access.
+   */
+  const canResendVerification = permissions.includes("customers.ban");
 
   const toggleBan = async () => {
     const nextStatus = banned ? "ACTIVE" : "BANNED";
@@ -105,6 +117,22 @@ export default function CustomerProfilePage() {
 
   const addresses = cust.addresses || [];
   const reviews = cust.reviews || [];
+
+
+  async function resendVerification() {
+    if (resendingVerification) return;
+    setResendingVerification(true);
+    try {
+      await customersApi.resendVerification(id);
+      toast.push("A new verification link has been sent.");
+      // Re-read so the row reflects the server, not an optimistic guess.
+      await fetchCustomer();
+    } catch (err) {
+      toast.push(err?.message ?? "Could not send the verification link.", { bad: true });
+    } finally {
+      setResendingVerification(false);
+    }
+  }
 
   return (
     <RoleGate perm="customers.view">
@@ -184,7 +212,26 @@ export default function CustomerProfilePage() {
                         })
                       : "—",
                   ],
-                  ["Email Verified", cust.emailVerified ? "Yes" : "No"],
+                  [
+                    "Email Verified",
+                    cust.emailVerified ? (
+                      "Yes"
+                    ) : canResendVerification ? (
+                      <span className="flex items-center gap-2">
+                        No
+                        <button
+                          type="button"
+                          onClick={resendVerification}
+                          disabled={resendingVerification}
+                          className="text-[12px] underline decoration-dotted disabled:opacity-50"
+                        >
+                          {resendingVerification ? "Sending…" : "Resend link"}
+                        </button>
+                      </span>
+                    ) : (
+                      "No"
+                    ),
+                  ],
                   ["Total orders", cust.orderCount ?? cust.orders ?? 0],
                   [
                     "Lifetime spend (paid orders)",
