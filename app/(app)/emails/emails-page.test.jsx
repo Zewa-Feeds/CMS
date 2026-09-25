@@ -51,6 +51,9 @@ const ORDER_ROW = {
   customerName: "Aarav Sharma",
   resendable: true,
   resendBlockedReason: null,
+  trackOpens: true,
+  openedAt: null,
+  openCount: 0,
 };
 
 const OTP_ROW = {
@@ -68,6 +71,9 @@ const OTP_ROW = {
   resendable: false,
   resendBlockedReason:
     "This email contains a single-use code that has expired. Ask the recipient to request a new one.",
+  trackOpens: false,
+  openedAt: null,
+  openCount: 0,
 };
 
 beforeEach(() => {
@@ -91,7 +97,9 @@ afterEach(() => {
 async function renderPage() {
   render(<EmailsPage />);
   await waitFor(() => expect(list).toHaveBeenCalled());
-  await screen.findByText(/Your order 27ZFO001/);
+  // findAllBy*, because a fixture set may legitimately contain two rows that share
+  // a subject; waiting on a unique one would couple the helper to each fixture.
+  await screen.findAllByText(/Your order 27ZFO001/);
 }
 
 describe("the log", () => {
@@ -208,5 +216,50 @@ describe("permissions", () => {
 
     expect(screen.queryByRole("button", { name: /^resend$/i })).toBeNull();
     expect(screen.queryByLabelText(/select all resendable/i)).toBeNull();
+  });
+});
+
+describe("the Opened column", () => {
+  /*
+   * Three states, not two. An untracked email must never read as "not opened" —
+   * collapsing them invites exactly the inference this data cannot support, since a
+   * blocked-image client records nothing for a message that WAS read.
+   */
+  it("shows a dash for an email nobody asked to track", async () => {
+    await renderPage();
+
+    const otpRow = screen.getByText("admin@zewafeeds.com").closest("tr");
+    expect(within(otpRow).getByText("—")).toBeTruthy();
+    expect(within(otpRow).queryByText(/not yet/i)).toBeNull();
+  });
+
+  it("shows 'Not yet' for a tracked email with no open recorded", async () => {
+    await renderPage();
+
+    const orderRow = screen.getByText("buyer@example.com").closest("tr");
+    expect(within(orderRow).getByText(/not yet/i)).toBeTruthy();
+  });
+
+  it("shows when it was opened, and repeats as a count", async () => {
+    list.mockResolvedValue({
+      data: [
+        { ...ORDER_ROW, openedAt: "2026-09-25T05:00:00.000Z", openCount: 1 },
+        {
+          ...ORDER_ROW,
+          id: "e-many",
+          toEmail: "repeat@example.com",
+          openedAt: "2026-09-25T05:00:00.000Z",
+          openCount: 4,
+        },
+      ],
+      meta: { page: 1, perPage: 25, total: 2, totalPages: 1 },
+    });
+    await renderPage();
+
+    const once = screen.getByText("buyer@example.com").closest("tr");
+    expect(within(once).queryByText(/\(\d+x\)/)).toBeNull();
+
+    const many = screen.getByText("repeat@example.com").closest("tr");
+    expect(within(many).getByText(/\(4x\)/)).toBeTruthy();
   });
 });

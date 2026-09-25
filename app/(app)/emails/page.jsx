@@ -56,6 +56,25 @@ function fmt(ts) {
   });
 }
 
+/**
+ * What the Opened column says.
+ *
+ * Three distinct states, deliberately NOT two. An email nobody asked to track
+ * renders as "—", never as "not opened": collapsing them would invite the reading
+ * this data cannot support.
+ *
+ * Even for a tracked email, "not opened" is weak evidence. Opens are counted with a
+ * 1x1 pixel, so a client that blocks remote images records nothing for a message
+ * that was genuinely read, while a proxy prefetch can record one no human saw. A
+ * recorded open is decent evidence of delivery; its absence proves nothing.
+ */
+function openedLabel(row) {
+  if (!row.trackOpens) return "—";
+  if (!row.openedAt) return "Not yet";
+  const when = fmt(row.openedAt);
+  return row.openCount > 1 ? `${when} (${row.openCount}x)` : when;
+}
+
 export default function EmailsPage() {
   const permissions = useAuth((s) => s.permissions);
   const mayResend = permissions.includes("emails.resend");
@@ -289,13 +308,14 @@ export default function EmailsPage() {
               <Th>To</Th>
               <Th>Subject</Th>
               <Th>Status</Th>
+              <Th>Opened</Th>
               {mayResend && <Th>{""}</Th>}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && !loading ? (
               <tr>
-                <Td colSpan={mayResend ? 7 : 5}>
+                <Td colSpan={mayResend ? 8 : 6}>
                   <EmptyState icon={Mail} title="No emails match these filters" />
                 </Td>
               </tr>
@@ -339,6 +359,7 @@ export default function EmailsPage() {
                         {STATUS_LABEL[r.status] ?? r.status}
                       </Pill>
                     </Td>
+                    <Td>{openedLabel(r)}</Td>
                     {mayResend && (
                       <Td right>
                         <button
@@ -355,7 +376,7 @@ export default function EmailsPage() {
                   </Tr>
                   {expanded === r.id && (
                     <tr>
-                      <Td colSpan={mayResend ? 7 : 5}>
+                      <Td colSpan={mayResend ? 8 : 6}>
                         {/* The provider's own words. Before this, that string only
                             existed in the Render logs — putting it on the row is
                             most of the diagnostic value. */}
