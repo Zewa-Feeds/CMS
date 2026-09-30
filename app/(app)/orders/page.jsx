@@ -11,7 +11,7 @@ import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui
 import { Card } from "@/components/ui/Card";
 import { Button, button } from "@/components/ui/Button";
 import { Pill } from "@/components/ui/Pill";
-import { Select } from "@/components/ui/Field";
+import { MultiSelect } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { DateRangePicker } from "@/components/analytics/DateRangePicker";
 import {
@@ -58,6 +58,55 @@ const PAY_ENUM = {
   "Partially Refunded": "PARTIALLY_REFUNDED",
 };
 
+const STATUS_OPTIONS = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map((s) => ({
+  value: s,
+  label: s,
+}));
+const PAY_OPTIONS = ["Paid", "Unpaid", "Refunded"].map((s) => ({ value: s, label: s }));
+
+/**
+ * Selected CMS labels -> the comma-separated enum list the API expects.
+ *
+ * Returns undefined for an empty selection so `qs()` drops the param entirely
+ * rather than sending `status=`, which the server would have to interpret.
+ */
+export function toEnumList(labels, map) {
+  if (!labels || labels.length === 0) return undefined;
+  // Two labels can share an enum (New/Pending), so de-duplicate rather than
+  // sending the same value twice.
+  return [...new Set(labels.map((l) => map[l] ?? l))].join(",");
+}
+
+/** Enum -> the canonical label this page's checkboxes use. */
+const STATUS_LABEL = Object.fromEntries(
+  STATUS_OPTIONS.map((o) => [STATUS_ENUM[o.value] ?? o.value, o.value])
+);
+
+/**
+ * A status from the URL, as a checkbox value.
+ *
+ * The sidebar links use the operator-facing wording ("New", "Accepted") and a
+ * saved URL may hold a raw enum ("SHIPPED"). Both map onto the same canonical
+ * label, or the checkbox for an arriving filter would render unticked.
+ */
+export function normalizeStatus(raw) {
+  const enumValue = STATUS_ENUM[raw] ?? raw.toUpperCase().replace(/\s+/g, "_");
+  return STATUS_LABEL[enumValue] ?? raw;
+}
+
+/** `?status=` -> the checkbox values, de-duplicated. "All"/blank means none. */
+export function parseStatusParam(raw) {
+  return [
+    ...new Set(
+      (raw || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s && s.toLowerCase() !== "all")
+        .map(normalizeStatus)
+    ),
+  ];
+}
+
 function OrdersInner() {
   const params = useSearchParams();
   const router = useRouter();
@@ -68,57 +117,65 @@ function OrdersInner() {
   const toast = useToast();
 
   const [q, setQ] = useState("");
-  const [pay, setPay] = useState("All");
+  // Empty array = no filter. Both filters accept several values at once.
+  const [pay, setPay] = useState([]);
   const [page, setPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
   // Undefined until a preset/custom range is picked — no date filter applied.
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
 
-  // The URL owns the status filter so the sidebar's Pending/Shipped links work
-  // on client-side navigation (this component does not remount between them).
-  const status = params.get("status") || "All";
+  /**
+   * The URL owns the status filter so the sidebar's Pending/Shipped links work
+   * on client-side navigation (this component does not remount between them).
+   *
+   * Several statuses are held as one comma-separated param — `?status=Pending`
+   * from the sidebar is just the one-element case, so those links and any
+   * bookmarked URL keep working unchanged.
+   */
+  const status = parseStatusParam(params.get("status"));
+
   const setStatus = (next) => {
     const qs = new URLSearchParams(params.toString());
-    if (next === "All") qs.delete("status");
-    else qs.set("status", next);
+    if (!next || next.length === 0) qs.delete("status");
+    else qs.set("status", next.join(","));
     const s = qs.toString();
     router.replace(s ? `/orders?${s}` : "/orders", { scroll: false });
   };
 
-  // Reset to page 1 whenever a filter changes.
-  useEffect(() => setPage(1), [status, pay, q, dateRange.from, dateRange.to]);
+  // Reset to page 1 whenever a filter changes. `status`/`pay` are rebuilt every
+  // render, so depend on their serialised form — an array identity would fire
+  // this on every render and pin the list to page 1.
+  const statusKey = status.join(",");
+  const payKey = pay.join(",");
+  useEffect(() => setPage(1), [statusKey, payKey, q, dateRange.from, dateRange.to]);
 
   /**
    * Filtering and pagination are SERVER-side (§6.1). Filtering here would only
    * cover the current page and would disagree with the dashboard's counters.
    */
-  const refetch = useCallback(() => {
-    const query = {
-      page,
-      limit: PER_PAGE,
+  const buildQuery = useCallback(
+    (extra = {}) => ({
       q: q.trim() || undefined,
-      status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
-      paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
+      // The API takes a comma-separated list; an empty selection sends nothing.
+      status: toEnumList(status, STATUS_ENUM),
+      paymentStatus: toEnumList(pay, PAY_ENUM),
       from: dateRange.from || undefined,
       to: dateRange.to || undefined,
-    };
-    return loadOrders(query).catch(() => undefined);
-  }, [loadOrders, page, q, status, pay, dateRange.from, dateRange.to]);
+      ...extra,
+    }),
+    [q, statusKey, payKey, dateRange.from, dateRange.to] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const refetch = useCallback(
+    () => loadOrders(buildQuery({ page, limit: PER_PAGE })).catch(() => undefined),
+    [loadOrders, buildQuery, page]
+  );
 
   const handleRefresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      const query = {
-        page,
-        limit: PER_PAGE,
-        q: q.trim() || undefined,
-        status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
-        paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
-        from: dateRange.from || undefined,
-        to: dateRange.to || undefined,
-      };
-      await loadOrders(query);
+      await loadOrders(buildQuery({ page, limit: PER_PAGE }));
       toast.push("Orders refreshed.");
     } catch (err) {
       toast.push(err?.message ?? "Failed to refresh orders.", { bad: true });
@@ -186,13 +243,7 @@ function OrdersInner() {
                 onClick={async () => {
                   try {
                     // Exports the CURRENT filter set, not just the visible page.
-                    await exportOrdersCsv({
-                      q: q.trim() || undefined,
-                      status: status === "All" ? undefined : STATUS_ENUM[status] ?? status,
-                      paymentStatus: pay === "All" ? undefined : PAY_ENUM[pay] ?? pay,
-                      from: dateRange.from || undefined,
-                      to: dateRange.to || undefined,
-                    });
+                    await exportOrdersCsv(buildQuery());
                     toast.push("Orders exported.");
                   } catch (err) {
                     toast.push(err.message, { bad: true });
@@ -227,16 +278,22 @@ function OrdersInner() {
               setPage(1);
             }}
           />
-          <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto">
-            {["All", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map((s) => (
-              <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>
-            ))}
-          </Select>
-          <Select value={pay} onChange={(e) => { setPay(e.target.value); setPage(1); }} className="w-auto">
-            {["All", "Paid", "Unpaid", "Refunded"].map((s) => (
-              <option key={s} value={s}>{s === "All" ? "All payments" : s}</option>
-            ))}
-          </Select>
+          <MultiSelect
+            label="Status"
+            value={status}
+            onChange={setStatus}
+            options={STATUS_OPTIONS}
+            allLabel="All statuses"
+            className="w-[168px]"
+          />
+          <MultiSelect
+            label="Payment"
+            value={pay}
+            onChange={(next) => { setPay(next); setPage(1); }}
+            options={PAY_OPTIONS}
+            allLabel="All payments"
+            className="w-[168px]"
+          />
         </FilterBar>
 
         {/*
