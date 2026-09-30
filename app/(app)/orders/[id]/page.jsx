@@ -18,6 +18,7 @@ import {
   Loader2,
   AlertTriangle,
   Send,
+  Eye,
 } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL } from "@/lib/constants";
@@ -33,6 +34,7 @@ import { TableWrap, Table, Th, Td, Tr } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { AdvanceStatusModal } from "@/components/orders/AdvanceStatusModal";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
+import { EmailPreviewModal } from "@/components/orders/EmailPreviewModal";
 
 export default function OrderDetailPage() {
   const { id } = useParams();
@@ -68,6 +70,9 @@ export default function OrderDetailPage() {
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [resendingId, setResendingId] = useState(null);
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  // The email row being previewed, or null. Holds the row itself so the modal
+  // can use the bodyHtml the order payload already carries.
+  const [previewEmail, setPreviewEmail] = useState(null);
   const [sendTemplate, setSendTemplate] = useState("order-placed");
   const [sendSubject, setSendSubject] = useState("");
   const [sendHeading, setSendHeading] = useState("");
@@ -521,6 +526,15 @@ export default function OrderDetailPage() {
                           {e.status}
                         </Pill>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setPreviewEmail(e)}
+                        className="flex items-center gap-1 rounded border border-line-soft bg-card px-2 py-1 text-[11.5px] font-medium text-ink transition hover:bg-grey-wash"
+                        title="See exactly what was sent"
+                      >
+                        <Eye size={12} />
+                        Preview
+                      </button>
                       {e.id && canResendEmail && (
                         <button
                           type="button"
@@ -744,6 +758,12 @@ export default function OrderDetailPage() {
           </Card>
         </div>
       </div>
+
+      <EmailPreviewModal
+        open={previewEmail !== null}
+        onClose={() => setPreviewEmail(null)}
+        email={previewEmail}
+      />
 
       {advanceTarget && (
         <AdvanceStatusModal
