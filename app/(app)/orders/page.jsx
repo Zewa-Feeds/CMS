@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 
-const PER_PAGE = 6;
+const PER_PAGE = 20;
 
 /** ISO -> "24 Jul 2026, 09:14". */
 function fmtDateTime(iso) {

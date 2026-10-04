@@ -180,7 +180,7 @@ export default function LoyaltyLiabilityPage() {
                   Outstanding liability
                 </div>
                 <div className="mt-1 text-2xl font-semibold tabular-nums">
-                  {inr(data.outstandingLiabilityPaise)}
+                  {inr(data.outstandingLiabilityPaise / 100)}
                 </div>
                 <CellSub>
                   {data.outstandingCoins.toLocaleString("en-IN")} unlocked coins — on the balance
