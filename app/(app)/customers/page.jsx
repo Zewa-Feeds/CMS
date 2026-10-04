@@ -19,8 +19,11 @@ import {
   Tr,
   CellSub,
   EmptyState,
+  Pager,
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
+
+const PER_PAGE = 20;
 
 export default function CustomersPage() {
   const { data, meta, loading, error } = useData((s) => s.customers);
@@ -30,6 +33,10 @@ export default function CustomersPage() {
   const [sortKey, setSortKey] = useState("spend");
   const [sortDir, setSortDir] = useState("desc");
   const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
+
+  // Any change to the search, filter or sort starts again from page 1.
+  useEffect(() => setPage(1), [q, status, sortKey, sortDir]);
 
   /** Search and sort run server-side (§7.1) — name, email, phone, spend, and alphabetical. */
   const refetch = useCallback(
@@ -39,9 +46,10 @@ export default function CustomersPage() {
         status: status === "All" ? undefined : status.toUpperCase(),
         sort: sortKey,
         dir: sortDir,
-        limit: 100,
+        page,
+        limit: PER_PAGE,
       }).catch(() => undefined),
-    [loadCustomers, q, status, sortKey, sortDir],
+    [loadCustomers, q, status, sortKey, sortDir, page],
   );
 
   // The FIRST load must not wait for the debounce — a 250ms delay on mount is
@@ -231,6 +239,9 @@ export default function CustomersPage() {
               </tbody>
             </Table>
           </TableWrap>
+        )}
+        {data !== null && !error && (
+          <Pager page={page} pages={meta?.pages ?? 1} total={meta?.total ?? rows.length} onPage={setPage} unit="customers" />
         )}
       </Card>
 

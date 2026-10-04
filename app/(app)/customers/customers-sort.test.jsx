@@ -167,7 +167,8 @@ describe("Customers page sorting", () => {
       expect.objectContaining({
         sort: "spend",
         dir: "desc",
-        limit: 100,
+        page: 1,
+        limit: 20,
       }),
     );
   });
