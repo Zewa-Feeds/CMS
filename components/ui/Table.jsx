@@ -156,9 +156,14 @@ export function CellSub({ children }) {
 }
 
 /** Simple pager (spec §3.1). */
+const PAGER_WINDOW = 9;
+
 export function Pager({ page, pages, total, onPage, unit = "rows" }) {
   if (pages <= 1) return <div className="px-4 py-[11px] text-[12.5px] text-muted">{total} {unit}</div>;
-  const nums = Array.from({ length: pages }, (_, i) => i + 1);
+  // Show at most PAGER_WINDOW numbers, sliding so the current page stays centred.
+  const count = Math.min(pages, PAGER_WINDOW);
+  const start = Math.min(Math.max(1, page - Math.floor(PAGER_WINDOW / 2)), pages - count + 1);
+  const nums = Array.from({ length: count }, (_, i) => start + i);
   return (
     <div className="flex flex-wrap items-center gap-2.5 border-t border-line-soft px-4 py-[11px] text-[12.5px] text-muted">
       <span>{total} {unit}</span>
