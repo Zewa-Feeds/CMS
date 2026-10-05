@@ -41,7 +41,6 @@ export default function LoyaltyBalancesPage() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState("all");
-  const [sort, setSort] = useState("balance");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -70,7 +69,8 @@ export default function LoyaltyBalancesPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await loyaltyApi.customers({ filter, sort, limit: 100 });
+      // Server order is highest balance first; the column headers re-sort from there.
+      const data = await loyaltyApi.customers({ filter, limit: 100 });
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (err) {
@@ -78,7 +78,7 @@ export default function LoyaltyBalancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter, sort]);
+  }, [filter]);
 
   const firstLoad = useRef(true);
   useEffect(() => {
@@ -112,10 +112,6 @@ export default function LoyaltyBalancesPage() {
               {f.label}
             </option>
           ))}
-        </Select>
-        <Select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
-          <option value="balance">Highest balance</option>
-          <option value="recent">Most recent activity</option>
         </Select>
       </FilterBar>
 
