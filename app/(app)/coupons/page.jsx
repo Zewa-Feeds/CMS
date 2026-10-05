@@ -343,11 +343,19 @@ export default function CouponsPage() {
                   <Th
                     right
                     sortable
-                    active={sortKey === "priority"}
+                    active={sortKey === "revenue"}
                     dir={sortDir}
-                    onSort={() => toggleSort("priority", "desc")}
+                    onSort={() => toggleSort("revenue", "desc")}
                   >
-                    Priority
+                    Revenue generated
+                  </Th>
+                  <Th
+                    sortable
+                    active={sortKey === "usage"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("usage", "desc")}
+                  >
+                    Usage
                   </Th>
                   <Th
                     right
@@ -368,28 +376,11 @@ export default function CouponsPage() {
                   </Th>
                   <Th
                     sortable
-                    active={sortKey === "usage"}
-                    dir={sortDir}
-                    onSort={() => toggleSort("usage", "desc")}
-                  >
-                    Usage
-                  </Th>
-                  <Th
-                    sortable
                     active={sortKey === "appliesTo"}
                     dir={sortDir}
                     onSort={() => toggleSort("appliesTo", "asc")}
                   >
                     Applies to
-                  </Th>
-                  <Th
-                    right
-                    sortable
-                    active={sortKey === "revenue"}
-                    dir={sortDir}
-                    onSort={() => toggleSort("revenue", "desc")}
-                  >
-                    Revenue generated
                   </Th>
                   <Th
                     sortable
@@ -398,6 +389,15 @@ export default function CouponsPage() {
                     onSort={() => toggleSort("status", "asc")}
                   >
                     Status
+                  </Th>
+                  <Th
+                    right
+                    sortable
+                    active={sortKey === "priority"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("priority", "desc")}
+                  >
+                    Priority
                   </Th>
                   <Th right>Actions</Th>
                 </tr>
@@ -442,26 +442,6 @@ export default function CouponsPage() {
                         {c.stackingLabel ?? "Cannot be combined"}
                       </Pill>
                     </Td>
-                    <Td right><span className="mono text-[12.5px]">{c.priority ?? 0}</span></Td>
-                    <Td right>{c.min ? <span className="mono">{inr(c.min)}</span> : <span className="text-muted-2">—</span>}</Td>
-                    <Td>
-                      <div className="text-[12.5px]">{fmtDate(c.startsAt)}</div>
-                      <CellSub>to {fmtDate(c.endsAt)}</CellSub>
-                    </Td>
-                    <Td><span className="mono text-[12.5px]">{c.used}{c.limit ? ` / ${c.limit}` : " / ∞"}</span></Td>
-                    <Td>
-                      {c.scope === "SPECIFIC_PRODUCTS" ? (
-                        <>
-                          <div className="text-[12.5px]">{c.products.length} product{c.products.length === 1 ? "" : "s"}</div>
-                          <CellSub title={c.products.map((p) => p.name).join(", ")}>
-                            {c.products.slice(0, 2).map((p) => p.name).join(", ")}
-                            {c.products.length > 2 ? ` +${c.products.length - 2}` : ""}
-                          </CellSub>
-                        </>
-                      ) : (
-                        <span className="text-[12.5px] text-muted">All products</span>
-                      )}
-                    </Td>
                     {/*
                       Revenue counts CONFIRMED orders only — an abandoned or
                       cancelled cart never inflates it.
@@ -478,7 +458,27 @@ export default function CouponsPage() {
                         <span className="text-muted-2">—</span>
                       )}
                     </Td>
+                    <Td><span className="mono text-[12.5px]">{c.used}{c.limit ? ` / ${c.limit}` : " / ∞"}</span></Td>
+                    <Td right>{c.min ? <span className="mono">{inr(c.min)}</span> : <span className="text-muted-2">—</span>}</Td>
+                    <Td>
+                      <div className="text-[12.5px]">{fmtDate(c.startsAt)}</div>
+                      <CellSub>to {fmtDate(c.endsAt)}</CellSub>
+                    </Td>
+                    <Td>
+                      {c.scope === "SPECIFIC_PRODUCTS" ? (
+                        <>
+                          <div className="text-[12.5px]">{c.products.length} product{c.products.length === 1 ? "" : "s"}</div>
+                          <CellSub title={c.products.map((p) => p.name).join(", ")}>
+                            {c.products.slice(0, 2).map((p) => p.name).join(", ")}
+                            {c.products.length > 2 ? ` +${c.products.length - 2}` : ""}
+                          </CellSub>
+                        </>
+                      ) : (
+                        <span className="text-[12.5px] text-muted">All products</span>
+                      )}
+                    </Td>
                     <Td><Pill tone={STATUS_TONE[c.status]}>{c.status}</Pill></Td>
+                    <Td right><span className="mono text-[12.5px]">{c.priority ?? 0}</span></Td>
                     <Td right>
                       <div className="flex items-center justify-end gap-1">
                         <Link href={`/coupons/${c.id}/edit`} className={button({ variant: "ghost", size: "icon-sm" })} title="Edit">
