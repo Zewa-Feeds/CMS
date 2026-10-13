@@ -44,7 +44,7 @@ afterEach(() => {
 
 /** The group is expanded by default only for the active route; open it anyway. */
 function openZewaCoins() {
-  const toggle = screen.getByRole("button", { name: /zewa coins/i });
+  const toggle = screen.getByRole("button", { name: /zewa seeds/i });
   fireEvent.click(toggle);
 }
 
@@ -52,22 +52,22 @@ describe("the Zewa Coins submenu", () => {
   it("renders every item for an admin", () => {
     render(<Sidebar />);
     // /loyalty is the active path, so the group starts expanded.
-    for (const label of ["Balances", "Give Coins", "Liability", "Risk", "Rules"]) {
+    for (const label of ["Balances", "Give Seeds", "Liability", "Risk", "Rules"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
 
   it("links Give Coins at /loyalty/give", () => {
     render(<Sidebar />);
-    expect(screen.getByText("Give Coins").closest("a").getAttribute("href")).toBe("/loyalty/give");
+    expect(screen.getByText("Give Seeds").closest("a").getAttribute("href")).toBe("/loyalty/give");
   });
 
   it("survives collapsing and reopening the group", () => {
     render(<Sidebar />);
     openZewaCoins(); // collapse
-    expect(screen.queryByText("Give Coins")).toBeNull();
+    expect(screen.queryByText("Give Seeds")).toBeNull();
     openZewaCoins(); // reopen
-    expect(screen.getByText("Give Coins")).toBeTruthy();
+    expect(screen.getByText("Give Seeds")).toBeTruthy();
   });
 });
 
@@ -76,7 +76,7 @@ describe("permission gating", () => {
     permissions = ["loyalty.view"];
     render(<Sidebar />);
 
-    expect(screen.queryByText("Give Coins")).toBeNull();
+    expect(screen.queryByText("Give Seeds")).toBeNull();
     // The rest of the section stays — only the privileged entry goes.
     expect(screen.getByText("Balances")).toBeTruthy();
     expect(screen.getByText("Liability")).toBeTruthy();
@@ -86,14 +86,14 @@ describe("permission gating", () => {
     permissions = ["loyalty.view", "loyalty.adjust"];
     render(<Sidebar />);
 
-    expect(screen.getByText("Give Coins")).toBeTruthy();
+    expect(screen.getByText("Give Seeds")).toBeTruthy();
     expect(screen.queryByText("Rules")).toBeNull();
   });
 
   it("hides the whole section without loyalty.view", () => {
     permissions = [];
     render(<Sidebar />);
-    expect(screen.queryByRole("button", { name: /zewa coins/i })).toBeNull();
-    expect(screen.queryByText("Give Coins")).toBeNull();
+    expect(screen.queryByRole("button", { name: /zewa seeds/i })).toBeNull();
+    expect(screen.queryByText("Give Seeds")).toBeNull();
   });
 });

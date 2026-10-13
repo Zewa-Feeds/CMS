@@ -83,14 +83,14 @@ async function fillValidGrant(coins = "500") {
   });
 }
 
-const coinsInput = () => screen.getByLabelText(/coins/i, { selector: "input#give-coins" });
+const coinsInput = () => screen.getByLabelText(/seeds/i, { selector: "input#give-coins" });
 const noteInput = () => screen.getByLabelText(/note/i, { selector: "textarea#give-note" });
 
 describe("permissions", () => {
   it("renders the workflow for an admin holding loyalty.adjust", async () => {
     render(<GiveCoinsPage />);
     // Scoped to the heading: "Give Zewa Coins" is also the submit button's label.
-    expect(await screen.findByRole("heading", { name: /give zewa coins/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /give zewa seeds/i })).toBeTruthy();
     expect(screen.getByLabelText(/find the customer/i)).toBeTruthy();
   });
 
@@ -123,7 +123,7 @@ describe("customer selection", () => {
   it("loads the selected customer's balance", async () => {
     await fillValidGrant();
     // "250" also appears in the preview rows, so assert on the labelled line.
-    expect(await screen.findByText(/250 Zewa Coins/i)).toBeTruthy();
+    expect(await screen.findByText(/250 Zewa Seeds/i)).toBeTruthy();
     expect(customer).toHaveBeenCalledWith("c-1");
   });
 });
@@ -139,7 +139,7 @@ describe("the balance preview is display only", () => {
 describe("confirmation gates the credit", () => {
   it("does NOT call the API until the admin confirms", async () => {
     await fillValidGrant();
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
 
     expect(await screen.findByText(/cannot be undone/i)).toBeTruthy();
     expect(adjust).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe("confirmation gates the credit", () => {
 
   it("credits once confirmed, sending a positive integer and the note", async () => {
     await fillValidGrant();
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
 
     await waitFor(() => expect(adjust).toHaveBeenCalledTimes(1));
@@ -170,7 +170,7 @@ describe("confirmation gates the credit", () => {
 
     expect(screen.queryByLabelText(/approver/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
 
     await waitFor(() => expect(adjust).toHaveBeenCalledTimes(1));
@@ -180,7 +180,7 @@ describe("confirmation gates the credit", () => {
 
   it("sends an Idempotency-Key — one per submission", async () => {
     await fillValidGrant();
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
 
     await waitFor(() => expect(adjust).toHaveBeenCalledTimes(1));
@@ -195,11 +195,11 @@ describe("confirmation gates the credit", () => {
     });
 
     await fillValidGrant();
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
 
     await waitFor(() => expect(push).toHaveBeenCalled());
-    expect(String(push.mock.calls[0][0])).toMatch(/500 Zewa Coins given/i);
+    expect(String(push.mock.calls[0][0])).toMatch(/500 Zewa Seeds given/i);
     // Re-read rather than trusting the local sum.
     await waitFor(() => expect(customer).toHaveBeenCalledTimes(2));
   });
@@ -208,7 +208,7 @@ describe("confirmation gates the credit", () => {
 describe("validation happens before anything is sent", () => {
   it("refuses zero coins", async () => {
     await fillValidGrant("0");
-    const btn = screen.getByRole("button", { name: /give zewa coins/i });
+    const btn = screen.getByRole("button", { name: /give zewa seeds/i });
     expect(btn.disabled).toBe(true);
     expect(adjust).not.toHaveBeenCalled();
   });
@@ -227,7 +227,7 @@ describe("validation happens before anything is sent", () => {
     fireEvent.change(coinsInput(), { target: { value: "100" } });
     fireEvent.change(noteInput(), { target: { value: "x" } });
 
-    expect(screen.getByRole("button", { name: /give 100 zewa coins/i }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /give 100 zewa seeds/i }).disabled).toBe(true);
     expect(adjust).not.toHaveBeenCalled();
   });
 });
@@ -248,7 +248,7 @@ describe("arriving from a customer page with ?customerId=", () => {
     render(<GiveCoinsPage />);
 
     await waitFor(() => expect(customer).toHaveBeenCalledWith("c-1"));
-    expect(await screen.findByText(/250 Zewa Coins/i)).toBeTruthy();
+    expect(await screen.findByText(/250 Zewa Seeds/i)).toBeTruthy();
   });
 
   it("still lets the admin change who was preselected", async () => {
@@ -283,7 +283,7 @@ describe("failure is surfaced, never swallowed", () => {
     );
 
     await fillValidGrant();
-    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa coins/i }));
+    fireEvent.click(screen.getByRole("button", { name: /give 500 zewa seeds/i }));
     fireEvent.click(await screen.findByRole("button", { name: /confirm & give/i }));
 
     expect(await screen.findByText(/need a second approver/i)).toBeTruthy();
