@@ -100,13 +100,13 @@ export default function LoyaltyLiabilityPage() {
       <Breadcrumbs
         parts={[
           { label: "Dashboard", href: "/" },
-          { label: "Zewa Coins", href: "/loyalty" },
+          { label: "Zewa Seeds", href: "/loyalty" },
           { label: "Liability" },
         ]}
       />
       <PageHeader
-        title="Coin liability"
-        sub="Outstanding coins, ageing and exceptions"
+        title="Seed liability"
+        sub="Outstanding seeds, ageing and exceptions"
         actions={
           <div className="flex gap-2">
             <button
@@ -183,7 +183,7 @@ export default function LoyaltyLiabilityPage() {
                   {inr(data.outstandingLiabilityPaise / 100)}
                 </div>
                 <CellSub>
-                  {data.outstandingCoins.toLocaleString("en-IN")} unlocked coins — on the balance
+                  {data.outstandingCoins.toLocaleString("en-IN")} unlocked seeds — on the balance
                   sheet
                 </CellSub>
               </CardBody>
@@ -227,7 +227,7 @@ export default function LoyaltyLiabilityPage() {
             </CardHead>
             <CardBody>
               <p className="mb-3 text-[13px] text-[var(--text-2)]">
-                Coins expire 12 months after they are earned. Anything unspent by then reverses
+                Seeds expire 12 months after they are earned. Anything unspent by then reverses
                 out as breakage.
               </p>
               <div className="flex flex-col gap-2">

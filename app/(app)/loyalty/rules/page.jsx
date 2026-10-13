@@ -31,9 +31,9 @@ import { RoleGate } from "@/components/shell/RoleGate";
  */
 
 const NUMERIC_FIELDS = [
-  { key: "earnGranularityPaise", label: "Earn step (paise)", hint: "5000 = 2 coins per ₹100." },
-  { key: "coinsPerStep", label: "Coins per step" },
-  { key: "coinValuePaise", label: "Coin value (paise)", hint: "100 = 1 coin is ₹1. Critical — changing this revalues every balance." },
+  { key: "earnGranularityPaise", label: "Earn step (paise)", hint: "5000 = 2 seeds per ₹100." },
+  { key: "coinsPerStep", label: "Seeds per step" },
+  { key: "coinValuePaise", label: "Seed value (paise)", hint: "100 = 1 seed is ₹1. Critical — changing this revalues every balance." },
   { key: "minRedemptionCoins", label: "Minimum redemption" },
   { key: "maxRedemptionPct", label: "Max % of product value", hint: "100 = no cap." },
   { key: "expiryDays", label: "Expiry (days)", hint: "365. The primary cost lever (§2.3)." },
@@ -42,8 +42,8 @@ const NUMERIC_FIELDS = [
   { key: "largeOrderHoldDays", label: "Extra hold on large orders (days)" },
   {
     key: "monthlyEarnCapCoins",
-    label: "Monthly earning cap (coins)",
-    hint: "1000 per customer per calendar month. 0 disables the cap. Individual customers can be given their own cap on their Zewa Coins page.",
+    label: "Monthly earning cap (seeds)",
+    hint: "1000 per customer per calendar month. 0 disables the cap. Individual customers can be given their own cap on their Zewa Seeds page.",
   },
 ];
 
@@ -132,7 +132,7 @@ export default function LoyaltyRulesPage() {
       <Breadcrumbs
         parts={[
           { label: "Dashboard", href: "/" },
-          { label: "Zewa Coins", href: "/loyalty" },
+          { label: "Zewa Seeds", href: "/loyalty" },
           { label: "Rules" },
         ]}
       />
@@ -171,7 +171,7 @@ export default function LoyaltyRulesPage() {
               <div className="-mt-2 flex items-start gap-2 rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/5 px-3 py-2">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--warning)]" />
                 <p className="text-[12.5px] text-[var(--text-2)]">
-                  Highly visible to customers. Turning this off removes the coins box from every
+                  Highly visible to customers. Turning this off removes the seeds box from every
                   checkout within 60 seconds. Genuine incidents only — treat as a P1 with a comms
                   plan.
                 </p>
@@ -267,7 +267,7 @@ export default function LoyaltyRulesPage() {
                       sortDirection={getVersionSortDirection("coinValue")}
                       onSort={() => requestVersionSort("coinValue", "desc")}
                     >
-                      Coin value
+                      Seed value
                     </Th>
                     <Th
                       align="right"

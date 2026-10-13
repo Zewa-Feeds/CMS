@@ -106,7 +106,7 @@ export default function LoyaltyCustomerPage() {
       setAccount(acc);
       setEarnCap(cap);
     } catch (err) {
-      setError(err?.message ?? "Could not load this coin account.");
+      setError(err?.message ?? "Could not load this seed account.");
     } finally {
       setLoading(false);
     }
@@ -121,7 +121,7 @@ export default function LoyaltyCustomerPage() {
     setFormError(null);
     const value = Number.parseInt(coins, 10);
     if (!Number.isFinite(value) || value === 0) {
-      setFormError("Enter a non-zero number of coins.");
+      setFormError("Enter a non-zero number of seeds.");
       return;
     }
     if (note.trim().length < 3) {
@@ -154,7 +154,7 @@ export default function LoyaltyCustomerPage() {
     setCapError(null);
     const value = Number.parseInt(capCoins, 10);
     if (!Number.isFinite(value) || value < 0) {
-      setCapError("Enter the monthly cap in coins (0 stops earning entirely).");
+      setCapError("Enter the monthly cap in seeds (0 stops earning entirely).");
       return;
     }
     if (capReason.trim().length < 3) {
@@ -268,7 +268,7 @@ export default function LoyaltyCustomerPage() {
     return (
       <RoleGate perm="loyalty.view">
         <Card>
-          <EmptyState title="Loading…" sub="Fetching the coin account." />
+          <EmptyState title="Loading…" sub="Fetching the seed account." />
         </Card>
       </RoleGate>
     );
@@ -279,8 +279,8 @@ export default function LoyaltyCustomerPage() {
       <RoleGate perm="loyalty.view">
         <Card>
           <EmptyState
-            title={error ? "Could not load" : "No coin account"}
-            sub={error ?? "This customer has never earned Zewa Coins."}
+            title={error ? "Could not load" : "No seed account"}
+            sub={error ?? "This customer has never earned Zewa Seeds."}
           />
         </Card>
       </RoleGate>
@@ -296,7 +296,7 @@ export default function LoyaltyCustomerPage() {
       <Breadcrumbs
         parts={[
           { label: "Dashboard", href: "/" },
-          { label: "Zewa Coins", href: "/loyalty" },
+          { label: "Zewa Seeds", href: "/loyalty" },
           { label: name },
         ]}
       />
@@ -345,7 +345,7 @@ export default function LoyaltyCustomerPage() {
             <div className="flex flex-wrap items-center gap-2">
               {account.status !== "ACTIVE" && <Pill tone="red">{account.status}</Pill>}
               {account.flaggedDeficit > 0 && (
-                <Pill tone="amber">Deficit {account.flaggedDeficit} coins</Pill>
+                <Pill tone="amber">Deficit {account.flaggedDeficit} seeds</Pill>
               )}
               {account.mismatchStreak >= 2 && (
                 <Pill tone="red">Redemption blocked — reconciliation mismatch</Pill>
@@ -353,7 +353,7 @@ export default function LoyaltyCustomerPage() {
             </div>
             {account.flaggedDeficit > 0 && (
               <p className="mt-2 text-[13px] text-[var(--text-2)]">
-                A return clawed back more coins than the balance held. The operative balance
+                A return clawed back more seeds than the balance held. The operative balance
                 floors at −50; the full shortfall is recorded here and the account is frozen for
                 review.
               </p>
@@ -365,10 +365,10 @@ export default function LoyaltyCustomerPage() {
       {/* ---- Lots: what makes up the balance, and when it moves ---- */}
       <Card className="mt-4">
         <CardHead>
-          <CardTitle>Coin lots</CardTitle>
+          <CardTitle>Seed lots</CardTitle>
         </CardHead>
         {account.lots.length === 0 ? (
-          <EmptyState title="No lots" sub="This account has never been granted coins." />
+          <EmptyState title="No lots" sub="This account has never been granted seeds." />
         ) : (
           <TableWrap>
             <Table>
@@ -475,7 +475,7 @@ export default function LoyaltyCustomerPage() {
                     sortDirection={getLedgerSortDirection("coins")}
                     onSort={() => requestLedgerSort("coins", "desc")}
                   >
-                    Coins
+                    Seeds
                   </Th>
                   <Th
                     align="right"
@@ -556,7 +556,7 @@ export default function LoyaltyCustomerPage() {
                 <div className="text-xl font-semibold tabular-nums">
                   {earnCap.effectiveCapCoins.toLocaleString("en-IN")}
                   <span className="ml-1 text-[13px] font-normal text-[var(--text-2)]">
-                    coins / month
+                    seeds / month
                   </span>
                 </div>
               </div>
@@ -571,14 +571,14 @@ export default function LoyaltyCustomerPage() {
             </div>
 
             <p className="text-[12.5px] text-[var(--text-2)]">
-              Affects earning only — it never changes coins already earned, and never
+              Affects earning only — it never changes seeds already earned, and never
               touches redemption.
             </p>
 
             {mayAdjust && (
               <form onSubmit={saveCap} className="flex flex-col gap-3">
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Monthly cap (coins)" hint="0 stops earning entirely." required>
+                  <Field label="Monthly cap (seeds)" hint="0 stops earning entirely." required>
                     <input
                       id="cap-coins"
                       value={capCoins}
@@ -722,7 +722,7 @@ export default function LoyaltyCustomerPage() {
           </CardHead>
           <CardBody>
             <form onSubmit={submitAdjustment} className="flex flex-col gap-3">
-              <Field label="Coins" hint="Positive to credit, negative to debit." required>
+              <Field label="Seeds" hint="Positive to credit, negative to debit." required>
                 <input
                   id="adjust-coins"
                   value={coins}

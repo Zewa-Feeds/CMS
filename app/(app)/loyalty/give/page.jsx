@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Coins, Search, X } from "lucide-react";
+import { Sprout, Search, X } from "lucide-react";
 import { customers as customersApi, loyalty as loyaltyApi } from "@/lib/api";
 import { Breadcrumbs, PageHeader, SearchInput } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
@@ -190,9 +190,9 @@ function GiveCoinsInner() {
 
     if (!selected) return setFormError("Choose a customer first.");
     if (!/^\d+$/.test(coins.trim())) {
-      return setFormError("Enter a whole number of coins — no decimals.");
+      return setFormError("Enter a whole number of seeds — no decimals.");
     }
-    if (!amountValid) return setFormError("Coins to give must be greater than zero.");
+    if (!amountValid) return setFormError("Seeds to give must be greater than zero.");
     if (!noteValid) {
       return setFormError("A note of at least 3 characters is required for the audit trail.");
     }
@@ -219,7 +219,7 @@ function GiveCoinsInner() {
       );
 
       setConfirming(false);
-      toast.push(`${amount} Zewa Coins given to ${fullName(selected)}.`);
+      toast.push(`${amount} Zewa Seeds given to ${fullName(selected)}.`);
 
       // Re-read the balance rather than trusting the local sum: the server is the
       // authority and may have applied the floor, a cap, or a concurrent movement.
@@ -234,8 +234,8 @@ function GiveCoinsInner() {
       setConfirming(false);
       // Surface exactly what the server said; no validation rule is duplicated
       // in this client.
-      setFormError(err?.message ?? "The coins could not be given.");
-      toast.push(err?.message ?? "The coins could not be given.", { bad: true });
+      setFormError(err?.message ?? "The seeds could not be given.");
+      toast.push(err?.message ?? "The seeds could not be given.", { bad: true });
     } finally {
       setSaving(false);
     }
@@ -248,12 +248,12 @@ function GiveCoinsInner() {
       <Breadcrumbs
         parts={[
           { label: "Dashboard", href: "/" },
-          { label: "Zewa Coins", href: "/loyalty" },
-          { label: "Give Coins" },
+          { label: "Zewa Seeds", href: "/loyalty" },
+          { label: "Give Seeds" },
         ]}
       />
       <PageHeader
-        title="Give Zewa Coins"
+        title="Give Zewa Seeds"
         sub="Credit a customer's balance by hand — every grant is recorded in the ledger and the audit log"
       />
 
@@ -275,7 +275,7 @@ function GiveCoinsInner() {
                   <div className="mt-2 text-[12.5px] text-ink">
                     Current balance:{" "}
                     <span className="font-semibold tabular-nums">
-                      {balanceLoading ? "…" : `${(balance ?? 0).toLocaleString("en-IN")} Zewa Coins`}
+                      {balanceLoading ? "…" : `${(balance ?? 0).toLocaleString("en-IN")} Zewa Seeds`}
                     </span>
                   </div>
                 </div>
@@ -345,12 +345,12 @@ function GiveCoinsInner() {
         {/* ---- 2. The grant ---- */}
         <Card>
           <CardHead>
-            <CardTitle>Coins to give</CardTitle>
+            <CardTitle>Seeds to give</CardTitle>
           </CardHead>
           <CardBody className="flex flex-col gap-1">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Coins"
+                label="Seeds"
                 required
                 hint="A whole number, greater than zero. This is added to the balance."
                 htmlFor="give-coins"
@@ -405,7 +405,7 @@ function GiveCoinsInner() {
                   <span className="tabular-nums">{(balance ?? 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="mt-1 flex justify-between text-ink">
-                  <span>Coins to give</span>
+                  <span>Seeds to give</span>
                   <span className="font-semibold tabular-nums text-teal-deep">
                     +{amount.toLocaleString("en-IN")}
                   </span>
@@ -426,7 +426,7 @@ function GiveCoinsInner() {
             {result && (
               <div className="mt-1 rounded-lg border border-green-deep/30 bg-green-wash px-3.5 py-3 text-[12.5px] text-ink">
                 Gave <span className="font-semibold">{result.coins.toLocaleString("en-IN")}</span>{" "}
-                Zewa Coins to {fullName(result.customer)}. Their balance is now{" "}
+                Zewa Seeds to {fullName(result.customer)}. Their balance is now{" "}
                 <span className="font-semibold tabular-nums">
                   {(balance ?? 0).toLocaleString("en-IN")}
                 </span>
@@ -438,12 +438,12 @@ function GiveCoinsInner() {
 
         <div className="flex items-center gap-2">
           <Button type="submit" variant="primary" disabled={!ready || saving}>
-            <Coins size={14} />
-            {amountValid ? `Give ${amount.toLocaleString("en-IN")} Zewa Coins` : "Give Zewa Coins"}
+            <Sprout size={14} />
+            {amountValid ? `Give ${amount.toLocaleString("en-IN")} Zewa Seeds` : "Give Zewa Seeds"}
           </Button>
           {result && (
             <Button type="button" variant="ghost" onClick={clearSelection}>
-              Give coins to another customer
+              Give seeds to another customer
             </Button>
           )}
         </div>
@@ -455,11 +455,11 @@ function GiveCoinsInner() {
         onConfirm={give}
         danger={false}
         loading={saving}
-        confirmLabel={`Confirm & give ${amountValid ? amount.toLocaleString("en-IN") : ""} coins`}
+        confirmLabel={`Confirm & give ${amountValid ? amount.toLocaleString("en-IN") : ""} seeds`}
         title={
           selected && amountValid
-            ? `Give ${amount.toLocaleString("en-IN")} Zewa Coins to ${fullName(selected)}?`
-            : "Give Zewa Coins?"
+            ? `Give ${amount.toLocaleString("en-IN")} Zewa Seeds to ${fullName(selected)}?`
+            : "Give Zewa Seeds?"
         }
         message={
           selected && amountValid ? (
@@ -478,7 +478,7 @@ function GiveCoinsInner() {
                   <span className="tabular-nums">{(balance ?? 0).toLocaleString("en-IN")}</span>
                 </span>
                 <span className="mt-1 flex justify-between">
-                  <span className="text-muted">Coins to give</span>
+                  <span className="text-muted">Seeds to give</span>
                   <span className="font-semibold tabular-nums text-teal-deep">
                     +{amount.toLocaleString("en-IN")}
                   </span>

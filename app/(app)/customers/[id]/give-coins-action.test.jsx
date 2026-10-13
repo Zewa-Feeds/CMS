@@ -64,12 +64,12 @@ afterEach(() => {
 describe("the Give coins action", () => {
   it("is offered to an admin holding loyalty.adjust", async () => {
     render(<CustomerProfilePage />);
-    expect(await screen.findByText(/give coins/i)).toBeTruthy();
+    expect(await screen.findByText(/give seeds/i)).toBeTruthy();
   });
 
   it("carries the customer id so the workflow opens preselected", async () => {
     render(<CustomerProfilePage />);
-    const link = (await screen.findByText(/give coins/i)).closest("a");
+    const link = (await screen.findByText(/give seeds/i)).closest("a");
     expect(link.getAttribute("href")).toBe("/loyalty/give?customerId=cust-42");
   });
 
@@ -82,12 +82,12 @@ describe("the Give coins action", () => {
     expect(
       await screen.findByRole("heading", { name: "Parth Tandalwade" }),
     ).toBeTruthy();
-    expect(screen.queryByText(/give coins/i)).toBeNull();
+    expect(screen.queryByText(/give seeds/i)).toBeNull();
   });
 
   it("does not award coins itself — it only links", async () => {
     render(<CustomerProfilePage />);
-    await screen.findByText(/give coins/i);
+    await screen.findByText(/give seeds/i);
     // No adjustment call exists on this page at all.
     expect(setCustomerStatus).not.toHaveBeenCalled();
   });

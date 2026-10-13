@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Ban, ShieldCheck, MapPin, Star, Coins, Mail } from "lucide-react";
+import { Ban, ShieldCheck, MapPin, Star, Sprout, Mail } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
 import { ORDER_STATUS_PILL, PAY_STATUS_PILL, REVIEW_STATE_PILL } from "@/lib/constants";
 import { formatPaise, customers as customersApi } from "@/lib/api";
@@ -166,7 +166,7 @@ export default function CustomerProfilePage() {
                 href={`/loyalty/give?customerId=${encodeURIComponent(id)}`}
                 className={button({ variant: "dark" })}
               >
-                <Coins size={15} /> Give coins
+                <Sprout size={15} /> Give seeds
               </Link>
             )}
             {canBan &&

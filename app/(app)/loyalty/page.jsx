@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Coins, Eye } from "lucide-react";
+import { Sprout, Eye } from "lucide-react";
 import { loyalty as loyaltyApi } from "@/lib/api";
 import { initials } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar } from "@/components/ui/Page";
@@ -31,7 +31,7 @@ import { RoleGate } from "@/components/shell/RoleGate";
 
 const FILTERS = [
   { value: "all", label: "All customers" },
-  { value: "pending", label: "Has pending coins" },
+  { value: "pending", label: "Has pending seeds" },
   { value: "expiring", label: "Expiring in 30 days" },
   { value: "negative", label: "Negative balance" },
   { value: "flagged", label: "Flagged deficit" },
@@ -74,7 +74,7 @@ export default function LoyaltyBalancesPage() {
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (err) {
-      setError(err?.message ?? "Could not load coin balances.");
+      setError(err?.message ?? "Could not load seed balances.");
     } finally {
       setLoading(false);
     }
@@ -93,13 +93,13 @@ export default function LoyaltyBalancesPage() {
 
   return (
     <RoleGate perm="loyalty.view">
-      <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Zewa Coins" }]} />
+      <Breadcrumbs parts={[{ label: "Dashboard", href: "/" }, { label: "Zewa Seeds" }]} />
       <PageHeader
-        title="Zewa Coins"
+        title="Zewa Seeds"
         sub={`${total} ${total === 1 ? "account" : "accounts"}`}
         actions={
           <Link href="/loyalty/liability" className={button({ variant: "secondary" })}>
-            <Coins size={15} />
+            <Sprout size={15} />
             Liability
           </Link>
         }
@@ -119,11 +119,11 @@ export default function LoyaltyBalancesPage() {
         {error ? (
           <EmptyState title="Could not load balances" sub={error} />
         ) : loading ? (
-          <EmptyState title="Loading…" sub="Fetching coin balances." />
+          <EmptyState title="Loading…" sub="Fetching seed balances." />
         ) : rows.length === 0 ? (
           <EmptyState
             title="No accounts match"
-            sub="Try a different filter, or wait for the first orders to earn coins."
+            sub="Try a different filter, or wait for the first orders to earn seeds."
           />
         ) : (
           <TableWrap>
@@ -243,7 +243,7 @@ export default function LoyaltyBalancesPage() {
                         <Link
                           href={`/loyalty/${row.customer.id}`}
                           className={button({ variant: "ghost", size: "sm" })}
-                          aria-label={`View coin history for ${name}`}
+                          aria-label={`View seed history for ${name}`}
                         >
                           <Eye size={14} />
                         </Link>

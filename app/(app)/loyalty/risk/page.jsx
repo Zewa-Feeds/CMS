@@ -80,7 +80,7 @@ export default function LoyaltyRiskPage() {
       <Breadcrumbs
         parts={[
           { label: "Dashboard", href: "/" },
-          { label: "Zewa Coins", href: "/loyalty" },
+          { label: "Zewa Seeds", href: "/loyalty" },
           { label: "Risk" },
         ]}
       />
@@ -166,7 +166,7 @@ export default function LoyaltyRiskPage() {
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-[var(--danger)]/30 bg-[var(--danger)]/5 px-3 py-2">
                   <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--danger)]" />
                   <p className="text-[12.5px] text-[var(--text-2)]">
-                    Coin volume is far above the trailing average. Check for a pricing error, a
+                    Seed volume is far above the trailing average. Check for a pricing error, a
                     mis-configured rule version, or a single account earning or redeeming at
                     scale.
                   </p>
@@ -248,13 +248,13 @@ export default function LoyaltyRiskPage() {
             {data.highReturnAccounts.length === 0 ? (
               <EmptyState
                 title="Nothing to review"
-                sub="No account with a recent return is sitting on coins."
+                sub="No account with a recent return is sitting on seeds."
               />
             ) : (
               <>
                 <CardBody className="pb-0">
                   <p className="text-[13px] text-[var(--text-2)]">
-                    The combination is the signal: returning often is ordinary, and holding coins
+                    The combination is the signal: returning often is ordinary, and holding seeds
                     is ordinary — doing both is what §12.1 asks to review weekly.
                   </p>
                 </CardBody>
@@ -277,7 +277,7 @@ export default function LoyaltyRiskPage() {
                           dir={hraSortDir}
                           onSort={() => toggleHraSort("coins", "desc")}
                         >
-                          Coins held
+                          Seeds held
                         </Th>
                         <Th
                           align="right"
