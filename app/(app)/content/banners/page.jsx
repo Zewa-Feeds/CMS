@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ChevronUp, ChevronDown, Image as ImageIcon } from "lucide-react";
 import { useData } from "@/lib/store";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
@@ -10,13 +10,19 @@ import { Pill } from "@/components/ui/Pill";
 import { Switch } from "@/components/ui/Field";
 import { InfoBox } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+import { MediaPicker } from "@/components/media/MediaPicker";
+import { usePlacements } from "@/components/media/useAssets";
+import { validateAsset } from "@/lib/placements";
 
 export default function BannersPage() {
   const { data, loading, error } = useData((s) => s.spotlights);
   const loadSpotlights = useData((s) => s.loadSpotlights);
   const toggleSpotlight = useData((s) => s.toggleSpotlight);
   const reorderSpotlights = useData((s) => s.reorderSpotlights);
+  const updateSpotlight = useData((s) => s.updateSpotlight);
   const toast = useToast();
+  const placements = usePlacements();
+  const [picking, setPicking] = useState(null); // spotlight id
 
   useEffect(() => {
     void loadSpotlights().catch(() => undefined);
@@ -62,9 +68,15 @@ export default function BannersPage() {
                   <ChevronDown size={15} />
                 </Button>
               </div>
-              <div className="grid h-16 w-24 shrink-0 place-items-center rounded-md border border-line bg-grey-wash text-muted-2">
-                <ImageIcon size={22} />
-              </div>
+              {/* Spec #7: a height-capped, never-cropped cutout. */}
+              <button
+                type="button"
+                onClick={() => setPicking(b.id)}
+                title="Change the spotlight image"
+                className="grid h-16 w-24 shrink-0 place-items-center overflow-hidden rounded-md border border-line bg-grey-wash text-muted-2 hover:border-teal"
+              >
+                {b.imageUrl ? <img src={b.imageUrl} alt="" className="h-full w-full object-contain" /> : <ImageIcon size={22} />}
+              </button>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{b.prod}</span>
@@ -93,6 +105,24 @@ export default function BannersPage() {
           </Card>
         ))}
       </div>
+
+      <MediaPicker
+        open={Boolean(picking)}
+        placement={placements?.["spotlight.image"]}
+        onClose={() => setPicking(null)}
+        onSelect={async (row) => {
+          const id = picking;
+          setPicking(null);
+          try {
+            await updateSpotlight(id, { imageUrl: row.url });
+            const warn = validateAsset(placements?.["spotlight.image"], row).find((i) => i.level === "warning");
+            toast.push(warn ? `Image updated. Note: ${warn.message}` : "Spotlight image updated.");
+            await loadSpotlights();
+          } catch (err) {
+            toast.push(err.message, { bad: true });
+          }
+        }}
+      />
     </>
   );
 }

@@ -31,7 +31,7 @@ export function Modal({ open, onClose, title, sub, children, footer, wide }) {
         aria-label={title}
         className={cn(
           "m-auto w-full animate-modal-in rounded-xl bg-card shadow-pop",
-          wide ? "max-w-[620px]" : "max-w-[460px]"
+          wide === "xl" ? "max-w-[1040px]" : wide ? "max-w-[620px]" : "max-w-[460px]"
         )}
       >
         <div className="flex items-start gap-3 px-[18px] pb-3 pt-4">
