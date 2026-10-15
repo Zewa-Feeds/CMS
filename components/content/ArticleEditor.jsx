@@ -124,6 +124,7 @@ export function ArticleEditor({ initial }) {
   const [scheduleAt, setScheduleAt] = useState("");
   const [otherArticles, setOtherArticles] = useState([]);
   const [confirmSwitchBack, setConfirmSwitchBack] = useState(false);
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false);
 
   const canPublish = permissions.includes("articles.publish");
   const canDelete = permissions.includes("articles.delete");
@@ -340,6 +341,11 @@ export function ArticleEditor({ initial }) {
           <Button onClick={doPreview} disabled={busy || isNew}>
             <Eye size={15} /> Preview
           </Button>
+          {canPublish && !isNew && isPublished && (
+            <Button variant="ghost" onClick={() => setConfirmUnpublish(true)} disabled={busy}>
+              Unpublish
+            </Button>
+          )}
           {canPublish && !isNew && (
             <Button variant="primary" onClick={doPublish} disabled={busy}>
               <Upload size={15} /> Publish now
@@ -530,6 +536,27 @@ export function ArticleEditor({ initial }) {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmUnpublish}
+        onClose={() => setConfirmUnpublish(false)}
+        title="Take this article off the website?"
+        confirmLabel="Unpublish"
+        onConfirm={async () => {
+          setBusy(true);
+          try {
+            await contentApi.articles.setStatus(initial.slug, "DRAFT");
+            push("Unpublished. It leaves the blog within about a minute; it stays here as a draft.");
+            set({ status: "Draft" });
+          } catch (err) {
+            reportError(err);
+          } finally {
+            setBusy(false);
+            setConfirmUnpublish(false);
+          }
+        }}
+        message="It becomes a draft again: it leaves the blog, the homepage Knowledge Hub and the sitemap, and its link shows “not found”. You can publish it again at any time."
+      />
 
       <ConfirmModal
         open={confirmSwitchBack}
