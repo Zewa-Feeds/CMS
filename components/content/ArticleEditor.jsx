@@ -17,6 +17,7 @@ import { ConfirmModal, InfoBox } from "@/components/ui/Modal";
 import { AssetSlot, IssueList } from "@/components/media/AssetSlot";
 import { assetIdsIn, useAssets, usePlacements } from "@/components/media/useAssets";
 import { BlockEditor } from "./BlockEditor";
+import { htmlToBlocks } from "@/lib/html-to-blocks";
 
 /** Categories already used on the site; any other value is allowed. */
 const CATEGORY_SUGGESTIONS = ["NUTRITION", "FEED SCIENCE", "BIOLOGY", "SUSTAINABILITY", "HATCHERY", "SPECIES GUIDE"];
@@ -122,6 +123,7 @@ export function ArticleEditor({ initial }) {
   const [serverIssues, setServerIssues] = useState([]);
   const [scheduleAt, setScheduleAt] = useState("");
   const [otherArticles, setOtherArticles] = useState([]);
+  const [confirmSwitchBack, setConfirmSwitchBack] = useState(false);
 
   const canPublish = permissions.includes("articles.publish");
   const canDelete = permissions.includes("articles.delete");
@@ -184,7 +186,9 @@ export function ArticleEditor({ initial }) {
     ogDescription: nullIfBlank(form.ogDescription),
     relatedSlugs: form.relatedSlugs,
     contentBlocks: form.contentBlocks,
-    bodyHtml: form.contentBlocks.length ? "" : form.bodyHtml || "",
+    // The original rich-text body is KEPT after converting to blocks, so the
+    // editor can switch back. The site renders blocks whenever there are any.
+    bodyHtml: form.bodyHtml || "",
     // Legacy URL only when no library cover is chosen.
     coverImageUrl: form.coverAssetId ? null : form.coverImageUrl,
   });
@@ -368,16 +372,34 @@ export function ArticleEditor({ initial }) {
               {form.contentBlocks.length === 0 && form.bodyHtml ? (
                 <div className="space-y-2">
                   <InfoBox>
-                    This article was written in the older rich-text editor and is shown on the site as-is. You can keep editing it
-                    here, or start a structured body (which replaces it).
+                    This article uses the older rich-text editor, which cannot hold images, stat rows, FAQs or tables. To add
+                    those, convert it to blocks: each heading, paragraph and list becomes its own block, and the original is
+                    kept so you can switch back.
                   </InfoBox>
                   <RichText value={form.bodyHtml} onChange={(bodyHtml) => set({ bodyHtml })} />
-                  <Button size="sm" onClick={() => set({ contentBlocks: [{ type: "lead", text: htmlToText(form.bodyHtml).slice(0, 2000) }] })}>
-                    Convert to structured blocks
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const blocks = htmlToBlocks(form.bodyHtml);
+                      set({ contentBlocks: blocks.length ? blocks : [{ type: "p", text: "" }] });
+                      push(`Converted into ${blocks.length} block${blocks.length === 1 ? "" : "s"}. Nothing is saved until you press Save draft.`);
+                    }}
+                  >
+                    Convert to blocks
                   </Button>
                 </div>
               ) : (
-                <BlockEditor blocks={form.contentBlocks} onChange={(contentBlocks) => set({ contentBlocks })} placements={placements} assets={assets} issuesAt={issuesAt} />
+                <>
+                  {form.bodyHtml && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-line bg-canvas px-3 py-2 text-[12.5px] text-muted">
+                      Converted from the older rich-text body. The original is kept.
+                      <Button size="sm" className="ml-auto" onClick={() => setConfirmSwitchBack(true)}>
+                        Switch back to the original body
+                      </Button>
+                    </div>
+                  )}
+                  <BlockEditor blocks={form.contentBlocks} onChange={(contentBlocks) => set({ contentBlocks })} placements={placements} assets={assets} issuesAt={issuesAt} />
+                </>
               )}
               <IssueList issues={issuesAt("article.blocks")} />
             </CardBody>
@@ -508,6 +530,19 @@ export function ArticleEditor({ initial }) {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmSwitchBack}
+        onClose={() => setConfirmSwitchBack(false)}
+        title="Switch back to the original body?"
+        confirmLabel="Switch back"
+        onConfirm={() => {
+          set({ contentBlocks: [] });
+          setConfirmSwitchBack(false);
+          push("Back to the original rich-text body. Save draft to keep it; your blocks are discarded.");
+        }}
+        message="The blocks you have now (including any images or stat rows you added) are removed, and the article goes back to its original rich-text body."
+      />
 
       <ConfirmModal
         open={confirmDel}
