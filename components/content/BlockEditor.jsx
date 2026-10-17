@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
@@ -25,7 +26,8 @@ export const BLOCK_TYPES = {
   h2: { label: "Section heading (H2)", make: () => ({ type: "h2", id: "", text: "", toc: "" }) },
   h3: { label: "Subheading (H3)", make: () => ({ type: "h3", text: "" }) },
   figure: { label: "Figure (image)", make: () => ({ type: "figure", asset: null, alt: "", caption: "", aspect: "16 / 9" }) },
-  takeaways: { label: "Key takeaways list", make: () => ({ type: "takeaways", title: "", items: [""] }) },
+  list: { label: "Bulleted / numbered list", make: () => ({ type: "list", ordered: false, items: [""] }) },
+  takeaways: { label: "Key takeaways box", make: () => ({ type: "takeaways", title: "", items: [""] }) },
   table: { label: "Comparison table", make: () => ({ type: "table", caption: "", headers: ["", ""], rows: [["", ""]] }) },
   faq: { label: "FAQ (adds FAQ rich results)", make: () => ({ type: "faq", items: [{ q: "", a: "" }] }) },
   references: { label: "References", make: () => ({ type: "references", items: [{ n: 1, text: "" }] }) },
@@ -66,7 +68,7 @@ export function BlockEditor({ blocks, onChange, placements, assets, issuesAt }) 
             <div className="ml-auto flex items-center">
               <Button variant="ghost" size="icon-sm" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up"><ChevronUp size={14} /></Button>
               <Button variant="ghost" size="icon-sm" disabled={i === blocks.length - 1} onClick={() => move(i, 1)} aria-label="Move down"><ChevronDown size={14} /></Button>
-              <AddMenu compact onAdd={(t) => insert(i + 1, t)} />
+              <InsertMenu onAdd={(t) => insert(i + 1, t)} />
               <Button variant="ghost" size="icon-sm" onClick={() => onChange(blocks.filter((_, j) => j !== i))} aria-label="Delete block"><Trash2 size={14} /></Button>
             </div>
           </div>
@@ -80,23 +82,66 @@ export function BlockEditor({ blocks, onChange, placements, assets, issuesAt }) 
   );
 }
 
-function AddMenu({ onAdd, compact }) {
+/** "Add a block…" at the end of the body. */
+function AddMenu({ onAdd }) {
   return (
-    <label className={compact ? "relative inline-flex" : "flex items-center gap-2"} title="Insert a block">
-      {!compact && <Plus size={14} className="text-muted" />}
-      <Select
-        value=""
-        aria-label="Add block"
-        className={compact ? "w-[30px] cursor-pointer appearance-none border-transparent bg-transparent px-1 text-transparent" : "w-auto"}
-        onChange={(e) => e.target.value && onAdd(e.target.value)}
-      >
-        <option value="">{compact ? "+" : "Add a block…"}</option>
+    <label className="flex items-center gap-2" title="Add a block at the end">
+      <Plus size={14} className="text-muted" />
+      <Select value="" aria-label="Add a block" className="w-auto" onChange={(e) => e.target.value && onAdd(e.target.value)}>
+        <option value="">Add a block at the end…</option>
         {Object.entries(BLOCK_TYPES).map(([k, v]) => (
-          <option key={k} value={k} className="text-ink">{v.label}</option>
+          <option key={k} value={k}>{v.label}</option>
         ))}
       </Select>
-      {compact && <Plus size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted" />}
     </label>
+  );
+}
+
+/**
+ * "Insert below" on each block — how an image, a stat row or any other block
+ * goes BETWEEN two paragraphs. A labelled button + menu: the previous version
+ * was a native select with a "+" drawn over it, and the select's own arrow
+ * overlapped the "+".
+ */
+function InsertMenu({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    const esc = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <Button variant="ghost" size="sm" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Plus size={13} /> Insert below
+      </Button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-[240px] overflow-hidden rounded-md border border-line bg-card py-1 shadow-pop">
+          {Object.entries(BLOCK_TYPES).map(([k, v]) => (
+            <button
+              key={k}
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-[12.5px] hover:bg-grey-wash"
+              onClick={() => {
+                setOpen(false);
+                onAdd(k);
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -150,6 +195,21 @@ function BlockFields({ block: b, onChange, placements, assets, issues }) {
           </div>
           <Field label="Caption">
             <Input value={b.caption ?? ""} onChange={(e) => set({ caption: e.target.value || undefined })} />
+          </Field>
+        </div>
+      );
+
+    case "list":
+      return (
+        <div className="space-y-2">
+          <Field label="Style">
+            <Select value={b.ordered ? "ol" : "ul"} onChange={(e) => set({ ordered: e.target.value === "ol" })}>
+              <option value="ul">Bulleted</option>
+              <option value="ol">Numbered</option>
+            </Select>
+          </Field>
+          <Field label="Items" hint="One per line.">
+            <Textarea rows={Math.max(3, b.items.length + 1)} value={lines(b.items)} onChange={(e) => set({ items: fromLines(e.target.value) })} onBlur={() => set({ items: tidyLines(b.items) })} />
           </Field>
         </div>
       );
