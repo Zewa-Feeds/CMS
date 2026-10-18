@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Sprout, Eye } from "lucide-react";
-import { loyalty as loyaltyApi } from "@/lib/api";
+import { formatPaise, loyalty as loyaltyApi } from "@/lib/api";
 import { initials } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
@@ -57,6 +57,7 @@ export default function LoyaltyBalancesPage() {
         `${row.customer?.firstName ?? ""} ${row.customer?.lastName ?? ""}`.trim() ||
         row.customer?.email ||
         "",
+      spent: (row) => row.customer?.spentPaise ?? 0,
       available: (row) => row.availableCoins ?? 0,
       pending: (row) => row.pendingCoins ?? 0,
       earned: (row) => row.lifetimeEarned ?? 0,
@@ -141,6 +142,15 @@ export default function LoyaltyBalancesPage() {
                   <Th
                     align="right"
                     sortable
+                    active={sortKey === "spent"}
+                    dir={sortDir}
+                    onSort={() => toggleSort("spent", "desc")}
+                  >
+                    Total spent
+                  </Th>
+                  <Th
+                    align="right"
+                    sortable
                     active={sortKey === "available"}
                     dir={sortDir}
                     onSort={() => toggleSort("available", "desc")}
@@ -202,6 +212,10 @@ export default function LoyaltyBalancesPage() {
                             <CellSub>{row.customer.email}</CellSub>
                           </div>
                         </div>
+                      </Td>
+
+                      <Td align="right" className="tabular-nums text-[var(--text-2)]">
+                        {formatPaise(row.customer.spentPaise ?? 0)}
                       </Td>
 
                       {/*

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Snowflake } from "lucide-react";
-import { loyalty as loyaltyApi } from "@/lib/api";
+import { formatPaise, loyalty as loyaltyApi } from "@/lib/api";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { button } from "@/components/ui/Button";
@@ -314,8 +314,11 @@ export default function LoyaltyCustomerPage() {
       />
 
       {/* ---- The balance, in the order support is asked about it ---- */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {[
+          // What they have bought, next to what they hold — the context a balance
+          // needs before anyone can say whether it looks right.
+          { label: "Total spent", value: formatPaise(account.customer.spentPaise ?? 0) },
           { label: "Available", value: account.availableCoins, tone: account.availableCoins < 0 ? "danger" : "text" },
           { label: "Pending", value: account.pendingCoins },
           { label: "Held in carts", value: account.lockedCoins },
@@ -331,7 +334,7 @@ export default function LoyaltyCustomerPage() {
                   stat.tone === "danger" ? "text-[var(--danger)]" : ""
                 }`}
               >
-                {stat.value.toLocaleString("en-IN")}
+                {typeof stat.value === "number" ? stat.value.toLocaleString("en-IN") : stat.value}
               </div>
             </CardBody>
           </Card>

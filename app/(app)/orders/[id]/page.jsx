@@ -639,6 +639,12 @@ export default function OrderDetailPage() {
                 {order.email}
               </Link>
               <div className="text-muted">{order.phone}</div>
+              {order.customerSpentPaise != null && (
+                <div className="flex items-center justify-between border-t border-[var(--border)] pt-2">
+                  <span className="text-muted">Total spent on the website</span>
+                  <span className="font-medium tabular-nums">{formatPaise(order.customerSpentPaise)}</span>
+                </div>
+              )}
             </CardBody>
           </Card>
 

@@ -234,7 +234,7 @@ export default function CustomerProfilePage() {
                   ],
                   ["Total orders", cust.orderCount ?? cust.orders ?? 0],
                   [
-                    "Lifetime spend (paid orders)",
+                    "Total spent (net of refunds)",
                     formatPaise(cust.spentPaise ?? (cust.spent ? cust.spent * 100 : 0)),
                   ],
                 ].map(([k, v]) => (

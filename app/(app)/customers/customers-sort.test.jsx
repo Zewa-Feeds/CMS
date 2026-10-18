@@ -78,7 +78,7 @@ afterEach(() => {
 });
 
 describe("Customers page sorting", () => {
-  it("defaults to sorting by Total ordered value (Lifetime Spend) descending", () => {
+  it("defaults to sorting by Total ordered value (Total spent) descending", () => {
     render(<CustomersPage />);
 
     const rows = screen.getAllByRole("row");
@@ -148,10 +148,10 @@ describe("Customers page sorting", () => {
     expect(rows[3].textContent).toContain("Alice Adams");
   });
 
-  it("toggles spend sort when clicking the Lifetime Spend column header", () => {
+  it("toggles spend sort when clicking the Total spent column header", () => {
     render(<CustomersPage />);
 
-    const spendHeader = screen.getByText("Lifetime Spend");
+    const spendHeader = screen.getByText("Total spent");
     // It already defaults to spend desc; clicking toggles to spend asc (Low to High)
     fireEvent.click(spendHeader);
 

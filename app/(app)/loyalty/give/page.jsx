@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sprout, Search, X } from "lucide-react";
-import { customers as customersApi, loyalty as loyaltyApi } from "@/lib/api";
+import { customers as customersApi, formatPaise, loyalty as loyaltyApi } from "@/lib/api";
 import { Breadcrumbs, PageHeader, SearchInput } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -328,6 +328,11 @@ function GiveCoinsInner() {
                                   {c.email}
                                   {c.phone ? ` · ${c.phone}` : ""}
                                 </span>
+                                {c.spentPaise != null && (
+                                  <span className="block text-[11.5px] text-muted">
+                                    Total spent {formatPaise(c.spentPaise)}
+                                  </span>
+                                )}
                               </span>
                               <Search size={14} className="shrink-0 text-muted" />
                             </button>

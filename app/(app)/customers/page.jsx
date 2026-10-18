@@ -195,7 +195,7 @@ export default function CustomersPage() {
                     Orders
                   </Th>
                   <Th right sortable active={sortKey === "spend"} dir={sortDir} onSort={() => toggleSort("spend")}>
-                    Lifetime Spend
+                    Total spent
                   </Th>
                   <Th sortable active={sortKey === "status"} dir={sortDir} onSort={() => toggleSort("status")}>
                     Status
