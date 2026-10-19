@@ -18,6 +18,7 @@ import { AssetSlot, IssueList } from "@/components/media/AssetSlot";
 import { assetIdsIn, useAssets, usePlacements } from "@/components/media/useAssets";
 import { BlockEditor } from "./BlockEditor";
 import { htmlToBlocks } from "@/lib/html-to-blocks";
+import { categoryColor } from "@/lib/categoryColor";
 
 /** Categories already used on the site; any other value is allowed. */
 const CATEGORY_SUGGESTIONS = ["NUTRITION", "FEED SCIENCE", "BIOLOGY", "SUSTAINABILITY", "HATCHERY", "SPECIES GUIDE"];
@@ -428,8 +429,17 @@ export function ArticleEditor({ initial }) {
                     {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
                   </datalist>
                 </Field>
-                <Field label="Colour">
-                  <input type="color" value={form.tagColor} onChange={(e) => set({ tagColor: e.target.value })} className="h-[38px] w-full cursor-pointer rounded-md border border-line" />
+                {/*
+                  Set by the category, not per article — every article in a
+                  category shares one colour on the site. Preview only.
+                */}
+                <Field label="Colour" hint="Automatic, from the category.">
+                  <div
+                    className="h-[38px] w-full rounded-md border border-line"
+                    style={{ background: categoryColor(form.tag) }}
+                    title={categoryColor(form.tag)}
+                    aria-label={`Category colour ${categoryColor(form.tag)}`}
+                  />
                 </Field>
               </div>
               <Field label="Tags" hint="Comma-separated.">
