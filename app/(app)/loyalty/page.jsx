@@ -60,7 +60,7 @@ export default function LoyaltyBalancesPage() {
       spent: (row) => row.customer?.spentPaise ?? 0,
       available: (row) => row.availableCoins ?? 0,
       pending: (row) => row.pendingCoins ?? 0,
-      earned: (row) => row.lifetimeEarned ?? 0,
+      earned: (row) => row.lifetimeCredited ?? row.lifetimeEarned ?? 0,
       used: (row) => row.lifetimeRedeemed ?? 0,
       status: (row) => row.status || "",
     }
@@ -146,7 +146,7 @@ export default function LoyaltyBalancesPage() {
                     dir={sortDir}
                     onSort={() => toggleSort("spent", "desc")}
                   >
-                    Total spent
+                    Lifetime OV
                   </Th>
                   <Th
                     align="right"
@@ -214,8 +214,21 @@ export default function LoyaltyBalancesPage() {
                         </div>
                       </Td>
 
+                      {/*
+                        Lifetime order value — money actually taken on the website,
+                        net of refunds — beside the balance as a standing sanity
+                        check: at 1 Seed per ₹50, Seeds credited should never be far
+                        above OV ÷ 50. When they are, the row says so.
+                      */}
                       <Td align="right" className="tabular-nums text-[var(--text-2)]">
-                        {formatPaise(row.customer.spentPaise ?? 0)}
+                        <div>{formatPaise(row.customer.spentPaise ?? 0)}</div>
+                        {aboveRule(row) && (
+                          <div className="mt-1">
+                            <Pill tone="amber" title={`Rule allows about ${ruleSeeds(row)} Seeds for this spend`}>
+                              Above rule
+                            </Pill>
+                          </div>
+                        )}
                       </Td>
 
                       {/*
@@ -235,7 +248,7 @@ export default function LoyaltyBalancesPage() {
                         {row.pendingCoins.toLocaleString("en-IN")}
                       </Td>
                       <Td align="right" className="tabular-nums text-[var(--text-2)]">
-                        {row.lifetimeEarned.toLocaleString("en-IN")}
+                        {(row.lifetimeCredited ?? row.lifetimeEarned).toLocaleString("en-IN")}
                       </Td>
                       <Td align="right" className="tabular-nums text-[var(--text-2)]">
                         {row.lifetimeRedeemed.toLocaleString("en-IN")}
@@ -272,4 +285,17 @@ export default function LoyaltyBalancesPage() {
       </Card>
     </RoleGate>
   );
+}
+
+/** Seeds the earn rule gives for this spend: 1 per ₹50. Approximate — the real
+ *  rule works per order on pre-tax value, so it can only come out lower. */
+function ruleSeeds(row) {
+  return Math.floor((row.customer?.spentPaise ?? 0) / 5000);
+}
+
+/** Credited Seeds above what the spend could earn — a test grant, a manual
+ *  goodwill credit or an allocation mistake. A small margin absorbs rounding. */
+function aboveRule(row) {
+  const credited = row.lifetimeCredited ?? row.lifetimeEarned ?? 0;
+  return credited > ruleSeeds(row) + 2;
 }

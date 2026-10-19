@@ -318,11 +318,13 @@ export default function LoyaltyCustomerPage() {
         {[
           // What they have bought, next to what they hold — the context a balance
           // needs before anyone can say whether it looks right.
-          { label: "Total spent", value: formatPaise(account.customer.spentPaise ?? 0) },
+          { label: "Lifetime OV", value: formatPaise(account.customer.spentPaise ?? 0) },
           { label: "Available", value: account.availableCoins, tone: account.availableCoins < 0 ? "danger" : "text" },
           { label: "Pending", value: account.pendingCoins },
           { label: "Held in carts", value: account.lockedCoins },
-          { label: "Lifetime earned", value: account.lifetimeEarned },
+          // Every Seed credited — orders, welcome credit, manual grants — net of
+          // corrections; the stored counter only counts order earnings.
+          { label: "Lifetime earned", value: account.lifetimeCredited ?? account.lifetimeEarned },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardBody>
