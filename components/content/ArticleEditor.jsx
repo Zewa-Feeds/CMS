@@ -43,7 +43,8 @@ const EMPTY = {
   slug: "",
   shortTitle: "",
   tag: "NUTRITION",
-  tagColor: "#44e5c2",
+  // Empty = automatic, from the category. A value is a deliberate override.
+  tagColor: "",
   tags: "",
   readMinutes: 6,
   status: "Draft",
@@ -76,7 +77,7 @@ function toForm(api) {
     slug: api.slug || "",
     shortTitle: a.shortTitle || "",
     tag: a.tag || "NUTRITION",
-    tagColor: a.tagColor || "#44e5c2",
+    tagColor: a.tagColor || "",
     tags: csv(a.tags),
     readMinutes: a.readMinutes ?? a.read ?? 6,
     status: api.statusLabel || api.status || "Draft",
@@ -422,24 +423,64 @@ export function ArticleEditor({ initial }) {
               <Field label="Short title" hint="Breadcrumbs and compact cards.">
                 <Input value={form.shortTitle} maxLength={90} onChange={(e) => set({ shortTitle: e.target.value })} />
               </Field>
-              <div className="grid grid-cols-[1fr_88px] gap-2">
+              <div className="grid grid-cols-[1fr_120px] gap-2">
                 <Field label="Category" hint="Matches a blog topic of the same name.">
-                  <Input list="article-categories" value={form.tag} onChange={(e) => set({ tag: e.target.value.toUpperCase() })} />
-                  <datalist id="article-categories">
-                    {CATEGORY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
-                  </datalist>
+                  {/*
+                    A real dropdown of the blog's topics. "Other…" reveals a text
+                    box for a new category. The old field was a free-text box with
+                    a browser suggestion list, which looked like a broken select
+                    and showed an empty value until something was typed.
+                  */}
+                  <Select
+                    value={CATEGORY_SUGGESTIONS.includes(form.tag) ? form.tag : "__other"}
+                    onChange={(e) => set({ tag: e.target.value === "__other" ? "" : e.target.value })}
+                  >
+                    {CATEGORY_SUGGESTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                    <option value="__other">Other…</option>
+                  </Select>
+                  {!CATEGORY_SUGGESTIONS.includes(form.tag) && (
+                    <Input
+                      className="mt-2"
+                      placeholder="New category, e.g. SHRIMP CARE"
+                      value={form.tag}
+                      onChange={(e) => set({ tag: e.target.value.toUpperCase() })}
+                    />
+                  )}
                 </Field>
                 {/*
-                  Set by the category, not per article — every article in a
-                  category shares one colour on the site. Preview only.
+                  Automatic by default — every article in a category shares its
+                  colour. "Custom" stores an override for this article only;
+                  turning it off clears the override.
                 */}
-                <Field label="Colour" hint="Automatic, from the category.">
-                  <div
-                    className="h-[38px] w-full rounded-md border border-line"
-                    style={{ background: categoryColor(form.tag) }}
-                    title={categoryColor(form.tag)}
-                    aria-label={`Category colour ${categoryColor(form.tag)}`}
-                  />
+                <Field label="Colour" hint={form.tagColor ? "This article only." : "From the category."}>
+                  <div className="flex items-center gap-2">
+                    {form.tagColor ? (
+                      <input
+                        type="color"
+                        value={form.tagColor}
+                        onChange={(e) => set({ tagColor: e.target.value })}
+                        className="h-[38px] w-full cursor-pointer rounded-md border border-line"
+                        aria-label="Custom colour"
+                      />
+                    ) : (
+                      <div
+                        className="h-[38px] w-full rounded-md border border-line"
+                        style={{ background: categoryColor(form.tag) }}
+                        title={categoryColor(form.tag)}
+                        aria-label={`Automatic colour ${categoryColor(form.tag)}`}
+                      />
+                    )}
+                  </div>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-muted">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.tagColor)}
+                      onChange={(e) => set({ tagColor: e.target.checked ? categoryColor(form.tag) : "" })}
+                    />
+                    Custom colour
+                  </label>
                 </Field>
               </div>
               <Field label="Tags" hint="Comma-separated.">
