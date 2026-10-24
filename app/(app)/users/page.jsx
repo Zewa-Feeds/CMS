@@ -66,6 +66,9 @@ export default function UsersPage() {
   const [resentResult, setResentResult] = useState(null);
   const [copiedResentLink, setCopiedResentLink] = useState(false);
 
+  const [resetResult, setResetResult] = useState(null);
+  const [copiedResetLink, setCopiedResetLink] = useState(false);
+
   const [del, setDel] = useState(null);
   const [delText, setDelText] = useState("");
 
@@ -164,6 +167,17 @@ export default function UsersPage() {
       const result = await resendInvitation(user.id);
       setResentResult({ user, inviteUrl: result.inviteUrl });
       toast.push(`Invitation resent to ${user.email}.`);
+      await refetch();
+    } catch (err) {
+      toast.push(err.message, { bad: true });
+    }
+  };
+
+  const handleResetPassword = async (user) => {
+    try {
+      const result = await resetUserPassword(user.id);
+      setResetResult({ user, resetUrl: result.resetUrl || result.inviteUrl });
+      toast.push(`Password reset issued for ${user.email}.`);
       await refetch();
     } catch (err) {
       toast.push(err.message, { bad: true });
@@ -390,16 +404,9 @@ export default function UsersPage() {
                                 variant="ghost"
                                 size="icon-sm"
                                 title="Reset password"
-                                onClick={async () => {
-                                  try {
-                                    await resetUserPassword(u.id);
-                                    toast.push(`Password reset issued for ${u.email}.`);
-                                  } catch (err) {
-                                    toast.push(err.message, { bad: true });
-                                  }
-                                }}
+                                onClick={() => handleResetPassword(u)}
                               >
-                                <KeyRound size={14} className="text-muted" />
+                                <KeyRound size={14} className="text-muted hover:text-ink" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -549,6 +556,61 @@ export default function UsersPage() {
                   <Copy size={14} />
                 )}
                 {copiedResentLink ? "Copied" : "Copy"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Password Reset Modal (with copyable link) */}
+      <Modal
+        open={!!resetResult}
+        onClose={() => {
+          setResetResult(null);
+          setCopiedResetLink(false);
+        }}
+        title="Password Reset Link Generated"
+        footer={
+          <Button
+            variant="primary"
+            onClick={() => {
+              setResetResult(null);
+              setCopiedResetLink(false);
+            }}
+          >
+            Done
+          </Button>
+        }
+      >
+        {resetResult && (
+          <div className="space-y-3 py-1">
+            <p className="text-[13px] text-muted leading-relaxed">
+              A fresh 48-hour password setup email has been queued for <b>{resetResult.user.email}</b>.
+              You can also copy the link directly and share it with them:
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={resetResult.resetUrl}
+                className="mono w-full rounded border border-line bg-surface/70 py-1.5 px-3 text-[12.5px] text-ink font-medium select-all"
+              />
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => {
+                  navigator.clipboard.writeText(resetResult.resetUrl);
+                  setCopiedResetLink(true);
+                  toast.push("Password reset link copied!");
+                  setTimeout(() => setCopiedResetLink(false), 2000);
+                }}
+              >
+                {copiedResetLink ? (
+                  <Check size={14} className="text-teal-deep" />
+                ) : (
+                  <Copy size={14} />
+                )}
+                {copiedResetLink ? "Copied" : "Copy"}
               </Button>
             </div>
           </div>
