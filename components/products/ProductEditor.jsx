@@ -54,7 +54,7 @@ const NUTRITION_FIELDS = [
 const EMPTY = {
   name: "",
   slug: "",
-  category: "Betta",
+  category: CATEGORIES[0],
   status: "Draft",
   badge: "None",
   protein: 42,
@@ -170,7 +170,7 @@ function toForm(api) {
   return {
     name: api.name || "",
     slug: api.slug || "",
-    category: api.categoryLabel || api.category || "Betta",
+    category: api.categoryLabel || api.category || CATEGORIES[0],
     status: api.statusLabel || api.status || "Draft",
     badge: api.badge || "None",
     protein: api.protein ?? 42,
@@ -890,7 +890,9 @@ export function ProductEditor({ initial }) {
               </Field>
               <Field label="Category" required error={errors.category}>
                 <Select value={form.category} onChange={(e) => set({ category: e.target.value })}>
-                  {CATEGORIES.map((c) => (
+                  {/* A product still on a legacy species category keeps it listed, so
+                      opening it doesn't silently show (and save) a different one. */}
+                  {(CATEGORIES.includes(form.category) ? CATEGORIES : [form.category, ...CATEGORIES]).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
