@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Eye, Upload, ExternalLink, Pencil, PackageSearch, ArrowUpDown } from "lucide-react";
 import { useData, useAuth } from "@/lib/store";
-import { CATEGORIES, catColor, PROD_STATUS_PILL, PRODUCT_STATUSES } from "@/lib/constants";
+import { catColor, PROD_STATUS_PILL, PRODUCT_STATUSES } from "@/lib/constants";
+import { useCategories } from "@/lib/useCategories";
 
 /** CMS status label -> the enum the API expects. */
 const STATUS_ENUM = {
@@ -58,6 +59,7 @@ function ProductsInner() {
   const permissions = useAuth((s) => s.permissions);
   const { data, meta, loading, error } = useData((s) => s.products);
   const loadProducts = useData((s) => s.loadProducts);
+  const { allLabels } = useCategories();
   const publishProduct = useData((s) => s.publishProduct);
   const productPreviewToken = useData((s) => s.productPreviewToken);
   const toast = useToast();
@@ -221,7 +223,7 @@ function ProductsInner() {
           />
           <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-auto">
             <option value="All">All categories</option>
-            {CATEGORIES.map((c) => (
+            {allLabels.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </Select>

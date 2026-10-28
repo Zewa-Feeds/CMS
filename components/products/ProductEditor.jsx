@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +29,7 @@ import {
 } from "@/lib/form-errors";
 import { useToast } from "@/components/ui/Toast";
 import { CATEGORIES, BADGES, PRODUCT_STATUSES } from "@/lib/constants";
+import { useCategories } from "@/lib/useCategories";
 import { slugify, sanitizeStockInput } from "@/lib/utils";
 import { Breadcrumbs, PageHeader } from "@/components/ui/Page";
 import { Card, CardHead, CardTitle, CardBody } from "@/components/ui/Card";
@@ -223,6 +225,7 @@ export function ProductEditor({ initial }) {
 
   const isNew = !initial;
   const [form, setForm] = useState(() => toForm(initial));
+  const { activeLabels } = useCategories();
   const [tab, setTab] = useState("basic");
   const [errors, setErrors] = useState({});
   /* What the last failed save objected to, kept until the next save attempt so
@@ -888,11 +891,23 @@ export function ProductEditor({ initial }) {
                   onChange={(e) => set({ slug: slugify(e.target.value) })}
                 />
               </Field>
-              <Field label="Category" required error={errors.category}>
+              <Field
+                label="Category"
+                required
+                error={errors.category}
+                hint={
+                  <>
+                    New product line?{" "}
+                    <Link href="/products/categories" className="underline hover:text-ink">
+                      Add a category
+                    </Link>
+                  </>
+                }
+              >
                 <Select value={form.category} onChange={(e) => set({ category: e.target.value })}>
-                  {/* A product still on a legacy species category keeps it listed, so
-                      opening it doesn't silently show (and save) a different one. */}
-                  {(CATEGORIES.includes(form.category) ? CATEGORIES : [form.category, ...CATEGORIES]).map((c) => (
+                  {/* A product still on a hidden category keeps it listed, so opening
+                      it doesn't silently show (and save) a different one. */}
+                  {(activeLabels.includes(form.category) ? activeLabels : [form.category, ...activeLabels]).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
