@@ -38,6 +38,9 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
   const [notify, setNotify] = useState(true);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  // Shipped order coming back: counts towards the Zewa Seeds RTO rule.
+  const [deliveryFailed, setDeliveryFailed] = useState(false);
+  const wasShipped = String(order?.status || "").toUpperCase() === "SHIPPED";
 
   const fieldsList = transitionSpec?.fields || [];
   const emailInfo = transitionSpec?.email || null;
@@ -77,7 +80,7 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
     try {
       await transitionOrder(order.orderNo || order.no, {
         to: targetCode,
-        fields: vals,
+        fields: isDanger && wasShipped && deliveryFailed ? { ...vals, deliveryFailed: true } : vals,
         internalNote: note.trim() || undefined,
         notifyCustomer: Boolean(emailInfo) && notify,
       });
@@ -171,19 +174,37 @@ export function AdvanceStatusModal({ order, target, onFinished, onClose }) {
                 {(
                   Math.max(0, (order.totalPaise ?? 0) - (order.refundedPaise ?? 0)) / 100
                 ).toLocaleString("en-IN")}{" "}
-                will still be held from the customer. Stock is returned and the coupon reversed,
-                but you must issue the refund yourself from the order page afterwards.
+                will still be held from the customer. Stock is returned, the coupon reversed and any
+                Zewa Seeds used are given back, but you must issue the refund yourself from the order
+                page afterwards.
               </WarnBox>
             ) : (
               <WarnBox>
-                Cancelling stops fulfilment for this order. Stock is returned and any coupon
-                redemption is reversed.
+                Cancelling stops fulfilment for this order. Stock is returned, any coupon
+                redemption is reversed and any Zewa Seeds used are given back.
               </WarnBox>
             )}
           </div>
         )}
 
         {fieldsList.map((f) => renderField(f))}
+
+        {isDanger && wasShipped && (
+          <div className="mb-4">
+            <Checkbox
+              checked={deliveryFailed}
+              onChange={setDeliveryFailed}
+              label={
+                <span>
+                  <span className="font-medium">Returned to us or refused at delivery</span>
+                  <span className="block text-[12px] text-muted">
+                    Counts towards the Zewa Seeds rule: 3 in 90 days suspends earning on the account.
+                  </span>
+                </span>
+              }
+            />
+          </div>
+        )}
 
         <Field label="Internal note" hint="Saved to the order. Never sent to the customer.">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
