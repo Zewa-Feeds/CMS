@@ -129,6 +129,9 @@ export function ArticleEditor({ initial }) {
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
 
   const canPublish = permissions.includes("articles.publish");
+  // Mirrors the backend: a publish by anyone other than an Admin emails the Admins.
+  const role = useAuth((s) => s.role);
+  const notifiesAdmins = canPublish && role !== "admin";
   const canDelete = permissions.includes("articles.delete");
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
@@ -582,6 +585,9 @@ export function ArticleEditor({ initial }) {
                   </div>
                 )}
                 <p className="text-[11.5px] text-muted">Checked now, published within a minute of the time, with the same checks as Publish now.</p>
+                {notifiesAdmins && (
+                  <p className="text-[11.5px] text-muted">Admins are emailed when you publish, schedule or unpublish an article.</p>
+                )}
               </CardBody>
             </Card>
           )}
