@@ -512,6 +512,120 @@ function BlogTab({ s, update, issuesAt }) {
 // ABOUT
 // ============================================================================
 
+/** The id the storefront will embed, or null — mirrors parseYouTube in the API, which re-checks on save. */
+function youtubeIdOf(link) {
+  const raw = (link ?? "").trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^(www|m)\./, "");
+    const [, kind, rest] = url.pathname.split("/");
+    const id =
+      host === "youtu.be" ? kind
+      : host === "youtube.com" ? (kind === "watch" ? url.searchParams.get("v") : ["shorts", "embed", "live"].includes(kind) ? rest : null)
+      : null;
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function FounderCardEditor({ card, update, P, assets, issuesAt }) {
+  const c = card ?? { name: "", lines: [], photo: null, alt: "" };
+  const set = (key, v) => update(["about", "founderCard", key], v);
+  return (
+    <Card>
+      <CardHead>
+        <CardTitle>Founder card</CardTitle>
+      </CardHead>
+      <CardBody className="space-y-3">
+        <InfoBox>
+          One card, shown in three places: the end of the About page, the foot of /letters, and under every letter.
+          Changing it here changes all three on the next publish.
+        </InfoBox>
+        <AssetSlot label="Photo" placement={P["about.founderCard"]} value={c.photo} assets={assets} onChange={(v) => set("photo", v)} serverIssues={issuesAt("about.founderCard.photo")} />
+        <p className="text-[12px] text-muted">With no photo picked, the storefront uses the portrait bundled with the site.</p>
+        <Field label="Photo alt text">
+          <Input value={c.alt} onChange={(e) => set("alt", e.target.value)} />
+        </Field>
+        <IssueList issues={issuesAt("about.founderCard.alt")} />
+        <Field label="Name" required>
+          <Input value={c.name} maxLength={80} onChange={(e) => set("name", e.target.value)} />
+        </Field>
+        <Field label="Credentials" hint="Shown under the name, one line each (up to 4).">
+          <Textarea
+            rows={Math.max(3, c.lines.length + 1)}
+            value={c.lines.join("\n")}
+            onChange={(e) => set("lines", e.target.value.split("\n").slice(0, 4))}
+            onBlur={(e) => set("lines", e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 4))}
+          />
+        </Field>
+      </CardBody>
+    </Card>
+  );
+}
+
+function MediaUpdatesEditor({ media, update, issuesAt }) {
+  const m = media ?? { enabled: false, eyebrow: "", title: "", videos: [] };
+  const set = (key, v) => update(["about", "mediaUpdates", key], v);
+  const videos = m.videos;
+  const setVideos = (v) => set("videos", v);
+  return (
+    <Card>
+      <CardHead>
+        <CardTitle>Latest media updates</CardTitle>
+        <div className="ml-auto flex items-center gap-3">
+          <Switch checked={m.enabled} onChange={(v) => set("enabled", v)} label={m.enabled ? "Shown" : "Hidden"} />
+          <Button size="sm" disabled={videos.length >= 4} onClick={() => setVideos([...videos, { url: "", title: "" }])}>
+            <Plus size={13} /> Add video
+          </Button>
+        </div>
+      </CardHead>
+      <CardBody className="space-y-3">
+        <p className="text-[12px] text-muted">Shown after the milestones, two videos side by side. The first video is on the left.</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Eyebrow">
+            <Input value={m.eyebrow} maxLength={60} onChange={(e) => set("eyebrow", e.target.value)} />
+          </Field>
+          <Field label="Heading">
+            <Input value={m.title} maxLength={160} onChange={(e) => set("title", e.target.value)} />
+          </Field>
+        </div>
+        <IssueList issues={issuesAt("about.mediaUpdates.videos")} />
+        {videos.map((v, i) => {
+          const setV = (key, val) => setVideos(videos.map((x, j) => (j === i ? { ...x, [key]: val } : x)));
+          const id = youtubeIdOf(v.url);
+          return (
+            <div key={i} className="rounded-lg border border-line p-3">
+              <div className="mb-3 flex items-center gap-2">
+                <Button variant="ghost" size="icon-sm" disabled={i === 0} onClick={() => setVideos(move(videos, i, -1))} aria-label="Move up"><ChevronUp size={14} /></Button>
+                <Button variant="ghost" size="icon-sm" disabled={i === videos.length - 1} onClick={() => setVideos(move(videos, i, 1))} aria-label="Move down"><ChevronDown size={14} /></Button>
+                <span className="text-[13px] font-semibold">Video {i + 1}{i === 0 ? " (left)" : i === 1 ? " (right)" : ""}</span>
+                <Button variant="danger" size="sm" className="ml-auto" onClick={() => setVideos(videos.filter((_, j) => j !== i))}><Trash2 size={13} /> Remove</Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-[1fr_240px]">
+                <div>
+                  <Field label="YouTube link" required hint="Paste the link from YouTube’s Share button. A ?t=270s start time is kept.">
+                    <Input className="mono" value={v.url} onChange={(e) => setV("url", e.target.value.trim())} />
+                  </Field>
+                  {v.url && !id && <p className="text-[12px] text-red-deep">That isn’t a YouTube video link.</p>}
+                  <IssueList issues={issuesAt(`about.mediaUpdates.videos.${i}.url`)} />
+                  <Field label="Title" required hint="Announced by screen readers.">
+                    <Input value={v.title} maxLength={200} onChange={(e) => setV("title", e.target.value)} />
+                  </Field>
+                </div>
+                {id && (
+                  <img src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt="Video thumbnail" className="aspect-video w-full rounded-md border border-line object-cover" />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </CardBody>
+    </Card>
+  );
+}
+
 function AboutTab({ s, update, P, assets, issuesAt }) {
   const ms = s.milestones;
   const logos = s.logos;
@@ -540,6 +654,10 @@ function AboutTab({ s, update, P, assets, issuesAt }) {
           )}
         </CardBody>
       </Card>
+
+      <FounderCardEditor card={s.founderCard} update={update} P={P} assets={assets} issuesAt={issuesAt} />
+
+      <MediaUpdatesEditor media={s.mediaUpdates} update={update} issuesAt={issuesAt} />
 
       <Card>
         <CardHead>

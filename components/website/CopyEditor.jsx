@@ -251,7 +251,8 @@ export const ABOUT_COPY_SECTIONS = [
   {
     key: "cta",
     title: "Closing call to action",
-    fields: [{ key: "title", label: "Heading", max: 160 }, { key: "body", label: "Body", kind: "textarea", max: 300 }, cta("primary", "Primary button"), cta("secondary", "Secondary button")],
+    // No heading: the founder card sits beside this now.
+    fields: [{ key: "body", label: "Body", kind: "textarea", max: 300 }, cta("primary", "Primary button"), cta("secondary", "Secondary button")],
   },
 ];
 
