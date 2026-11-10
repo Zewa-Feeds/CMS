@@ -233,6 +233,8 @@ export function SendCustomerEmailModal({
           <WarnBox>
             <strong>Confirmation required:</strong> You are about to send this broadcast email to{" "}
             <strong>{audienceLabels[audience]}</strong>. Once sent, emails are delivered immediately to customers.
+            {" "}Only customers who may receive marketing email are included: everyone who bought before
+            11 Nov 2026, plus later customers who ticked the opt-in box. Anyone who has unsubscribed is skipped.
           </WarnBox>
         </div>
       )}
@@ -253,6 +255,9 @@ export function SendCustomerEmailModal({
                 <option value="with_orders">Customers with Orders (Existing Buyers)</option>
                 <option value="custom">Custom Email Addresses List</option>
               </select>
+              <p className="mt-1.5 text-[11.5px] text-muted-2">
+                Every email carries an unsubscribe link. Addresses that have unsubscribed are always skipped.
+              </p>
             </Field>
           )}
 

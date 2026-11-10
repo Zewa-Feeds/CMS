@@ -1,0 +1,30 @@
+# The test suite on every push and pull request.
+#
+# The production build is left to Vercel. It reads published content from the
+# live API, which CI should not depend on.
+#
+# To make this a gate, turn on branch protection for `main` in GitHub
+# (Settings > Branches): require a pull request and the "test" check.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test

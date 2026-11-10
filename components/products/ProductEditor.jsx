@@ -301,7 +301,7 @@ export function ProductEditor({ initial }) {
     if (!form.name.trim()) e.name = "Product name is required.";
     if (!form.slug.trim()) e.slug = "Slug is required.";
     if (!form.shortDesc.trim()) e.shortDesc = "Short description is required.";
-    if (form.shortDesc.length > 200) e.shortDesc = "Short description cannot exceed 200 characters.";
+    if (form.shortDesc.length > 320) e.shortDesc = "Short description cannot exceed 320 characters.";
     if (form.protein === "" || Number(form.protein) < 0) e.protein = "Enter a protein %.";
 
     // Variant validation
@@ -946,11 +946,11 @@ export function ProductEditor({ initial }) {
                 label="Short Description"
                 required
                 error={errors.shortDesc}
-                hint="Shown under product name on PDP (max 200 chars)."
-                counter={`${form.shortDesc.length}/200`}
+                hint="Shown under the product name and on product cards (max 320 chars)."
+                counter={`${form.shortDesc.length}/320`}
               >
                 <Textarea
-                  maxLength={200}
+                  maxLength={320}
                   value={form.shortDesc}
                   bad={!!errors.shortDesc}
                   onChange={(e) => set({ shortDesc: e.target.value })}
