@@ -485,6 +485,9 @@ function ProductsTab({ s, update, P, assets, issuesAt }) {
 // BLOG
 // ============================================================================
 
+/** Matches DEFAULT_BLOG_QUOTE in the API, for drafts saved before the field existed. */
+const QUOTE_DEFAULT = { text: "Every formula we publish is cross-referenced with actual lab digestibility data — not marketing claims.", attribution: "Zewa Research Team" };
+
 function BlogTab({ s, update, issuesAt }) {
   const options = usePublishedArticles();
   const [topicsText, setTopicsText] = useState(s.topics.join(", "));
@@ -516,6 +519,31 @@ function BlogTab({ s, update, issuesAt }) {
               }}
             />
           </Field>
+        </CardBody>
+      </Card>
+      <Card>
+        <CardHead><CardTitle>Pull quote</CardTitle></CardHead>
+        <CardBody className="space-y-3">
+          <Field
+            label="Quote"
+            counter={`${(s.quote?.text ?? "").length}/240`}
+            hint="The large quote between the articles and “More articles on the way” on /blog."
+          >
+            <Textarea
+              rows={3}
+              maxLength={240}
+              value={(s.quote ?? QUOTE_DEFAULT).text}
+              onChange={(e) => update(["blog", "quote"], { ...(s.quote ?? QUOTE_DEFAULT), text: e.target.value })}
+            />
+          </Field>
+          <Field label="Attribution" counter={`${(s.quote?.attribution ?? "").length}/80`} hint="Shown under the quote, e.g. “Zewa Research Team”. Leave empty to hide it.">
+            <Input
+              maxLength={80}
+              value={(s.quote ?? QUOTE_DEFAULT).attribution}
+              onChange={(e) => update(["blog", "quote"], { ...(s.quote ?? QUOTE_DEFAULT), attribution: e.target.value })}
+            />
+          </Field>
+          <IssueList issues={issuesAt("blog.quote")} />
         </CardBody>
       </Card>
     </div>
