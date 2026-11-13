@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Field";
-import { stockStatus, sanitizeStockInput } from "@/lib/utils";
+import { stockStatus, sanitizeStockInput, skuStockSummary, skuStockLabel } from "@/lib/utils";
 import { Pill } from "@/components/ui/Pill";
 
 const TONE = { "In Stock": "green", "Low Stock": "amber", "Out of Stock": "red" };
@@ -81,11 +81,12 @@ export function StockModal({ product, onClose, onSaved }) {
     }
   };
 
-  const total = variants.reduce((a, v) => {
+  const typed = (v) => {
     const raw = vals[v.sku];
-    const n = raw === "" || raw === null || raw === undefined ? 0 : parseInt(raw, 10) || 0;
-    return a + n;
-  }, 0);
+    return raw === "" || raw === null || raw === undefined ? 0 : parseInt(raw, 10) || 0;
+  };
+  const total = variants.reduce((a, v) => a + typed(v), 0);
+  const summary = skuStockSummary(variants, typed);
 
   return (
     <Modal
@@ -114,6 +115,12 @@ export function StockModal({ product, onClose, onSaved }) {
                   {v.pack} · currently {v.stock}
                 </div>
               </div>
+              {/* Each SKU's own state, live as you type: the family total hides an empty pack. */}
+              {v.isActive === false ? (
+                <Pill tone="grey">Not for sale</Pill>
+              ) : (
+                <Pill tone={TONE[stockStatus(typed(v))]}>{stockStatus(typed(v))}</Pill>
+              )}
               <Input
                 type="number"
                 min={0}
@@ -139,7 +146,7 @@ export function StockModal({ product, onClose, onSaved }) {
           <span className="text-muted">New family total</span>
           <span className="mono font-semibold">{total}</span>
           <span className="ml-auto">
-            <Pill tone={TONE[stockStatus(total)]}>{stockStatus(total)}</Pill>
+            <Pill tone={TONE[summary.worst]}>{skuStockLabel(summary, total)}</Pill>
           </span>
         </div>
       </div>

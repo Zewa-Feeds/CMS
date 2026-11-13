@@ -15,7 +15,7 @@ const STATUS_ENUM = {
   "Coming Soon": "COMING_SOON",
   Discontinued: "DISCONTINUED",
 };
-import { stockStatus } from "@/lib/utils";
+import { stockStatus, skuStockSummary, skuStockLabel } from "@/lib/utils";
 import { Breadcrumbs, PageHeader, FilterBar, SearchInput } from "@/components/ui/Page";
 import { Card } from "@/components/ui/Card";
 import { Button, button } from "@/components/ui/Button";
@@ -36,20 +36,104 @@ import { StockModal } from "@/components/products/StockModal";
 import { DisplayOrderPanel } from "@/components/products/DisplayOrderPanel";
 import { useToast } from "@/components/ui/Toast";
 
+const STOCK_TONE = { "In Stock": "green", "Low Stock": "amber", "Out of Stock": "red" };
+
+/**
+ * The product's stock judged by its WORST SKU, not the family total
+ * (lib/utils skuStockSummary): "Out of Stock · 2 SKUs" when any pack is empty.
+ */
 function StockCell({ product, onEdit, editable }) {
-  const s = stockStatus(product.stock);
-  const tone = s === "In Stock" ? "green" : s === "Low Stock" ? "amber" : "red";
-  const label =
-    s === "In Stock"
-      ? `In Stock · ${product.stock}`
-      : s === "Low Stock"
-      ? `Low Stock — ${product.stock}`
-      : "Out of Stock";
+  const summary = product.skuStock ?? skuStockSummary(product.variants);
+  const tone = STOCK_TONE[summary.worst];
+  const label = skuStockLabel(summary, product.stock);
   if (!editable) return <Pill tone={tone}>{label}</Pill>;
   return (
     <button onClick={onEdit} title="Click to update stock" className="cursor-pointer">
       <Pill tone={tone}>{label}</Pill>
     </button>
+  );
+}
+
+/**
+ * One row per SKU across the filtered products, lowest stock first.
+ *
+ * The stock filter applies per SKU here: "Low / Out" lists only the packs
+ * under 10, "Out of stock" only the empty ones. Clicking a stock pill opens
+ * the same Update stock window as the product view.
+ */
+function SkuTable({ rows, stockFilter, editable, onEdit }) {
+  const skus = rows
+    .flatMap((p) => (p.variants ?? []).map((v) => ({ product: p, v, stock: Number(v.stock) || 0 })))
+    .filter(({ v, stock }) => {
+      if (v.isActive === false) return stockFilter === "All";
+      if (stockFilter === "Out") return stock <= 0;
+      if (stockFilter === "Low/Out") return stock < 10;
+      return true;
+    });
+  const {
+    sortedItems,
+    sortKey,
+    sortDir,
+    toggleSort,
+  } = useSortableTable(
+    skus,
+    { key: "stock", dir: "asc" },
+    {
+      product: (r) => r.product.name,
+      sku: (r) => r.v.sku,
+      stock: (r) => (r.v.isActive === false ? Number.MAX_SAFE_INTEGER : r.stock),
+    },
+  );
+  if (skus.length === 0) {
+    return (
+      <EmptyState icon={PackageSearch} title="No SKUs match">
+        Every pack is above the threshold for this filter.
+      </EmptyState>
+    );
+  }
+  return (
+    <TableWrap>
+      <Table>
+        <thead>
+          <tr>
+            <Th sortable active={sortKey === "product"} dir={sortDir} onSort={() => toggleSort("product", "asc")}>Product</Th>
+            <Th sortable active={sortKey === "sku"} dir={sortDir} onSort={() => toggleSort("sku", "asc")}>SKU</Th>
+            <Th>Pack</Th>
+            <Th sortable active={sortKey === "stock"} dir={sortDir} onSort={() => toggleSort("stock", "asc")}>Stock</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedItems.map(({ product, v, stock }) => {
+            const s = v.isActive === false ? null : stockStatus(stock);
+            const pill = s ? (
+              <Pill tone={STOCK_TONE[s]}>{s === "Out of Stock" ? "Out of Stock" : `${s} · ${stock}`}</Pill>
+            ) : (
+              <Pill tone="grey">Not for sale · {stock}</Pill>
+            );
+            return (
+              <Tr key={`${product.id}-${v.sku}`}>
+                <Td>
+                  <Link href={`/products/${product.slug}/edit`} className="font-medium hover:underline">
+                    {product.name}
+                  </Link>
+                </Td>
+                <Td><span className="mono text-[12.5px]">{v.sku}</span></Td>
+                <Td><span className="text-[13px] text-muted">{v.pack}</span></Td>
+                <Td>
+                  {editable ? (
+                    <button onClick={() => onEdit(product)} title="Click to update stock" className="cursor-pointer">
+                      {pill}
+                    </button>
+                  ) : (
+                    pill
+                  )}
+                </Td>
+              </Tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </TableWrap>
   );
 }
 
@@ -128,6 +212,11 @@ function ProductsInner() {
   };
 
   const [stockEdit, setStockEdit] = useState(null); // product being stock-edited
+  /*
+   * "products" = one row per family (the catalogue); "skus" = one row per pack,
+   * lowest stock first, so low and empty packs can be scanned and topped up.
+   */
+  const [view, setView] = useState("products");
 
   /**
    * Filtering happens SERVER-side (§5.1) — the API owns category, status, stock
@@ -173,7 +262,11 @@ function ProductsInner() {
     {
       name: (p) => p.name,
       cat: (p) => p.cat,
-      stock: (p) => p.stock ?? 0,
+      // Worst SKU first when sorting ascending: out (0) < low (1) < in (2), then total.
+      stock: (p) => {
+        const w = (p.skuStock ?? skuStockSummary(p.variants)).worst;
+        return (w === "Out of Stock" ? 0 : w === "Low Stock" ? 1 : 2) * 1e6 + (p.stock ?? 0);
+      },
       status: (p) => p.status,
       updatedAt: (p) => (p.updatedAt ? new Date(p.updatedAt).getTime() : 0),
     }
@@ -187,6 +280,22 @@ function ProductsInner() {
         sub={`${meta?.total ?? rows.length} product families in the catalogue`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex overflow-hidden rounded-md border border-line-soft" role="group" aria-label="View">
+              {[
+                ["products", "Products"],
+                ["skus", "SKUs"],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={view === key}
+                  onClick={() => setView(key)}
+                  className={`px-3 py-1.5 text-[12.5px] font-medium ${view === key ? "bg-ink text-white" : "bg-card text-muted hover:text-ink"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <Button
               variant={ordering ? "dark" : "default"}
               onClick={() => setOrdering((v) => !v)}
@@ -256,6 +365,8 @@ function ProductsInner() {
           <EmptyState icon={PackageSearch} title="No products match">
             Try clearing the filters or search term.
           </EmptyState>
+        ) : view === "skus" ? (
+          <SkuTable rows={rows} stockFilter={stock} editable={editable} onEdit={setStockEdit} />
         ) : (
           <TableWrap>
             <Table>
