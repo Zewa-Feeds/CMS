@@ -57,6 +57,7 @@ export function WebsiteEditor() {
   const [busy, setBusy] = useState(false);
   const [check, setCheck] = useState({ issues: [], errors: 0, warnings: 0 });
   const [publishing, setPublishing] = useState(false);
+  const [showChecks, setShowChecks] = useState(false);
   const [conflict, setConflict] = useState(false);
 
   const assets = useAssets(useMemo(() => assetIdsIn(sections), [sections]));
@@ -161,8 +162,20 @@ export function WebsiteEditor() {
         ) : (
           <Pill tone="grey" dot={false}>Draft matches live</Pill>
         )}
-        {check.errors > 0 && <Pill tone="red">{check.errors} to fix</Pill>}
-        {check.warnings > 0 && <Pill tone="amber" dot={false}>{check.warnings} warning{check.warnings > 1 ? "s" : ""}</Pill>}
+        {/*
+          Clickable: the count alone told nobody what was wrong, and the list
+          only lived in the Admin-only Publish dialog (Nov 2026).
+        */}
+        {check.errors > 0 && (
+          <button type="button" onClick={() => setShowChecks(true)} title="See what to fix" className="cursor-pointer">
+            <Pill tone="red">{check.errors} to fix</Pill>
+          </button>
+        )}
+        {check.warnings > 0 && (
+          <button type="button" onClick={() => setShowChecks(true)} title="See the warnings" className="cursor-pointer">
+            <Pill tone="amber" dot={false}>{check.warnings} warning{check.warnings > 1 ? "s" : ""} ›</Pill>
+          </button>
+        )}
         <Link href="/content/publishing" className="text-[12.5px] text-muted underline-offset-2 hover:underline">
           Publishing history
         </Link>
@@ -217,6 +230,7 @@ export function WebsiteEditor() {
         />
       )}
 
+      <ChecksModal open={showChecks} check={check} onClose={() => setShowChecks(false)} />
       <PublishModal
         open={publishing}
         check={check}
@@ -756,6 +770,43 @@ function AboutTab({ s, update, P, assets, issuesAt }) {
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+// ============================================================================
+// CHECKS
+// ============================================================================
+
+/**
+ * What the warnings pill counts: every image placement compared with the asset
+ * specification (size, shape, format). Warnings never block publishing; an
+ * image that breaks the spec still shows, just possibly stretched or cropped.
+ * Errors (missing required content) do block it.
+ */
+function ChecksModal({ open, check, onClose }) {
+  const errors = check.issues.filter((i) => i.level === "error");
+  const warnings = check.issues.filter((i) => i.level === "warning");
+  const label = (i) => ({ ...i, message: `${i.path.replace(/\./g, " › ")} — ${i.message}` });
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      wide
+      title="Content checks"
+      sub="Each image on the website is checked against the asset specification. Warnings don't stop a publish; replace the image in the section named to clear one."
+      footer={<Button onClick={onClose}>Close</Button>}
+    >
+      <div className="space-y-3 px-[18px] pb-4">
+        {errors.length > 0 && <WarnBox>Fix {errors.length} problem{errors.length > 1 ? "s" : ""} before publishing:</WarnBox>}
+        {errors.length + warnings.length > 0 ? (
+          <div className="max-h-[360px] overflow-y-auto rounded-md border border-line p-2.5">
+            <IssueList issues={[...errors, ...warnings].map(label)} />
+          </div>
+        ) : (
+          <InfoBox>Every placement fits the asset specification.</InfoBox>
+        )}
+      </div>
+    </Modal>
   );
 }
 
