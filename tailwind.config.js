@@ -43,8 +43,14 @@ module.exports = {
         pop: "0 16px 40px -12px rgba(15,22,38,.22), 0 4px 12px rgba(15,22,38,.06)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
-        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        /*
+         * The fallback INSIDE var() matters: if --font-sans is ever undefined
+         * (Nov 2026: a Vercel build served HTML whose font class didn't match
+         * its stylesheet), a bare var() makes the whole declaration invalid and
+         * the browser drops to Times. With a fallback it drops to system sans.
+         */
+        sans: ["var(--font-sans, system-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono, ui-monospace)", "ui-monospace", "SFMono-Regular", "monospace"],
       },
       maxWidth: {
         shell: "1280px",

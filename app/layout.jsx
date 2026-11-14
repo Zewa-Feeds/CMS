@@ -7,6 +7,7 @@ const sans = Instrument_Sans({
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
+  fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 });
 
 const mono = IBM_Plex_Mono({
@@ -14,6 +15,7 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
   variable: "--font-mono",
   display: "swap",
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
 });
 
 export const metadata = {
