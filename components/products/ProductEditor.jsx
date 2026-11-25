@@ -1127,7 +1127,10 @@ export function ProductEditor({ initial }) {
                         />
                       </Td>
                       <Td right>
-                        {form.variants.length > 1 && (
+                        {/* Only a pack added in this session (no id yet) can be removed.
+                            A saved pack is never taken off sale from here: removing one
+                            used to switch it off with no way back (M3-1KG, 19 Nov 2026). */}
+                        {form.variants.length > 1 && !v.id && (
                           <Button variant="ghost" size="icon-sm" onClick={() => removeVariant(i)}>
                             <Trash2 size={14} className="text-muted" />
                           </Button>
