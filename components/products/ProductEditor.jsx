@@ -19,7 +19,7 @@ import {
   FileText,
   RotateCcw,
 } from "lucide-react";
-import { useData } from "@/lib/store";
+import { useData, useAuth } from "@/lib/store";
 import { checkUploadFile } from "@/lib/api";
 import {
   TAB_LABELS,
@@ -41,6 +41,7 @@ import { RichText } from "@/components/ui/RichText";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { MediaLightbox } from "@/components/ui/MediaLightbox";
 import MediaManager from "@/components/products/MediaManager";
+import { StockModal } from "@/components/products/StockModal";
 import { TableWrap, Table, Th, Td, Tr } from "@/components/ui/Table";
 
 const NUTRITION_FIELDS = [
@@ -221,9 +222,36 @@ export function ProductEditor({ initial }) {
   const productPreviewToken = useData((s) => s.productPreviewToken);
   const deleteProduct = useData((s) => s.deleteProduct);
   const uploadAsset = useData((s) => s.uploadAsset);
+  const getProduct = useData((s) => s.getProduct);
+  const permissions = useAuth((s) => s.permissions);
   const toast = useToast();
 
   const isNew = !initial;
+
+  /*
+   * LIVE stock, kept apart from the form.
+   *
+   * Publishing never writes stock to a saved pack: the stock in a draft is a
+   * copy from whenever the editor was loaded, and writing it back undid orders
+   * placed in between (M3-1KG, 19 Nov 2026). So a saved pack shows its live
+   * count read-only, and changes go through the stock tool, which writes the
+   * live row immediately with an audit entry. `initial.variants` are the live
+   * rows; toForm() may have replaced the form's copy with the draft's.
+   * Only a pack added in this session keeps an input, for its initial stock.
+   */
+  const [liveVariants, setLiveVariants] = useState(() => initial?.variants ?? []);
+  const [stockOpen, setStockOpen] = useState(false);
+  const canEditStock = permissions?.includes("products.sku") ?? false;
+  const liveStockById = new Map(liveVariants.map((lv) => [lv.id, lv.stock ?? 0]));
+  const stockOf = (v) => (v.id && liveStockById.has(v.id) ? liveStockById.get(v.id) : v.stock);
+  const refreshLiveStock = async () => {
+    try {
+      const fresh = await getProduct(initial.slug);
+      setLiveVariants(fresh?.variants ?? []);
+    } catch (err) {
+      toast.push(err.message, { bad: true });
+    }
+  };
   const [form, setForm] = useState(() => toForm(initial));
   const { activeLabels } = useCategories();
   const [tab, setTab] = useState("basic");
@@ -1102,10 +1130,22 @@ export function ProductEditor({ initial }) {
                         )}
                       </Td>
                       <Td>
+                        {v.id ? (
+                          <div className="flex items-center gap-2" data-testid={`live-stock-${i}`}>
+                            <span className="w-10 text-right tabular-nums">{stockOf(v)}</span>
+                            {canEditStock && (
+                              <Button variant="ghost" size="sm" onClick={() => setStockOpen(true)}>
+                                Update stock
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
                         <Input
                           className="!py-1.5 w-20"
                           type="number"
                           min={0}
+                          aria-label={`Initial stock for ${v.sku || "new pack"}`}
+                          data-testid={`new-stock-${i}`}
                           value={v.stock === "" ? "" : v.stock}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
@@ -1118,6 +1158,7 @@ export function ProductEditor({ initial }) {
                             }
                           }}
                         />
+                        )}
                       </Td>
                       <Td>
                         <Input
@@ -1164,7 +1205,7 @@ export function ProductEditor({ initial }) {
                     </option>
                     {form.variants.filter((v) => v.sku?.trim()).map((v) => (
                       <option key={v.sku} value={v.sku}>
-                        {v.pack || v.sku} ({v.sku}) &mdash; ₹{v.price || 0} {Number(v.stock) <= 0 ? "· Out of Stock" : `· ${v.stock} in stock`}
+                        {v.pack || v.sku} ({v.sku}) &mdash; ₹{v.price || 0} {Number(stockOf(v)) <= 0 ? "· Out of Stock" : `· ${stockOf(v)} in stock`}
                       </option>
                     ))}
                   </Select>
@@ -1296,6 +1337,15 @@ export function ProductEditor({ initial }) {
           </div>
         }
       />
+
+      {/* The stock tool, on LIVE packs: it writes stock immediately, outside draft/publish. */}
+      {stockOpen && !isNew && (
+        <StockModal
+          product={{ slug: initial.slug, name: initial.name, variants: liveVariants }}
+          onClose={() => setStockOpen(false)}
+          onSaved={refreshLiveStock}
+        />
+      )}
 
       {/* Full-size media viewer. Rendered last so it layers above everything. */}
       {lightbox !== null && (
