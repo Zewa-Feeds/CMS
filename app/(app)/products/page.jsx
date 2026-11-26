@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/Table";
 import { RoleGate } from "@/components/shell/RoleGate";
 import { StockModal } from "@/components/products/StockModal";
+import { SkuStockEditor } from "@/components/products/SkuStockEditor";
 import { DisplayOrderPanel } from "@/components/products/DisplayOrderPanel";
 import { useToast } from "@/components/ui/Toast";
 
@@ -58,10 +59,11 @@ function StockCell({ product, onEdit, editable }) {
  * One row per SKU across the filtered products, lowest stock first.
  *
  * The stock filter applies per SKU here: "Low / Out" lists only the packs
- * under 10, "Out of stock" only the empty ones. Clicking a stock pill opens
- * the same Update stock window as the product view.
+ * under 10, "Out of stock" only the empty ones. Users who can manage stock
+ * edit each SKU's quantity right in its row (SkuStockEditor), through the same
+ * stock endpoint and audit trail as the Update stock window.
  */
-function SkuTable({ rows, stockFilter, editable, onEdit }) {
+function SkuTable({ rows, stockFilter, canEditStock, onSaved }) {
   const skus = rows
     .flatMap((p) => (p.variants ?? []).map((v) => ({ product: p, v, stock: Number(v.stock) || 0 })))
     .filter(({ v, stock }) => {
@@ -100,6 +102,7 @@ function SkuTable({ rows, stockFilter, editable, onEdit }) {
             <Th sortable active={sortKey === "sku"} dir={sortDir} onSort={() => toggleSort("sku", "asc")}>SKU</Th>
             <Th>Pack</Th>
             <Th sortable active={sortKey === "stock"} dir={sortDir} onSort={() => toggleSort("stock", "asc")}>Stock</Th>
+            {canEditStock && <Th>Quantity</Th>}
           </tr>
         </thead>
         <tbody>
@@ -119,15 +122,12 @@ function SkuTable({ rows, stockFilter, editable, onEdit }) {
                 </Td>
                 <Td><span className="mono text-[12.5px]">{v.sku}</span></Td>
                 <Td><span className="text-[13px] text-muted">{v.pack}</span></Td>
-                <Td>
-                  {editable ? (
-                    <button onClick={() => onEdit(product)} title="Click to update stock" className="cursor-pointer">
-                      {pill}
-                    </button>
-                  ) : (
-                    pill
-                  )}
-                </Td>
+                <Td>{pill}</Td>
+                {canEditStock && (
+                  <Td>
+                    <SkuStockEditor slug={product.slug} sku={v.sku} stock={stock} onSaved={onSaved} />
+                  </Td>
+                )}
               </Tr>
             );
           })}
@@ -366,7 +366,7 @@ function ProductsInner() {
             Try clearing the filters or search term.
           </EmptyState>
         ) : view === "skus" ? (
-          <SkuTable rows={rows} stockFilter={stock} editable={editable} onEdit={setStockEdit} />
+          <SkuTable rows={rows} stockFilter={stock} canEditStock={permissions.includes("products.sku")} onSaved={refetch} />
         ) : (
           <TableWrap>
             <Table>
