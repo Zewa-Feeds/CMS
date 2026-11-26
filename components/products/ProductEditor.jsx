@@ -64,6 +64,7 @@ const EMPTY = {
   shortDesc: "",
   fullDesc: "",
   benefits: [""],
+  faq: [],
   seoTitle: "",
   seoDesc: "",
   nutrition: {},
@@ -83,6 +84,7 @@ const TABS = [
   { key: "images", label: "Media" },
   { key: "nutrition", label: "Nutritional Analysis" },
   { key: "feeding", label: "Feeding Guide" },
+  { key: "faq", label: "FAQ" },
 ];
 
 /**
@@ -180,6 +182,8 @@ function toForm(api) {
     shortDesc: api.shortDesc || "",
     fullDesc: api.fullDesc || api.fullDescHtml || "",
     benefits: api.benefits?.length ? api.benefits : [""],
+    // From the draft when one exists (toForm merged it in above), else the live list.
+    faq: Array.isArray(api.faq) ? api.faq.map((f) => ({ q: f.q ?? "", a: f.a ?? "" })) : [],
     seoTitle: api.seoTitle || "",
     seoDesc: api.seoDesc || "",
     nutrition: api.nutrition || {},
@@ -402,6 +406,8 @@ export function ProductEditor({ initial }) {
     fullDesc: form.fullDesc || "",
     protein: Number(form.protein) || 0,
     benefits: form.benefits.filter((b) => b.trim().length > 0),
+    // Fully blank rows are dropped; the server rejects a half-filled one with a field error.
+    faq: form.faq.filter((f) => f.q.trim() || f.a.trim()).map((f) => ({ q: f.q.trim(), a: f.a.trim() })),
     feedFreq: form.feedFreq?.trim() || null,
     feedPortion: form.feedPortion?.trim() || null,
     feedNotes: form.feedNotes || null,
@@ -761,6 +767,19 @@ export function ProductEditor({ initial }) {
   const setBenefit = (i, val) => set({ benefits: form.benefits.map((b, idx) => (idx === i ? val : b)) });
   const addBenefit = () => form.benefits.length < 8 && set({ benefits: [...form.benefits, ""] });
   const removeBenefit = (i) => set({ benefits: form.benefits.filter((_, idx) => idx !== i) });
+
+  // FAQ helpers: an ordered list of { q, a }, shown on the product page and as FAQPage JSON-LD.
+  const FAQ_MAX = 20;
+  const setFaq = (i, patch) => set({ faq: form.faq.map((f, idx) => (idx === i ? { ...f, ...patch } : f)) });
+  const addFaq = () => form.faq.length < FAQ_MAX && set({ faq: [...form.faq, { q: "", a: "" }] });
+  const removeFaq = (i) => set({ faq: form.faq.filter((_, idx) => idx !== i) });
+  const moveFaq = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= form.faq.length) return;
+    const next = [...form.faq];
+    [next[i], next[j]] = [next[j], next[i]];
+    set({ faq: next });
+  };
 
   return (
     <>
@@ -1312,6 +1331,43 @@ export function ProductEditor({ initial }) {
                 />
               </Field>
             </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {tab === "faq" && (
+        <Card>
+          <CardBody>
+            <div className="mb-4 flex items-center gap-2 text-[13px] text-muted">
+              <FileText size={16} /> Questions and answers shown under the product, in this order. Plain text; up to {FAQ_MAX}.
+            </div>
+            {errors.faq && <div className="mb-3 text-[12.5px] leading-snug text-red">{errors.faq}</div>}
+            {form.faq.length === 0 && (
+              <p className="mb-3 text-[13px] text-muted-2">No FAQs yet. The product page shows no FAQ section until one is added.</p>
+            )}
+            {form.faq.map((f, i) => (
+              <div key={i} className="mb-4 rounded-[10px] border border-line p-3" data-testid={`faq-row-${i}`}>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[12px] font-semibold text-muted-2">#{i + 1}</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <Button variant="ghost" size="icon-sm" disabled={i === 0} onClick={() => moveFaq(i, -1)} aria-label={`Move FAQ ${i + 1} up`}><ChevronUp size={14} /></Button>
+                    <Button variant="ghost" size="icon-sm" disabled={i === form.faq.length - 1} onClick={() => moveFaq(i, 1)} aria-label={`Move FAQ ${i + 1} down`}><ChevronDown size={14} /></Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => removeFaq(i)} aria-label={`Remove FAQ ${i + 1}`}><Trash2 size={14} className="text-muted" /></Button>
+                  </div>
+                </div>
+                <Field label="Question">
+                  <Input value={f.q} maxLength={300} onChange={(e) => setFaq(i, { q: e.target.value })} aria-label={`FAQ ${i + 1} question`} />
+                </Field>
+                <Field label="Answer">
+                  <Textarea rows={3} value={f.a} maxLength={2000} onChange={(e) => setFaq(i, { a: e.target.value })} aria-label={`FAQ ${i + 1} answer`} />
+                </Field>
+              </div>
+            ))}
+            {form.faq.length < FAQ_MAX && (
+              <Button variant="ghost" size="sm" onClick={addFaq}>
+                <Plus size={14} /> Add FAQ
+              </Button>
+            )}
           </CardBody>
         </Card>
       )}
